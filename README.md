@@ -87,7 +87,7 @@ Read the existing Four Eyes Playbook and Templates in Linear first.
 Repo path: <repo path>
 Plan path: <local plan path>
 
-Act as orchestrator. Create or update one Linear issue from the plan, set the gate to Review, and give me Reviewer 1 and Reviewer 2 prompts. Do not execute yet.
+Act as orchestrator. Create or update one Linear issue from the plan, set the gate to Review, give me Reviewer 1 and Reviewer 2 prompts, and end with the current gate plus my exact next action. Do not execute yet.
 ```
 
 ## Example Agent Mix

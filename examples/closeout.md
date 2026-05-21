@@ -23,6 +23,9 @@ Committed:
 Resulting issue state will be set to:
 - Done
 
+Next human action:
+- None.
+
 Remaining work:
 - None.
 
@@ -33,4 +36,3 @@ Local cleanup:
 - Local execution plan removed.
 - Raw test output not retained.
 ```
-

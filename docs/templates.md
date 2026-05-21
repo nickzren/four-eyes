@@ -28,6 +28,14 @@ Before editing or execution, confirm the plan states acceptance criteria, non-go
 Set the current gate to Review. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, and Reviewer 1 / Reviewer 2 prompts.
 
 Do not paste secrets, raw identifiers, raw plans, raw logs, or sensitive evidence into the issue.
+
+End your response to the human with:
+- issue ID or link
+- current gate
+- why that gate is set
+- exact next human action
+- what you will do after that action
+- what remains out of scope or forbidden
 ```
 
 ## Local Plan Template
@@ -140,6 +148,10 @@ Current gate: Todo | Review | Approval | Waiting External Eval | Done
 
 <what is needed next: reviewer comments, human approval, execution, external eval, closeout>
 
+## Next Human Action
+
+<exact next action or approval phrase needed>
+
 ## Review Request
 
 Please review independently before reading other comments or orchestrator synthesis comments.
@@ -215,6 +227,18 @@ Verification:
 
 Current gate:
 - Ready for human approval | Needs another review | Blocked on <reason>
+
+Next human action:
+- <exact action needed, for example: Approved: execute <ISSUE-ID> <slice name> only.>
+
+If approved:
+- <what the orchestrator will do>
+
+If blocked:
+- <what the orchestrator will do>
+
+Still out of scope:
+- <actions still forbidden>
 ```
 
 ## Approval Request
@@ -237,6 +261,11 @@ Verification after execution:
 - <commands/checks>
 
 Please approve explicitly before I run it.
+
+Exact approval phrase:
+- Approved: execute <ISSUE-ID> <slice name> only.
+
+Adapt `execute` to the approved action when needed, such as merge, push, apply, deploy, close, or archive.
 ```
 
 ## Execution Log
@@ -259,6 +288,9 @@ Verification:
 
 Current gate:
 - Review | Approval | Executing | Waiting External Eval | Done
+
+Next human action:
+- <exact next action or none>
 
 Sensitive-data note:
 - <what remains local only>
@@ -304,6 +336,9 @@ Committed:
 
 Resulting issue state will be set to:
 - Done | Waiting External Eval | Follow-up created
+
+Next human action:
+- <none | approve closeout | validate external result | review follow-up>
 
 Remaining work:
 - <follow-up issue IDs or none>

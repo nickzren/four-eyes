@@ -52,9 +52,12 @@ Implement retry classification in the existing worker helper. Add focused tests 
 
 Waiting for Reviewer 1 and Reviewer 2 comments.
 
+## Next Human Action
+
+Send this issue to Reviewer 1 and Reviewer 2 with the reviewer prompt. Do not approve execution yet.
+
 ## Review Request
 
-Please review independently before reading other comments.
+Please review independently before reading other comments or orchestrator synthesis comments.
 
 Check acceptance criteria, scope, safety, tests, and whether this is ready for implementation.
-

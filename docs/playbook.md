@@ -38,6 +38,7 @@ Responsibilities:
 - resolve blockers or ask the human for an explicit override
 - execute only after the review gate is clear
 - post verification, commit summary, and remaining risks
+- after every issue or gate update, tell the human the current gate and exact next action
 
 ### Reviewer 1
 
@@ -144,6 +145,27 @@ Do not create separate reviewer child issues by default. Reviewer identity belon
 10. Orchestrator executes the approved slice and posts verification. Current gate: Waiting External Eval if delayed verification remains, otherwise Done when verified and closeout is authorized.
 11. Orchestrator commits only the intended tracked changes when requested or when the approved workflow calls for it.
 12. Orchestrator closes the issue only after verification, or moves it to an explicit waiting state.
+
+## Orchestrator Next-Action Rule
+
+After creating or updating an issue, changing a gate, posting a synthesis, requesting approval, or closing out work, the orchestrator must end its user-facing response with:
+
+- issue ID or link
+- current gate
+- why that gate is set
+- exact next human action
+- what the orchestrator will do after that action
+- what remains out of scope or forbidden
+
+When the current gate is Approval, include an exact approval phrase the human can send, such as:
+
+```text
+Approved: execute <ISSUE-ID> <slice name> only.
+```
+
+Adapt the approval verb to the action, such as execute, merge, push, apply, deploy, close, or archive.
+
+If execution is still forbidden, say that plainly.
 
 ## Implementation Discipline
 

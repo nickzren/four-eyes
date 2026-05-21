@@ -20,6 +20,20 @@ Verification:
 - Not run yet. This is still pre-implementation.
 
 Current gate:
-- Ready for human approval to implement.
-```
+- Approval.
 
+Next human action:
+- Approve or reject execution.
+
+Exact approval phrase:
+- Approved: execute EXAMPLE-123 retry classification slice only.
+
+If approved:
+- The orchestrator will edit only the reviewed files, run the agreed checks, and update the issue with verification.
+
+If blocked:
+- The orchestrator will keep the issue at Review or Blocked and address the blocker before execution.
+
+Still out of scope:
+- No deploys, data changes, unrelated refactors, or other slices.
+```
