@@ -4,7 +4,7 @@ Human-approved multi-agent review workflow.
 
 Four Eyes helps you use AI agents without pretending they are fully autonomous. Agents can plan, review, and execute, but a human approves risky actions.
 
-Unlike role-heavy agent frameworks, Four Eyes asks reviewers to judge the same plan independently.
+Unlike role-heavy agent frameworks, Four Eyes asks AI reviewers to judge the same plan independently.
 
 ## Shape
 
