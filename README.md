@@ -65,12 +65,15 @@ Copy this into Codex, Claude Code, or another agent:
 ```text
 Set up Four Eyes in Linear.
 
-Use the files in this repo:
+Source repo: https://github.com/nickzren/four-eyes
+
+If the repo is not available locally, clone or read the source repo first. Then use:
+- README.md
 - docs/playbook.md
 - docs/templates.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the playbook and templates. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history.
+Create or update Linear docs for the playbook and templates. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review

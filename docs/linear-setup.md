@@ -11,7 +11,9 @@ Use this when a human already has:
 ```text
 Set up Four Eyes in Linear.
 
-Use this repository as the source:
+Source repo: https://github.com/nickzren/four-eyes
+
+If the repo is not available locally, clone or read the source repo first. Then use it as the source:
 - README.md
 - docs/playbook.md
 - docs/templates.md
@@ -39,7 +41,7 @@ If custom states are not available, use labels:
 - state:applied-awaiting-verification
 - blocked:<reason>
 
-Keep everything brief, generic, and public-safe. Do not include company names, secrets, internal links, or real task history.
+Keep everything brief, generic, and public-safe. Do not include company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Sync Rule
