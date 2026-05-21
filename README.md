@@ -48,7 +48,12 @@ Use the files in this repo:
 Create or update Linear docs for the playbook and templates. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history.
 ```
 
+## Source Of Truth
+
+Use this repo as the version-controlled source.
+
+If you maintain a Linear copy, update this repo and Linear in the same task. Do not let tracker docs become the only durable copy.
+
 ## License
 
 MIT
-

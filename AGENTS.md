@@ -18,6 +18,8 @@
 - Preserve the human-approved framing.
 - Do not make the project sound like a fully autonomous agent framework.
 - Update examples when the playbook or templates change materially.
+- If asked to update an operational Linear copy of this workflow, update this repo and Linear in the same task.
+- Record the repo commit SHA in the Linear review issue or sync note after syncing.
 
 ## Verification
 

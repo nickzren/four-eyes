@@ -42,6 +42,19 @@ If custom states are not available, use labels:
 Keep everything brief, generic, and public-safe. Do not include company names, secrets, internal links, or real task history.
 ```
 
+## Sync Rule
+
+Treat this repo as the source of truth.
+
+When updating the workflow:
+
+1. Update this repo.
+2. Commit the repo change.
+3. Sync the matching Linear documents.
+4. Record the repo commit SHA in the Linear review issue or sync note.
+
+If Linear is edited first, backport the change into this repo before treating it as durable.
+
 ## Standing Review Issue
 
 Title:
@@ -64,4 +77,3 @@ Boundary:
 - Brief, simple, necessary comments
 - No private task history or sensitive data
 ```
-
