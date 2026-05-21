@@ -12,29 +12,31 @@ You are the orchestrator for this task.
 Follow the Four Eyes workflow.
 
 Assume Linear Quick Setup is already complete.
-Read the existing Four Eyes Playbook and Templates in Linear first.
+Read the existing Four Eyes Playbook, Templates, and Issue Tracker Setup in Linear first.
 
 Writing rule: be brief, simple, and necessary. Include enough exact information for another human or AI to continue safely. Do not add narrative padding or omit required gates/evidence.
 
 Repo path: <absolute repo path>
 Local executable plan path: <absolute plan path>
+Linear team/workspace or routing source: <team, workspace, or mapping doc>
 
 Do not execute the plan yet.
 
-Route issues by the workspace's configured repo-owner or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
+Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
 Create or update one Linear issue for a one-slice plan. For a finalized multi-slice plan, create or update the parent issue and one child issue for every named execution slice the plan commits to. Record execution order and dependencies in the parent issue. Set ready child slice issues to Review. Set downstream or unready child slice issues to Todo or Blocked.
 
 Before editing or execution, confirm the plan states acceptance criteria, non-goals, current git status expectations, verification, and stop conditions.
 
-Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, and Reviewer 1 / Reviewer 2 prompts for ready issue(s).
+Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, and filled Reviewer Prompt templates for each ready issue and each reviewer slot.
 
 Do not paste secrets, raw identifiers, raw plans, raw logs, or sensitive evidence into the issue.
 
 End your response to the human with:
-- issue ID or link
+- issue ID or link; for multi-slice work, include the parent and ready child issue links
 - current gate
 - why that gate is set
+- filled Reviewer Prompt templates for each ready issue and reviewer slot
 - exact next human action
 - what you will do after that action
 - what remains out of scope or forbidden
@@ -77,6 +79,9 @@ Out of scope:
 ## Execution Slices
 
 1. <slice name>
+   - commitment: committed | optional | future
+   - depends on: <none | slice name(s)>
+   - initial gate: Todo | Review | Blocked
    - files/resources:
    - commands:
    - approval required before:
@@ -113,7 +118,7 @@ Orchestrator: <agent/session>
 Reviewer 1: <agent/session>
 Reviewer 2: <agent/session>
 
-Reviewers should comment on this same issue. Do not create child reviewer issues unless asked.
+Reviewers should comment on this same ready or slice issue. Do not create child reviewer issues unless asked.
 
 ## Agent Team Boundary
 (parent issues only)
@@ -126,7 +131,7 @@ Reviewers should comment on this same issue. Do not create child reviewer issues
 
 Local plan path: `<absolute path>`
 Plan status: local-only | committed | not required because <reason>
-Current gate: Todo | Review | Approval | Blocked | Waiting External Eval | Done
+Current gate: Backlog | Todo | In Progress | Review | Approval | Blocked | Waiting External Eval | Done
 
 ## Goal
 
@@ -240,7 +245,7 @@ Verification:
 - <commands/checks run>
 
 Current gate:
-- Ready for human approval | Needs another review | Blocked on <reason>
+- Approval | Review | Blocked
 
 Next human action:
 - <exact action needed, for example: Approved: execute <ISSUE-ID> <slice name> only.>
@@ -301,7 +306,7 @@ Verification:
 - <if broad checks have unrelated failures, state that plainly>
 
 Current gate:
-- Review | Approval | Executing | Blocked | Waiting External Eval | Done
+- In Progress | Review | Approval | Blocked | Waiting External Eval | Done
 
 Review needed:
 - <none | reviewer slots must review the implementation diff before commit/push/apply/deploy/merge/closeout>
@@ -352,7 +357,7 @@ Committed:
 - <commit hash/message or not committed>
 
 Resulting issue state will be set to:
-- Done | Waiting External Eval | Follow-up created
+- Done | Waiting External Eval
 
 Next human action:
 - <none | approve closeout | validate external result | review follow-up>

@@ -23,6 +23,7 @@ Create:
 - a project or workspace area named Four Eyes
 - a Playbook document from docs/playbook.md
 - a Templates document from docs/templates.md
+- an Issue Tracker Setup document from docs/issue-tracker-setup.md
 - one standing issue for future workflow-doc reviews
 
 If custom workflow states are available, use:
@@ -69,11 +70,12 @@ Review: Four Eyes workflow docs
 Description:
 
 ```text
-Use this issue for reviews of the Four Eyes playbook and templates.
+Use this issue for reviews of the Four Eyes playbook, templates, and issue tracker setup.
 
 Source docs:
 - Playbook
 - Templates
+- Issue Tracker Setup
 
 Boundary:
 - Workflow-doc review only

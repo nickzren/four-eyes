@@ -1,5 +1,7 @@
 # Agent Instructions
 
+This file is for agents editing the version-controlled Four Eyes repo. Agents using the workflow on other repos should follow the synced Linear workflow docs.
+
 ## Style
 
 - Be brief, simple, and necessary.

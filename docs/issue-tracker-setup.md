@@ -8,7 +8,7 @@ For Linear-specific setup, see [Linear Setup](linear-setup.md).
 
 ## Routing
 
-Route issues by the workspace's configured repo-owner or workspace mapping.
+Route issues by the provided Linear team/workspace or workspace mapping.
 
 Keep private mappings in local or workspace setup docs, not in this public workflow.
 
@@ -63,6 +63,7 @@ Use a parent issue plus child slice issues when the plan has multiple named exec
 - different approvals
 - different deploy windows
 - independent rollback or verification
+- independent execution gates
 
 Create one child issue for each committed execution slice. Record intended execution order and inter-slice dependencies in the parent issue.
 

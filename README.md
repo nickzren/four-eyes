@@ -70,9 +70,10 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - README.md
 - docs/playbook.md
 - docs/templates.md
+- docs/issue-tracker-setup.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the playbook and templates. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update Linear docs for the playbook, templates, and issue tracker setup. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -82,12 +83,13 @@ Prerequisite: Linear Quick Setup is already complete.
 ```text
 Use the Four Eyes workflow in Linear for this task.
 
-Read the existing Four Eyes Playbook and Templates in Linear first.
+Read the existing Four Eyes Playbook, Templates, and Issue Tracker Setup in Linear first.
 
 Repo path: <repo path>
 Plan path: <local plan path>
+Linear team/workspace or routing source: <team, workspace, or mapping doc>
 
-Act as orchestrator. Create or update the needed Linear issue(s) from the plan, set ready issue(s) to Review, give me Reviewer 1 and Reviewer 2 prompts, and end with the current gate plus my exact next action. Do not execute yet.
+Act as orchestrator. Create or update the needed Linear issue(s) from the plan, set ready issue(s) to Review, and return filled Reviewer Prompt templates for each ready issue and each reviewer slot. Include the issue link and `Reviewer slot: 1` or `Reviewer slot: 2` in each prompt. End with the current gate plus my exact next action. Do not execute yet.
 ```
 
 ## Example Agent Mix
@@ -98,7 +100,7 @@ Current default:
 - Reviewer 1: Codex
 - Reviewer 2: Claude Code
 
-These roles are not fixed. Use the strongest current agent for orchestration, and use independent reviewers that give useful disagreement.
+These roles are not fixed. Use the strongest current agent for orchestration, and prefer at least one reviewer from a different model family than the orchestrator.
 
 ## Source Of Truth
 

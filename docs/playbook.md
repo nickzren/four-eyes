@@ -128,9 +128,9 @@ The issue tracker is the orchestration and gate record. It should summarize and 
 
 Use one issue when the plan is one execution slice.
 
-Use a parent issue plus child slice issues when the local plan has multiple named execution slices the plan commits to, independent execution gates, different repos, different owners, or separate approvals.
+Use a parent issue plus child slice issues when the local plan has multiple named execution slices the plan commits to, independent execution gates, different repos, different owners, different deploy windows, independent rollback or verification, or different approvals.
 
-Route issues by the workspace's configured repo-owner or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
+Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
 Do not create separate reviewer child issues by default. Reviewer identity belongs in the comment body.
 
@@ -138,8 +138,10 @@ Do not create separate reviewer child issues by default. Reviewer identity belon
 
 When a finalized local plan contains multiple execution slices:
 
+- a slice is ready when it has no unresolved upstream dependency, missing evidence, owner ambiguity, or approval blocker
 - create the parent issue and one child issue for every named execution slice the plan commits to
 - record the intended execution order and inter-slice dependencies in the parent issue
+- use the parent issue as the overview gate; child issues carry exact slice gates such as Review, Approval, In Progress, Blocked, or Waiting External Eval
 - assign each ready child slice the Review gate
 - keep downstream or unready slices Todo or Blocked when they depend on earlier slices, external decisions, missing evidence, or unresolved ownership
 - reviewers review every ready slice and post feedback on each issue
@@ -162,12 +164,14 @@ Key distinction: create and review broadly; execute narrowly.
 8. If changes are material, repeat review on the updated slice.
 9. Human approves execution, apply, deploy, or merge when needed. Current gate: Approval until approved.
 10. Orchestrator executes the approved slice and posts verification. If execution creates material code, doc, config, infra, data, or plan changes, Current gate: Review.
-11. Reviewers review the implementation diff and verification evidence on the same issue before commit, push, apply, deploy, merge, or closeout approval.
+11. Reviewers review the implementation diff and verification evidence on the same ready or slice issue before commit, push, apply, deploy, merge, or closeout approval.
 12. Orchestrator synthesizes implementation reviews. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
 13. Orchestrator commits only the intended tracked changes when the human approves the commit or when the approved workflow explicitly calls for it.
 14. Orchestrator closes the issue only after verification, or moves it to an explicit waiting state.
 
 If execution is read-only and creates no material diff, the orchestrator may move directly to Waiting External Eval, Approval, or Done according to the approved workflow and verification state.
+
+In multi-slice mode, steps 5-7 run independently for each ready slice.
 
 ## Orchestrator Next-Action Rule
 
@@ -233,7 +237,7 @@ After material execution changes, the orchestrator must:
 - update the issue Current gate to Review
 - identify the exact files, resources, or diff to review
 - include verification already run
-- tell reviewers to post feedback on the same issue
+- tell reviewers to post feedback on the same ready or slice issue
 - keep commit, push, apply, deploy, merge, and closeout out of scope until reviews are synthesized and the human approves the next gated action
 
 Reviewers must review the current implementation diff and verification evidence, not only the original plan.
@@ -284,6 +288,8 @@ Typo fixes, formatting, and rewording without semantic change are not material.
 For tracked code changes, include the commit SHA when available.
 
 For uncommitted plan changes, include the plan path and a short summary of the changed gate, scope, or command.
+
+For multi-slice plans, update affected child slice issues in the same change.
 
 If a saved plan, deploy artifact, or generated evidence file is replaced, record the new path and checksum when useful.
 
