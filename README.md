@@ -11,6 +11,25 @@ Four Eyes helps you use AI agents without pretending they are fully autonomous. 
 - one human approves risky actions
 - one issue tracks gates, decisions, and verification
 
+```mermaid
+flowchart LR
+    Plan["Local plan"] --> Issue["Issue tracker gate"]
+    Issue --> R1["Reviewer 1"]
+    Issue --> R2["Reviewer 2"]
+    R1 --> Synth["Orchestrator synthesis"]
+    R2 --> Synth
+    Synth --> Decision{"Any blocker?"}
+    Decision -->|Yes| Revise["Revise plan or ask human override"]
+    Revise --> Issue
+    Decision -->|No| Approve["Human approval"]
+    Approve --> Execute["Execute approved slice"]
+    Execute --> Verify["Verify"]
+    Verify --> Close{"Done?"}
+    Close -->|No| Wait["Waiting external eval"]
+    Wait --> Verify
+    Close -->|Yes| Done["Close issue"]
+```
+
 ## Use It For
 
 - production changes
