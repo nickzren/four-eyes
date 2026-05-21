@@ -143,6 +143,7 @@ When a finalized local plan contains multiple execution slices:
 - reviewers review every ready slice and post feedback on each issue
 - the orchestrator owns sequencing and may execute only the next approved slice
 - post-execution review on each slice still applies before commit, push, apply, deploy, merge, or closeout
+- the parent issue is the agent team boundary; agents may read related issues for context but must not edit, comment on, or close any issue outside the parent and its child slice issues unless the human explicitly expands scope
 - if the parent plan changes materially, update affected slice issues in the same change under the Plan Drift Rule
 
 Key distinction: create and review broadly; execute narrowly.

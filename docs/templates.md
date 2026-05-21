@@ -113,6 +113,13 @@ Reviewer 2: <agent/session>
 
 Reviewers should comment on this same issue. Do not create child reviewer issues unless asked.
 
+## Agent Team Boundary
+(parent issues only)
+
+- Parent issue: <ID>
+- Child issues in scope: <IDs>
+- Out of scope: all other issues and tasks
+
 ## Source Plan
 
 Local plan path: `<absolute path>`
