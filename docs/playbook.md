@@ -132,6 +132,21 @@ Use a parent issue plus child slice issues only when the local plan has independ
 
 Do not create separate reviewer child issues by default. Reviewer identity belongs in the comment body.
 
+### Multi-Slice Plans
+
+When a finalized local plan contains multiple execution slices:
+
+- create the parent issue and all ready child slice issues upfront
+- record the intended execution order in the parent issue
+- assign each ready child slice the Review gate
+- keep unready slices Todo or Blocked when they need external decisions, missing evidence, or unresolved ownership
+- reviewers review every ready slice and post feedback on each issue
+- the orchestrator owns sequencing and may execute only the next approved slice
+- post-execution review on each slice still applies before commit, push, apply, deploy, merge, or closeout
+- if the parent plan changes materially, update affected slice issues in the same change under the Plan Drift Rule
+
+Key distinction: create and review broadly; execute narrowly.
+
 ## Standard Task Flow
 
 1. Orchestrator creates a local executable plan when required.
