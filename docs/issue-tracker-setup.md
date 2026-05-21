@@ -4,6 +4,8 @@ Four Eyes works with Linear, GitHub Issues, Jira, or any tracker that supports i
 
 The tracker is not the source of truth for the technical plan. It is the gate and coordination record.
 
+For Linear-specific setup, see [Linear Setup](linear-setup.md).
+
 ## Recommended Fields
 
 Use statuses or labels for the current gate:
@@ -67,4 +69,3 @@ Even with automatic links, keep the issue closeout explicit:
 - what was verified
 - what remains
 - whether sensitive data stayed out of public surfaces
-
