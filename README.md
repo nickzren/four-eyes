@@ -80,6 +80,9 @@ Create or update Linear docs for the playbook and templates. Create a standing w
 ```text
 Use Four Eyes for this task.
 
+Four Eyes source: https://github.com/nickzren/four-eyes
+Before creating or updating the issue, read the Four Eyes playbook and templates from the local clone, the source repo, or the Linear Four Eyes docs. If you cannot access the workflow source, stop and say what access is missing.
+
 Repo path: <repo path>
 Plan path: <local plan path>
 Issue tracker: <Linear/GitHub/Jira/etc.>
