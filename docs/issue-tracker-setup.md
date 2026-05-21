@@ -4,7 +4,7 @@ Four Eyes works with Linear, GitHub Issues, Jira, or any tracker that supports i
 
 The tracker is not the source of truth for the technical plan. It is the gate and coordination record.
 
-For Linear-specific setup, see [Linear Setup](linear-setup.md).
+For Linear-specific setup, see Four Eyes Linear Setup.
 
 ## Routing
 

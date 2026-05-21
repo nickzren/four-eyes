@@ -18,12 +18,14 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/playbook.md
 - docs/templates.md
 - docs/issue-tracker-setup.md
+- docs/linear-setup.md
 
 Create:
 - a project or workspace area named Four Eyes
 - a Playbook document from docs/playbook.md
 - a Templates document from docs/templates.md
 - an Issue Tracker Setup document from docs/issue-tracker-setup.md
+- a Linear Setup document from docs/linear-setup.md
 - one standing issue for future workflow-doc reviews
 
 If custom workflow states are available, use:
@@ -50,6 +52,14 @@ Keep everything brief, generic, and public-safe. Do not include company names, s
 
 Treat this repo as the source of truth.
 
+Runtime docs:
+- Four Eyes Playbook
+- Four Eyes Templates
+- Four Eyes Issue Tracker Setup
+
+Maintainer doc:
+- Four Eyes Linear Setup
+
 When updating the workflow:
 
 1. Update this repo.
@@ -71,12 +81,13 @@ Review: Four Eyes workflow docs
 Description:
 
 ```text
-Use this issue for reviews of the Four Eyes playbook, templates, and issue tracker setup.
+Use this issue for reviews of the Four Eyes playbook, templates, issue tracker setup, and Linear setup.
 
 Source docs:
 - Playbook
 - Templates
 - Issue Tracker Setup
+- Linear Setup
 
 Boundary:
 - Workflow-doc review only

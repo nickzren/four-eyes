@@ -121,11 +121,12 @@ Reviewer 2: <agent/session>
 Reviewers should comment on this same ready or slice issue. Do not create child reviewer issues unless asked.
 
 ## Agent Team Boundary
-(parent issues only)
 
-- Parent issue: <ID>
-- Child issues in scope: <IDs>
-- Out of scope: all other issues and tasks
+- Parent issue: <ID or "none, single-slice">
+- Current issue in scope: <ID>
+- Sibling slice issues: <IDs or "none">
+- In scope for this issue: <files/resources/scope>
+- Out of scope: all other issues, tasks, and slices unless the human explicitly expands scope
 
 ## Source Plan
 
@@ -178,7 +179,7 @@ Review against:
 - issue body and orchestrator-provided plan/update comments
 
 Do not read prior reviewer comments or orchestrator synthesis comments before writing your own review.
-Post your review as a comment on this same issue.
+Post your review as a comment on this same ready or slice issue.
 
 Check:
 - acceptance criteria gaps
@@ -209,11 +210,12 @@ Read other reviews first: no
 
 Do not read other reviewer comments or orchestrator synthesis comments before writing your own review.
 Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into the issue.
+Do not edit, comment on, or close any issue outside this issue and its parent or child slice set unless the human explicitly expands scope.
 If the user sends changes tied to a tracker issue, review the current local diff and verification evidence for that issue, then post the review as a comment on that same issue. Reply in chat only with brief status or if the tracker is inaccessible.
 Review only against the linked issue, plan, current implementation diff if present, and verification evidence. Do not suggest unrelated improvements unless severe.
 If the local plan file is not accessible, review against the sanitized plan content in the issue and state that limitation.
 If execution already created a material diff, review that diff before commit, push, apply, deploy, merge, or closeout.
-Post your review as a comment on the same issue.
+Post your review as a comment on the same ready or slice issue.
 
 Return your review as a comment with:
 - Verdict: Approve | Approve with nits | Block
