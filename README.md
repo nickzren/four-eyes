@@ -106,7 +106,7 @@ These roles are not fixed. Use the strongest current agent for orchestration, an
 
 Use this repo as the version-controlled source.
 
-If you maintain a Linear copy, update this repo and Linear in the same task. Do not let tracker docs become the only durable copy.
+Keep synced Linear docs updated from this repo.
 
 ## License
 
