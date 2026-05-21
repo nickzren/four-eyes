@@ -18,11 +18,10 @@ Writing rule: be brief, simple, and necessary. Include enough exact information 
 
 Repo path: <absolute repo path>
 Local executable plan path: <absolute plan path>
-Issue tracker project: <project>
 
 Do not execute the plan yet.
 
-Create or update the issue from the local plan. If the plan has independent execution gates, different repos, different owners, or separate approvals, decompose it into parent/slice issues. Otherwise keep one issue.
+Create or update one Linear issue from the local plan. If the plan has independent execution gates, different repos, different owners, or separate approvals, decompose it into parent/slice issues. Otherwise keep one issue.
 
 Before editing or execution, confirm the plan states acceptance criteria, non-goals, current git status expectations, verification, and stop conditions.
 

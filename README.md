@@ -80,15 +80,14 @@ Create or update Linear docs for the playbook and templates. Create a standing w
 Prerequisite: Linear Quick Setup is already complete.
 
 ```text
-Use Four Eyes for this task.
+Use the Four Eyes workflow in Linear for this task.
 
 Read the existing Four Eyes Playbook and Templates in Linear first.
 
 Repo path: <repo path>
 Plan path: <local plan path>
-Issue tracker: <Linear/GitHub/Jira/etc.>
 
-Act as orchestrator. Create or update one issue from the plan, set the gate to Review, and give me Reviewer 1 and Reviewer 2 prompts. Do not execute yet.
+Act as orchestrator. Create or update one Linear issue from the plan, set the gate to Review, and give me Reviewer 1 and Reviewer 2 prompts. Do not execute yet.
 ```
 
 ## Example Agent Mix
