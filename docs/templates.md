@@ -11,8 +11,8 @@ You are the orchestrator for this task.
 
 Follow the Four Eyes workflow.
 
-Four Eyes source: https://github.com/nickzren/four-eyes
-Before creating or updating the issue, read the Four Eyes playbook and templates from the local clone, the source repo, or the Linear Four Eyes docs. If you cannot access the workflow source, stop and say what access is missing.
+Assume Linear Quick Setup is already complete.
+Read the existing Four Eyes Playbook and Templates in Linear first.
 
 Writing rule: be brief, simple, and necessary. Include enough exact information for another human or AI to continue safely. Do not add narrative padding or omit required gates/evidence.
 

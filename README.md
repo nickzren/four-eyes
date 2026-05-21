@@ -77,11 +77,12 @@ Create or update Linear docs for the playbook and templates. Create a standing w
 
 ## Run Your First Review
 
+Prerequisite: Linear Quick Setup is already complete.
+
 ```text
 Use Four Eyes for this task.
 
-Four Eyes source: https://github.com/nickzren/four-eyes
-Before creating or updating the issue, read the Four Eyes playbook and templates from the local clone, the source repo, or the Linear Four Eyes docs. If you cannot access the workflow source, stop and say what access is missing.
+Read the existing Four Eyes Playbook and Templates in Linear first.
 
 Repo path: <repo path>
 Plan path: <local plan path>
