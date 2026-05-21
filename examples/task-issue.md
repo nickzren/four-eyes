@@ -60,4 +60,6 @@ Send this issue to Reviewer 1 and Reviewer 2 with the reviewer prompt. Do not ap
 
 Please review independently before reading other comments or orchestrator synthesis comments.
 
-Check acceptance criteria, scope, safety, tests, and whether this is ready for implementation.
+If implementation already exists, review the current diff and verification evidence before commit or closeout.
+
+Check acceptance criteria, scope, safety, tests, and whether this is ready for the next gate.

@@ -160,9 +160,11 @@ Review against:
 - the linked local plan file, if accessible
 - sanitized plan content in this issue if the local file is not accessible
 - current repo state, if applicable
+- current implementation diff and verification evidence, if execution has already changed files or resources
 - issue body and orchestrator-provided plan/update comments
 
 Do not read prior reviewer comments or orchestrator synthesis comments before writing your own review.
+Post your review as a comment on this same issue.
 
 Check:
 - acceptance criteria gaps
@@ -180,7 +182,7 @@ Use the required reviewer header from the playbook.
 ## Reviewer Prompt
 
 ```text
-Review <ISSUE-ID> using the issue body, orchestrator-provided plan/update content, linked local plan file if accessible, and local repo state if applicable.
+Review <ISSUE-ID> using the issue body, orchestrator-provided plan/update content, linked local plan file if accessible, current implementation diff if present, verification evidence, and local repo state if applicable.
 
 You are Reviewer <1|2>.
 
@@ -193,8 +195,11 @@ Read other reviews first: no
 
 Do not read other reviewer comments or orchestrator synthesis comments before writing your own review.
 Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into the issue.
-Review only against the linked issue and plan. Do not suggest unrelated improvements unless severe.
+If the user sends changes tied to a tracker issue, review the current local diff and verification evidence for that issue, then post the review as a comment on that same issue. Reply in chat only with brief status or if the tracker is inaccessible.
+Review only against the linked issue, plan, current implementation diff if present, and verification evidence. Do not suggest unrelated improvements unless severe.
 If the local plan file is not accessible, review against the sanitized plan content in the issue and state that limitation.
+If execution already created a material diff, review that diff before commit, push, apply, deploy, merge, or closeout.
+Post your review as a comment on the same issue.
 
 Return your review as a comment with:
 - Verdict: Approve | Approve with nits | Block
@@ -288,6 +293,9 @@ Verification:
 
 Current gate:
 - Review | Approval | Executing | Waiting External Eval | Done
+
+Review needed:
+- <none | reviewer slots must review the implementation diff before commit/push/apply/deploy/merge/closeout>
 
 Next human action:
 - <exact next action or none>

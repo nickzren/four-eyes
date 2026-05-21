@@ -47,7 +47,8 @@ Usually a separate agent session.
 Responsibilities:
 
 - review independently before reading other reviewer comments or orchestrator synthesis comments
-- review against the linked local plan file, current repo state, issue body, and orchestrator-provided plan/update content
+- when prompted with a current-work issue reference, treat it as a review request: read the issue, review the current diff and verification evidence, and post the review as a comment on the same linked issue, even if the formal Reviewer Prompt template was not sent
+- review against the linked local plan file, current repo state, current implementation diff and verification evidence if present, issue body, and orchestrator-provided plan/update content
 - if the local plan file is not accessible, review against sanitized plan content in the issue and state that limitation
 - check acceptance criteria, correctness, scope, safety, missing tests, and operational risks
 - avoid unrelated suggestions unless severe
@@ -142,9 +143,13 @@ Do not create separate reviewer child issues by default. Reviewer identity belon
 7. Orchestrator updates code or plan if needed. Current gate: Review if material changes need re-review.
 8. If changes are material, repeat review on the updated slice.
 9. Human approves execution, apply, deploy, or merge when needed. Current gate: Approval until approved.
-10. Orchestrator executes the approved slice and posts verification. Current gate: Waiting External Eval if delayed verification remains, otherwise Done when verified and closeout is authorized.
-11. Orchestrator commits only the intended tracked changes when requested or when the approved workflow calls for it.
-12. Orchestrator closes the issue only after verification, or moves it to an explicit waiting state.
+10. Orchestrator executes the approved slice and posts verification. If execution creates material code, doc, config, infra, data, or plan changes, Current gate: Review.
+11. Reviewers review the implementation diff and verification evidence on the same issue before commit, push, apply, deploy, merge, or closeout approval.
+12. Orchestrator synthesizes implementation reviews. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
+13. Orchestrator commits only the intended tracked changes when the human approves the commit or when the approved workflow explicitly calls for it.
+14. Orchestrator closes the issue only after verification, or moves it to an explicit waiting state.
+
+If execution is read-only and creates no material diff, the orchestrator may move directly to Waiting External Eval, Approval, or Done according to the approved workflow and verification state.
 
 ## Orchestrator Next-Action Rule
 
@@ -191,6 +196,31 @@ Before review, commit, PR, deploy, or apply:
 - if a broad check is known to have unrelated failures, say that plainly and include the targeted checks that passed
 - review the diff for unrelated changes
 - confirm the next gate is correctly recorded in the issue
+
+## Post-Execution Review Rule
+
+Every material change created during execution must be reviewed before commit, push, apply, deploy, merge, or closeout.
+
+Material changes include:
+
+- code changes
+- tests
+- docs or runbooks
+- CI/CD, infrastructure, or configuration
+- database migrations or data changes
+- local executable plans when their scope, gates, commands, verification, or safety boundaries changed
+
+After material execution changes, the orchestrator must:
+
+- update the issue Current gate to Review
+- identify the exact files, resources, or diff to review
+- include verification already run
+- tell reviewers to post feedback on the same issue
+- keep commit, push, apply, deploy, merge, and closeout out of scope until reviews are synthesized and the human approves the next gated action
+
+Reviewers must review the current implementation diff and verification evidence, not only the original plan.
+
+If the approved action itself is apply, deploy, or another external mutation and creates no reviewable local diff, post verification and move to Waiting External Eval or Done according to the approved workflow.
 
 ## Gate State
 

@@ -29,7 +29,7 @@ Exact approval phrase:
 - Approved: execute EXAMPLE-123 retry classification slice only.
 
 If approved:
-- The orchestrator will edit only the reviewed files, run the agreed checks, and update the issue with verification.
+- The orchestrator will edit only the reviewed files, run the agreed checks, and move the issue back to Review if execution creates a material diff.
 
 If blocked:
 - The orchestrator will keep the issue at Review or Blocked and address the blocker before execution.
