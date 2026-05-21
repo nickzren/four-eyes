@@ -36,13 +36,12 @@ flowchart LR
 
 ## Use It For
 
+- new app, service, or system builds
 - production changes
 - infrastructure or cloud changes
 - security fixes
-- data cleanup
-- migrations
-- complex debugging
-- multi-repo work
+- schema, data, or platform migrations
+- bulk data cleanup
 
 Skip it for one-line fixes, tiny docs, and simple queue/admin work.
 
