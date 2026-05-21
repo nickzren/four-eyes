@@ -21,11 +21,13 @@ Local executable plan path: <absolute plan path>
 
 Do not execute the plan yet.
 
-Create or update one Linear issue from the local plan. If the plan has independent execution gates, different repos, different owners, or separate approvals, decompose it into parent/slice issues. Otherwise keep one issue.
+Route issues by the workspace's configured repo-owner or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
+
+Create or update one Linear issue for a one-slice plan. For a finalized multi-slice plan, create or update the parent issue and one child issue for every named execution slice the plan commits to. Record execution order and dependencies in the parent issue. Set ready child slice issues to Review. Set downstream or unready child slice issues to Todo or Blocked.
 
 Before editing or execution, confirm the plan states acceptance criteria, non-goals, current git status expectations, verification, and stop conditions.
 
-Set the current gate to Review. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, and Reviewer 1 / Reviewer 2 prompts.
+Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, and Reviewer 1 / Reviewer 2 prompts for ready issue(s).
 
 Do not paste secrets, raw identifiers, raw plans, raw logs, or sensitive evidence into the issue.
 
@@ -124,7 +126,7 @@ Reviewers should comment on this same issue. Do not create child reviewer issues
 
 Local plan path: `<absolute path>`
 Plan status: local-only | committed | not required because <reason>
-Current gate: Todo | Review | Approval | Waiting External Eval | Done
+Current gate: Todo | Review | Approval | Blocked | Waiting External Eval | Done
 
 ## Goal
 
@@ -299,7 +301,7 @@ Verification:
 - <if broad checks have unrelated failures, state that plainly>
 
 Current gate:
-- Review | Approval | Executing | Waiting External Eval | Done
+- Review | Approval | Executing | Blocked | Waiting External Eval | Done
 
 Review needed:
 - <none | reviewer slots must review the implementation diff before commit/push/apply/deploy/merge/closeout>

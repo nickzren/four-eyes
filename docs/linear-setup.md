@@ -31,6 +31,7 @@ If custom workflow states are available, use:
 - In Progress
 - Review
 - Approval
+- Blocked
 - Waiting External Eval
 - Done
 

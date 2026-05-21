@@ -128,7 +128,9 @@ The issue tracker is the orchestration and gate record. It should summarize and 
 
 Use one issue when the plan is one execution slice.
 
-Use a parent issue plus child slice issues only when the local plan has independent execution gates, different repos, different owners, or separate approvals.
+Use a parent issue plus child slice issues when the local plan has multiple named execution slices the plan commits to, independent execution gates, different repos, different owners, or separate approvals.
+
+Route issues by the workspace's configured repo-owner or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
 Do not create separate reviewer child issues by default. Reviewer identity belongs in the comment body.
 
@@ -136,10 +138,10 @@ Do not create separate reviewer child issues by default. Reviewer identity belon
 
 When a finalized local plan contains multiple execution slices:
 
-- create the parent issue and all ready child slice issues upfront
-- record the intended execution order in the parent issue
+- create the parent issue and one child issue for every named execution slice the plan commits to
+- record the intended execution order and inter-slice dependencies in the parent issue
 - assign each ready child slice the Review gate
-- keep unready slices Todo or Blocked when they need external decisions, missing evidence, or unresolved ownership
+- keep downstream or unready slices Todo or Blocked when they depend on earlier slices, external decisions, missing evidence, or unresolved ownership
 - reviewers review every ready slice and post feedback on each issue
 - the orchestrator owns sequencing and may execute only the next approved slice
 - post-execution review on each slice still applies before commit, push, apply, deploy, merge, or closeout
@@ -151,10 +153,10 @@ Key distinction: create and review broadly; execute narrowly.
 ## Standard Task Flow
 
 1. Orchestrator creates a local executable plan when required.
-2. Orchestrator creates one issue or decomposes the plan into slice issues.
-3. Orchestrator adds the plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review.
-4. Human sends the same issue link and task prompt to Reviewer 1 and Reviewer 2. Current gate: Review.
-5. Reviewers post comments independently on the same issue. Current gate: Review.
+2. Orchestrator creates one issue or decomposes the plan into parent and child slice issues.
+3. Orchestrator adds the plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
+4. Human sends the ready issue link(s) and task prompt to Reviewer 1 and Reviewer 2. Current gate: Review for ready issue(s).
+5. Reviewers post comments independently on each ready issue. Current gate: Review.
 6. Orchestrator synthesizes both reviews. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
 7. Orchestrator updates code or plan if needed. Current gate: Review if material changes need re-review.
 8. If changes are material, repeat review on the updated slice.
@@ -249,6 +251,7 @@ Recommended states:
 - In Progress: orchestrator actively working
 - Review: waiting for Reviewer 1 or Reviewer 2
 - Approval: reviewers aligned, waiting for the human
+- Blocked: blocked by reviewer finding, missing evidence, external decision, unresolved ownership, or prior slice
 - Waiting External Eval: executed, waiting for CI, logs, users, cloud evaluation, or another external system
 - Done: verified and closed
 

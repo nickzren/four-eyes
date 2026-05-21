@@ -13,7 +13,7 @@ Unlike role-heavy agent frameworks, Four Eyes asks AI reviewers to judge the sam
 - one orchestrator agent owns the plan and execution
 - two reviewer agents give independent feedback
 - one human approves risky actions
-- one issue tracks gates, decisions, and verification
+- one issue or parent/child issue set tracks gates, decisions, and verification
 
 ```mermaid
 flowchart LR
