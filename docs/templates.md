@@ -146,7 +146,9 @@ Review against:
 - the linked local plan file, if accessible
 - sanitized plan content in this issue if the local file is not accessible
 - current repo state, if applicable
-- latest issue content
+- issue body and orchestrator-provided plan/update comments
+
+Do not read prior reviewer comments or orchestrator synthesis comments before writing your own review.
 
 Check:
 - acceptance criteria gaps
@@ -164,7 +166,7 @@ Use the required reviewer header from the playbook.
 ## Reviewer Prompt
 
 ```text
-Review <ISSUE-ID> using the latest issue content, linked local plan file if accessible, and local repo state if applicable.
+Review <ISSUE-ID> using the issue body, orchestrator-provided plan/update content, linked local plan file if accessible, and local repo state if applicable.
 
 You are Reviewer <1|2>.
 
@@ -311,4 +313,3 @@ Local cleanup:
 - <local plan removed/refreshed/left intentionally>
 - <raw evidence location, if any>
 ```
-

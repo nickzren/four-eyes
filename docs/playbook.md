@@ -46,7 +46,7 @@ Usually a separate agent session.
 Responsibilities:
 
 - review independently before reading other reviewer comments or orchestrator synthesis comments
-- review against the linked local plan file, current repo state, and latest issue content
+- review against the linked local plan file, current repo state, issue body, and orchestrator-provided plan/update content
 - if the local plan file is not accessible, review against sanitized plan content in the issue and state that limitation
 - check acceptance criteria, correctness, scope, safety, missing tests, and operational risks
 - avoid unrelated suggestions unless severe
@@ -141,7 +141,7 @@ Do not create separate reviewer child issues by default. Reviewer identity belon
 7. Orchestrator updates code or plan if needed. Current gate: Review if material changes need re-review.
 8. If changes are material, repeat review on the updated slice.
 9. Human approves execution, apply, deploy, or merge when needed. Current gate: Approval until approved.
-10. Orchestrator executes the approved slice and posts verification. Current gate: Waiting External Eval if delayed verification remains, otherwise Done when verified.
+10. Orchestrator executes the approved slice and posts verification. Current gate: Waiting External Eval if delayed verification remains, otherwise Done when verified and closeout is authorized.
 11. Orchestrator commits only the intended tracked changes when requested or when the approved workflow calls for it.
 12. Orchestrator closes the issue only after verification, or moves it to an explicit waiting state.
 
@@ -220,7 +220,8 @@ If a saved plan, deploy artifact, or generated evidence file is replaced, record
 
 - Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into issues.
 - Use sanitized summaries for plans, logs, findings, and metadata.
-- Destructive, costly, cloud-mutating, deploy, apply, push, issue-close, or external-posting actions require explicit human approval.
+- Destructive, costly, cloud-mutating, deploy, apply, push, or external-posting actions require explicit human approval.
+- The approved workflow may authorize issue closeout after acceptance criteria pass; otherwise human approval is required.
 - Saved plans must be applied by explicit filename, not by a stale default path.
 - Local-only plan documents stay uncommitted when the task says so.
 
@@ -247,7 +248,6 @@ If a PR is opened, its description should briefly include:
 
 Do not close an issue just because code was written or an action completed.
 
-Close only when verification has passed, or when the issue explicitly records why verification is deferred or impossible.
+Close only when verification has passed and closeout is authorized, or when the issue explicitly records why verification is deferred or impossible.
 
 If an external system must update later, move the issue to a waiting state.
-

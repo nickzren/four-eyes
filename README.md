@@ -2,6 +2,8 @@
 
 Human-approved multi-agent review workflow.
 
+Four Eyes uses the four-eyes principle: high-stakes work should not proceed on one agent's judgment alone.
+
 Four Eyes helps you use AI agents without pretending they are fully autonomous. Agents can plan, review, and execute, but a human approves risky actions.
 
 Unlike role-heavy agent frameworks, Four Eyes asks AI reviewers to judge the same plan independently.
@@ -69,6 +71,18 @@ Use the files in this repo:
 - docs/linear-setup.md
 
 Create or update Linear docs for the playbook and templates. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history.
+```
+
+## Run Your First Review
+
+```text
+Use Four Eyes for this task.
+
+Repo path: <repo path>
+Plan path: <local plan path>
+Issue tracker: <Linear/GitHub/Jira/etc.>
+
+Act as orchestrator. Create or update one issue from the plan, set the gate to Review, and give me Reviewer 1 and Reviewer 2 prompts. Do not execute yet.
 ```
 
 ## Example Agent Mix
