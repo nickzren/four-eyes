@@ -52,6 +52,8 @@ Skip it for one-line fixes, tiny docs, and simple queue/admin work.
 
 ## Linear Quick Setup
 
+[Linear](https://linear.app/) works well as the issue tracker for Four Eyes.
+
 Prerequisite: you already have a Linear workspace and your agent has Linear access.
 
 Copy this into Codex, Claude Code, or another agent:
@@ -66,6 +68,16 @@ Use the files in this repo:
 
 Create or update Linear docs for the playbook and templates. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history.
 ```
+
+## Example Agent Mix
+
+Current default:
+
+- Orchestrator: Codex
+- Reviewer 1: Codex
+- Reviewer 2: Claude Code
+
+These roles are not fixed. Use the strongest current agent for orchestration, and use independent reviewers that give useful disagreement.
 
 ## Source Of Truth
 
