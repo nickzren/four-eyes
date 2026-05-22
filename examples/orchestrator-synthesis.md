@@ -13,22 +13,28 @@ Blocking feedback:
 Non-blocking feedback:
 - Add retry-exhaustion test. Accepted.
 
+Nit resolution:
+- Retry-exhaustion test will be included during auto-execute.
+
+Required changes before execution:
+- None.
+
 Changes made:
 - Plan updated to include retry-exhaustion test.
 
 Verification:
 - Not run yet. This is still pre-implementation.
 
+Autonomy decision:
+- auto-execute authorized
+
 Current gate:
-- Approval.
+- In Progress.
 
 Next human action:
-- Approve or reject execution.
+- None for execution. Reviewer approval authorized local execution under autonomy mode.
 
-Exact approval phrase:
-- Approved: execute EXAMPLE-123 retry classification slice only.
-
-If approved:
+If auto-executing:
 - The orchestrator will edit only the reviewed files, run the agreed checks, and move the issue back to Review if execution creates a material diff.
 
 If blocked:

@@ -6,6 +6,7 @@
 Title: EXAMPLE-200 Retry workflow cleanup
 
 Current gate: Review
+Autonomy mode: review-approved-auto-execute
 
 Execution order:
 1. EXAMPLE-201 retry classification
@@ -28,12 +29,13 @@ Out of scope:
 Title: EXAMPLE-201 retry classification
 
 Current gate: Review
+Autonomy mode: review-approved-auto-execute
 
 Commitment: committed
 Depends on: none
 
 Next human action:
-- Send this ready slice issue to Reviewer 1 and Reviewer 2 with filled Reviewer Prompt templates.
+- Send this ready slice issue to Reviewer 1 and Reviewer 2 with filled Reviewer Prompt templates. If both reviewers approve with no blockers, the orchestrator may execute this reviewed local slice automatically.
 ```
 
 ## Orchestrator Output
@@ -58,6 +60,7 @@ Continue with the full Reviewer Prompt template from docs/templates.md.
 Title: EXAMPLE-202 retry metrics
 
 Current gate: Blocked
+Autonomy mode: review-approved-auto-execute
 
 Commitment: committed
 Depends on: EXAMPLE-201
@@ -66,5 +69,5 @@ Blocked because:
 - retry metrics should not be reviewed until retry classification is approved.
 
 Next human action:
-- None until EXAMPLE-201 reaches Approval.
+- None until EXAMPLE-201 reaches Done or Waiting External Eval.
 ```

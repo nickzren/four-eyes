@@ -43,6 +43,7 @@ Every non-trivial task issue should include:
 
 - source plan path or link
 - current gate
+- autonomy mode
 - goal
 - acceptance criteria
 - scope and non-goals
@@ -51,6 +52,18 @@ Every non-trivial task issue should include:
 - reviewer prompts
 - execution log
 - closeout
+
+## Autonomy Mode
+
+Every active task issue should record:
+
+```text
+Autonomy mode: review-approved-auto-execute | manual
+```
+
+Use `review-approved-auto-execute` for reviewed local repo code, docs, tests, or plan edits. If autonomy mode is missing, treat it as `review-approved-auto-execute` unless a manual condition applies. Use `manual` for live/external systems, databases, cloud, deploys, apply actions, destructive or costly actions, production data/resource changes, ambiguous ownership, or human-marked approval gates.
+
+When autonomy mode is `review-approved-auto-execute`, two reviewer outcomes of `Approve` or `Approve with nits` authorize local execution of the reviewed slice if there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands. Commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, production data/resource change, closeout unless already authorized, scope change, and unreviewed commands still require human approval.
 
 ## Parent And Child Issues
 

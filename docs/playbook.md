@@ -64,15 +64,40 @@ Responsibilities are the same as Reviewer 1.
 
 The human owns final approval for real risk gates:
 
-- execution that changes code, data, or resources
+- execution when autonomy mode is `manual`
+- commands not listed in the reviewed plan
 - commit
 - push, publish, or merge
 - closeout unless already authorized by workflow
 - scope changes
-- live or external systems, databases, cloud, deploys, destructive actions, or costly actions
+- live or external systems, databases, cloud, deploys, destructive actions, costly actions, or production data/resource changes
 - any action the plan or workflow marks as approval-gated
 
 Human approval is not required for tracker-only workflow preparation such as creating planned child issues, promoting the next ready slice to Review, posting reviewer prompts, synthesizing reviews, or updating gate metadata.
+
+## Autonomy Mode
+
+Every non-trivial plan or slice must set:
+
+```text
+Autonomy mode: review-approved-auto-execute | manual
+```
+
+Default to `review-approved-auto-execute` for local repo code, docs, tests, or plan edits inside the reviewed slice. If autonomy mode is omitted, treat it as `review-approved-auto-execute` unless a manual condition applies. Use `manual` for live or external systems, databases, cloud, deploys, apply actions, destructive or costly actions, production data/resource changes, ambiguous ownership, or any slice the human marks approval-gated.
+
+Local execution means working-tree file changes and verification commands inside the reviewed slice. It excludes network mutation, external state changes, and starting persistent processes or services.
+
+Reviewed commands are the commands, arguments, and flags listed in the reviewed plan. Novel commands, novel flags, chained pipelines, or commands outside the reviewed command list require human approval.
+
+A reviewer question is execution-affecting if its answer would change what or how the orchestrator executes. Cosmetic, follow-up, or post-execution questions do not block auto-execute.
+
+Dirty worktree conflicts include uncommitted changes outside the slice scope, unmerged rebase or merge state, or untracked files conflicting with expected slice outputs.
+
+Required changes before execution must be addressed and recorded in synthesis before auto-execute.
+
+When autonomy mode is `review-approved-auto-execute`, Reviewer 1 and Reviewer 2 outcomes of `Approve` or `Approve with nits` authorize the orchestrator to execute the reviewed local slice when there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands. The orchestrator must not ask for `Approved: execute ...` for that slice.
+
+Auto-execute does not authorize commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, closeout unless already authorized, scope change, commands not listed in the reviewed plan, or work outside the assigned tracker issue set. Commit, push, and closeout remain separate gates.
 
 ## Required Reviewer Header
 
@@ -164,11 +189,11 @@ Key distinction: create and review broadly; execute narrowly.
 3. Orchestrator adds the plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
 4. Human sends the ready issue link(s) and task prompt to Reviewer 1 and Reviewer 2. Current gate: Review for ready issue(s).
 5. Reviewers post comments independently on each ready issue. Current gate: Review.
-6. Orchestrator synthesizes both reviews. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
+6. Orchestrator synthesizes both reviews. Current gate: In Progress when auto-execute is authorized and execution is starting, Approval if human approval is needed, Review if material changes need re-review, or Blocked if blockers remain.
 7. Orchestrator updates code or plan if needed. Current gate: Review if material changes need re-review.
 8. If changes are material, repeat review on the updated slice.
-9. Human approves execution, apply, deploy, or merge when needed. Current gate: Approval until approved.
-10. Orchestrator executes the approved slice and posts verification. If execution creates material code, doc, config, infra, data, or plan changes, Current gate: Review.
+9. Human approves execution, apply, deploy, or merge when needed. Skip this for local execution authorized by autonomy mode. Current gate: Approval until approved.
+10. Orchestrator executes the approved or auto-authorized slice and posts verification. If execution creates material code, doc, config, infra, data, or plan changes, Current gate: Review.
 11. Reviewers review the implementation diff and verification evidence on the same ready or slice issue before commit, push, apply, deploy, merge, or closeout approval.
 12. Orchestrator synthesizes implementation reviews. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
 13. Orchestrator commits only the intended tracked changes when the human approves the commit or when the approved workflow explicitly calls for it.
@@ -178,7 +203,7 @@ If execution is read-only and creates no material diff, the orchestrator may mov
 
 In multi-slice mode, steps 5-7 run independently for each ready slice.
 
-In multi-slice mode, preparing the next committed ready slice for Review is automatic tracker work. The next human approval is for execution that changes code, data, or resources; commit; push, publish, or merge; closeout unless already authorized by workflow; scope changes; live or external systems, databases, cloud, deploys, destructive actions, costly actions; or any action the plan or workflow marks as approval-gated.
+In multi-slice mode, preparing the next committed ready slice for Review is automatic tracker work. If autonomy mode authorizes local execution, reviewer approval is the execution gate. The next human approval is for manual execution, commit, push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated.
 
 ## Orchestrator Next-Action Rule
 
@@ -282,6 +307,8 @@ Proceed when both reviewer slots are complete and all blocking feedback is resol
 
 A Block from either reviewer holds the gate. The orchestrator must address it or the human must explicitly override it in the issue before execution.
 
+When autonomy mode is `review-approved-auto-execute`, two reviewer outcomes of `Approve` or `Approve with nits` authorize local execution when no Autonomy Mode stop condition or required change before execution applies. Otherwise move to Approval when the next action needs human approval.
+
 Use a third reviewer only when the human asks for a tie-break or extra risk review.
 
 ## Plan Drift Rule
@@ -305,6 +332,7 @@ If a saved plan, deploy artifact, or generated evidence file is replaced, record
 - Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into issues.
 - Use sanitized summaries for plans, logs, findings, and metadata.
 - Destructive, costly, cloud-mutating, deploy, apply, push, or external posting outside the assigned tracker issue set requires explicit human approval.
+- Auto-execution is limited to reviewed local work inside the assigned slice.
 - The approved workflow may authorize issue closeout after acceptance criteria pass; otherwise human approval is required.
 - Saved plans must be applied by explicit filename, not by a stale default path.
 - Local-only plan documents stay uncommitted when the task says so.

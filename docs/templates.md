@@ -19,6 +19,7 @@ Writing rule: be brief, simple, and necessary. Include enough exact information 
 Repo path: <absolute repo path>
 Local executable plan path: <absolute plan path>
 Linear team/workspace or routing source: <team, workspace, or mapping doc>
+Autonomy mode: review-approved-auto-execute | manual
 
 Do not execute the plan yet.
 
@@ -29,6 +30,8 @@ Create or update one Linear issue for a one-slice plan. For a finalized multi-sl
 Before editing or execution, confirm the plan states acceptance criteria, non-goals, current git status expectations, verification, and stop conditions.
 
 Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, and filled Reviewer Prompt templates for each ready issue and each reviewer slot.
+
+Record autonomy mode on every created issue. Default missing autonomy mode to `review-approved-auto-execute` unless a manual condition applies. When autonomy mode is `review-approved-auto-execute`, two reviewer outcomes of Approve or Approve with nits authorize local execution of the reviewed slice if there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands; do not ask the human for `Approved: execute ...`. Human approval is still required for commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, production data/resource change, closeout unless already authorized, scope change, or unreviewed commands.
 
 After a child slice reaches Done or Waiting External Eval, automatically update parent and child gates in the tracker. If the next committed child slice is ready, move it to Review and post filled Reviewer Prompt templates. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve review preparation.
 
@@ -51,6 +54,7 @@ End your response to the human with:
 
 Local-only: yes | no
 Commit this plan: yes | no
+Autonomy mode default: review-approved-auto-execute
 Repo/path: <absolute repo/path>
 Issue: <fill after creation>
 
@@ -84,8 +88,9 @@ Out of scope:
    - commitment: committed | optional | future
    - depends on: <none | slice name(s)>
    - initial gate: Todo | Review | Blocked
+   - autonomy mode: inherit | review-approved-auto-execute | manual
    - files/resources:
-   - commands:
+   - commands: <list exact invocations; novel commands, flags, or pipelines require human approval>
    - approval required before:
    - verification:
    - stop conditions:
@@ -135,6 +140,7 @@ Reviewers should comment on this same ready or slice issue. Do not create child 
 Local plan path: `<absolute path>`
 Plan status: local-only | committed | not required because <reason>
 Current gate: Backlog | Todo | In Progress | Review | Approval | Blocked | Waiting External Eval | Done
+Autonomy mode: review-approved-auto-execute | manual
 
 ## Goal
 
@@ -242,19 +248,28 @@ Blocking feedback:
 Non-blocking feedback:
 - <finding and decision>
 
+Nit resolution:
+- <which nits were addressed before auto-execute, or "none required">
+
+Required changes before execution:
+- <none | addressed changes | still blocking>
+
 Changes made:
 - <files/resources changed>
 
 Verification:
 - <commands/checks run>
 
+Autonomy decision:
+- manual approval required | auto-execute authorized
+
 Current gate:
-- Approval | Review | Blocked
+- In Progress | Approval | Review | Blocked
 
 Next human action:
-- <exact action needed, for example: Approved: execute <ISSUE-ID> <slice name> only.>
+- <exact action needed, or none if auto-execute is authorized>
 
-If approved:
+If auto-executing or approved:
 - <what the orchestrator will do>
 
 If blocked:
@@ -270,6 +285,8 @@ Still out of scope:
 Approval request
 
 I am ready to execute the reviewed slice.
+
+Use this only when human approval is required. Do not request approval when autonomy mode `review-approved-auto-execute` authorizes local execution after two reviewer approvals with no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands.
 
 Exact action:
 - <command/action>

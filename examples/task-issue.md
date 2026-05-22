@@ -13,6 +13,7 @@ Reviewer 2: Reviewer agent B
 Local plan path: `/path/to/repo/docs/example-execution-plan.md`
 Plan status: local-only
 Current gate: Review
+Autonomy mode: review-approved-auto-execute
 
 ## Goal
 
@@ -54,7 +55,7 @@ Waiting for Reviewer 1 and Reviewer 2 comments.
 
 ## Next Human Action
 
-Send this issue to Reviewer 1 and Reviewer 2 with the reviewer prompt. Do not approve execution yet.
+Send this issue to Reviewer 1 and Reviewer 2 with the reviewer prompt. If both reviewers approve with no blockers, the orchestrator may execute this reviewed local slice automatically.
 
 ## Review Request
 
