@@ -69,6 +69,8 @@ Create one child issue for each committed execution slice. Record intended execu
 
 Set ready child slice issues to Review. Keep downstream or unready child slice issues Todo or Blocked.
 
+When a child slice reaches Done or Waiting External Eval, promote the next committed unblocked child slice to Review automatically and post reviewer prompts; this is tracker preparation, not a human approval gate. If the next committed child slice is still blocked, leave its gate and note the blocker in the parent issue.
+
 Avoid separate reviewer issues by default. Review identity belongs in the comment body.
 
 ## GitHub Integration

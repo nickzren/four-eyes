@@ -62,15 +62,17 @@ Responsibilities are the same as Reviewer 1.
 
 ### Human Approver
 
-The human owns the final approval for risky actions:
+The human owns final approval for real risk gates:
 
-- destructive changes
-- costly actions
-- production deploys
-- cloud mutations
-- data changes
-- merge or publish decisions
-- any action the plan marks as approval-gated
+- execution that changes code, data, or resources
+- commit
+- push, publish, or merge
+- closeout unless already authorized by workflow
+- scope changes
+- live or external systems, databases, cloud, deploys, destructive actions, or costly actions
+- any action the plan or workflow marks as approval-gated
+
+Human approval is not required for tracker-only workflow preparation such as creating planned child issues, promoting the next ready slice to Review, posting reviewer prompts, synthesizing reviews, or updating gate metadata.
 
 ## Required Reviewer Header
 
@@ -142,8 +144,11 @@ When a finalized local plan contains multiple execution slices:
 - create the parent issue and one child issue for every named execution slice the plan commits to
 - record the intended execution order and inter-slice dependencies in the parent issue
 - use the parent issue as the overview gate; child issues carry exact slice gates such as Review, Approval, In Progress, Blocked, or Waiting External Eval
+- parent gate mirrors the next active child gate; use Blocked only when no child is actionable, and Done only after all children are verified and closed
 - assign each ready child slice the Review gate
 - keep downstream or unready slices Todo or Blocked when they depend on earlier slices, external decisions, missing evidence, or unresolved ownership
+- after a child slice reaches Done or Waiting External Eval, the orchestrator automatically checks the next committed child slice; if it is ready, move it to Review and post filled reviewer prompts without asking for human approval
+- if the next committed child slice is not ready, leave its current gate and post a brief blocker note in the parent issue
 - reviewers review every ready slice and post feedback on each issue
 - the orchestrator owns sequencing and may execute only the next approved slice
 - post-execution review on each slice still applies before commit, push, apply, deploy, merge, or closeout
@@ -172,6 +177,8 @@ Key distinction: create and review broadly; execute narrowly.
 If execution is read-only and creates no material diff, the orchestrator may move directly to Waiting External Eval, Approval, or Done according to the approved workflow and verification state.
 
 In multi-slice mode, steps 5-7 run independently for each ready slice.
+
+In multi-slice mode, preparing the next committed ready slice for Review is automatic tracker work. The next human approval is for execution that changes code, data, or resources; commit; push, publish, or merge; closeout unless already authorized by workflow; scope changes; live or external systems, databases, cloud, deploys, destructive actions, costly actions; or any action the plan or workflow marks as approval-gated.
 
 ## Orchestrator Next-Action Rule
 
@@ -297,7 +304,7 @@ If a saved plan, deploy artifact, or generated evidence file is replaced, record
 
 - Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into issues.
 - Use sanitized summaries for plans, logs, findings, and metadata.
-- Destructive, costly, cloud-mutating, deploy, apply, push, or external-posting actions require explicit human approval.
+- Destructive, costly, cloud-mutating, deploy, apply, push, or external posting outside the assigned tracker issue set requires explicit human approval.
 - The approved workflow may authorize issue closeout after acceptance criteria pass; otherwise human approval is required.
 - Saved plans must be applied by explicit filename, not by a stale default path.
 - Local-only plan documents stay uncommitted when the task says so.

@@ -30,6 +30,8 @@ Before editing or execution, confirm the plan states acceptance criteria, non-go
 
 Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, and filled Reviewer Prompt templates for each ready issue and each reviewer slot.
 
+After a child slice reaches Done or Waiting External Eval, automatically update parent and child gates in the tracker. If the next committed child slice is ready, move it to Review and post filled Reviewer Prompt templates. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve review preparation.
+
 Do not paste secrets, raw identifiers, raw plans, raw logs, or sensitive evidence into the issue.
 
 End your response to the human with:
@@ -282,6 +284,8 @@ Verification after execution:
 - <commands/checks>
 
 Please approve explicitly before I run it.
+
+Do not request approval for tracker-only preparation work such as promoting the next ready slice, posting reviewer prompts, or updating parent/child gates.
 
 Exact approval phrase:
 - Approved: execute <ISSUE-ID> <slice name> only.
