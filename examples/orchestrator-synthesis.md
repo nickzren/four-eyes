@@ -14,32 +14,34 @@ Non-blocking feedback:
 - Add retry-exhaustion test. Accepted.
 
 Nit resolution:
-- Retry-exhaustion test will be included during auto-execute.
+- Retry-exhaustion test was added on the phase branch.
 
-Required changes before execution:
+Required changes before merge:
 - None.
 
 Changes made:
-- Plan updated to include retry-exhaustion test.
+- Implemented retry classification on `phase/EXAMPLE-retry-behavior`.
+- Added retryable, non-retryable, and retry-exhaustion tests.
 
 Verification:
-- Not run yet. This is still pre-implementation.
+- `pytest tests/test_sync_worker.py`: pass.
+- `git diff --check`: pass.
 
 Autonomy decision:
-- auto-execute authorized
+- phase branch approved; merge requires human approval
 
 Current gate:
-- In Progress.
+- Approval.
 
 Next human action:
-- None for execution. Reviewer approval authorized local execution under autonomy mode.
+- Approve merge to `main`, post-merge verification, closeout, and phase branch deletion.
 
-If auto-executing:
-- The orchestrator will edit only the reviewed files, run the agreed checks, and move the issue back to Review if execution creates a material diff.
+Exact approval phrase:
+- Approved: merge phase/EXAMPLE-retry-behavior into main, verify, close the issue, and delete the phase branch.
 
 If blocked:
-- The orchestrator will keep the issue at Review or Blocked and address the blocker before execution.
+- The orchestrator will keep the issue at Review or Blocked, fix the phase branch, push the update, and request delta review.
 
 Still out of scope:
-- No deploys, data changes, unrelated refactors, or other slices.
+- No merge to `main`, deploys, data changes, unrelated refactors, or other slices.
 ```

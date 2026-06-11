@@ -1,4 +1,6 @@
-# Example Reviewer Comment
+# Example Reviewer Verdict
+
+Reviewer output can be returned to the human relay or orchestrator. It does not need to be posted directly to the tracker.
 
 ```text
 Reviewer slot: 1
@@ -19,4 +21,3 @@ Questions:
 Required changes before execution:
 - None. The orchestrator can implement the plan and include the extra test if it fits the touched code.
 ```
-

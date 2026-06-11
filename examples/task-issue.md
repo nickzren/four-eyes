@@ -14,6 +14,12 @@ Local plan path: `/path/to/repo/docs/example-execution-plan.md`
 Plan status: local-only
 Current gate: Review
 Autonomy mode: review-approved-auto-execute
+Phase branch mode: on
+Phase branch flow: implementation-first
+Base branch: main
+Phase branch: phase/EXAMPLE-retry-behavior
+Remote push: allowed
+Merge target: main
 
 ## Goal
 
@@ -51,16 +57,20 @@ Implement retry classification in the existing worker helper. Add focused tests 
 
 ## Current Gate
 
-Waiting for Reviewer 1 and Reviewer 2 comments.
+Review. Phase branch is ready for Reviewer 1 and Reviewer 2 verdicts.
 
 ## Next Human Action
 
-Send this issue to Reviewer 1 and Reviewer 2 with the reviewer prompt. If both reviewers approve with no blockers, the orchestrator may execute this reviewed local slice automatically.
+Send the reviewer prompt, issue context, phase branch, diff summary, and verification evidence to Reviewer 1 and Reviewer 2 separately. Paste both reviewer replies back to the orchestrator.
+
+If both reviewers approve with no blockers, the orchestrator asks for human merge approval. If either reviewer blocks, the orchestrator fixes the phase branch and requests delta review.
 
 ## Review Request
 
-Please review independently before reading other comments or orchestrator synthesis comments.
+Please review independently before reading other reviewer output or orchestrator synthesis.
 
-If implementation already exists, review the current diff and verification evidence before commit or closeout.
+Review the phase branch diff and verification evidence before merge or closeout.
 
 Check acceptance criteria, scope, safety, tests, and whether this is ready for the next gate.
+
+Return your verdict to the human relay or orchestrator. Do not post directly to the tracker unless explicitly instructed.

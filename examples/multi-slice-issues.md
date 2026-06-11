@@ -7,6 +7,9 @@ Title: EXAMPLE-200 Retry workflow cleanup
 
 Current gate: Review
 Autonomy mode: review-approved-auto-execute
+Phase branch mode: on
+Phase branch flow: implementation-first
+Merge target: main
 
 Execution order:
 1. EXAMPLE-201 retry classification
@@ -30,12 +33,19 @@ Title: EXAMPLE-201 retry classification
 
 Current gate: Review
 Autonomy mode: review-approved-auto-execute
+Phase branch mode: on
+Phase branch flow: implementation-first
+Base branch: main
+Phase branch: phase/EXAMPLE-201-retry-classification
+Remote push: allowed
+Merge target: main
 
 Commitment: committed
 Depends on: none
 
 Next human action:
-- Send this ready slice issue to Reviewer 1 and Reviewer 2 with filled Reviewer Prompt templates. If both reviewers approve with no blockers, the orchestrator may execute this reviewed local slice automatically.
+- Send this ready slice context, phase branch, diff summary, and verification evidence to Reviewer 1 and Reviewer 2 with filled Reviewer Prompt templates. Paste both reviewer verdicts back to the orchestrator.
+- If reviewers approve with no blockers, the orchestrator asks for human merge approval. If either reviewer blocks, the orchestrator fixes the phase branch and requests delta review.
 ```
 
 ## Orchestrator Output

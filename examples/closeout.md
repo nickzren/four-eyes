@@ -35,4 +35,5 @@ Sensitive-data note:
 Local cleanup:
 - Local execution plan removed.
 - Raw test output not retained.
+- Phase branch deleted after approved merge.
 ```

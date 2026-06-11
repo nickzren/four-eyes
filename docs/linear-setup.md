@@ -22,6 +22,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 
 Create:
 - a project or workspace area named Four Eyes
+- a Default Workflow document from the README.md Default Workflow section
 - a Playbook document from docs/playbook.md
 - a Templates document from docs/templates.md
 - an Issue Tracker Setup document from docs/issue-tracker-setup.md
@@ -53,6 +54,7 @@ Keep everything brief, generic, and public-safe. Do not include company names, s
 Treat this repo as the source of truth.
 
 Runtime docs:
+- Four Eyes Default Workflow
 - Four Eyes Playbook
 - Four Eyes Templates
 - Four Eyes Issue Tracker Setup
@@ -81,9 +83,10 @@ Review: Four Eyes workflow docs
 Description:
 
 ```text
-Use this issue for reviews of the Four Eyes playbook, templates, issue tracker setup, and Linear setup.
+Use this issue for reviews of the Four Eyes default workflow, playbook, templates, issue tracker setup, and Linear setup.
 
 Source docs:
+- Default Workflow
 - Playbook
 - Templates
 - Issue Tracker Setup
