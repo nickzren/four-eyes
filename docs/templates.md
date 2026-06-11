@@ -17,7 +17,7 @@ Read the existing Four Eyes Default Workflow, Playbook, Templates, and Issue Tra
 Writing rule: be brief, simple, and necessary. Include enough exact information for another human or AI to continue safely. Do not add narrative padding or omit required gates/evidence.
 
 Repo path: <absolute repo path>
-Local executable plan path: <absolute plan path>
+Local executable plan path: <absolute plan path or "none">
 Linear team/workspace or routing source: <team, workspace, or mapping doc>
 Handoff mode: reviewer1-subagent + manual reviewer2 | manual human relay
 Review tier: skip | light | full
@@ -48,13 +48,15 @@ If the local executable plan is big but has no named phases, infer practical pha
 
 Before editing or execution, confirm the plan states acceptance criteria, non-goals, current git status expectations, verification, and stop conditions.
 
+If the ticket or request is not clear enough to execute safely, write a temporary local executable plan first. Keep it uncommitted. Include the plan path and sanitized summary in the issue, ask reviewers to confirm the plan before execution when it defines the work, and remove the plan after closeout.
+
 Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, handoff mode, review tier, internal Reviewer 1 status when applicable, and filled Reviewer Prompt templates for each external expected reviewer slot.
 
 Record autonomy mode on every created issue. Default missing autonomy mode to `review-approved-auto-execute` unless a manual condition applies. When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning Approve or Approve with nits authorize local execution of the reviewed slice if there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands; do not ask the human for `Approved: execute ...`.
 
 Record phase branch mode on every created issue. When phase branch mode is `on`, the orchestrator may create, commit to, and push the named phase branch without per-commit human approval. Human approval is still required for protected-branch push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, production data/resource change, closeout unless already authorized, scope change, unreviewed commands, or branch pushes that trigger hard-to-reverse external effects.
 
-When phase branch flow is `implementation-first`, reviewers review the completed phase branch diff and verification evidence, not the plan before implementation.
+When phase branch flow is `implementation-first`, reviewers review the completed phase branch diff and verification evidence, not the plan before implementation — except when a temporary local plan defines unclear work: have the expected reviewers confirm that plan before implementing it.
 
 After a child slice reaches Done or Waiting External Eval, update parent and child gates in the tracker. If the next committed child slice is ready, move it to Review and post or prepare filled Reviewer Prompt templates for external reviewer slots only. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve review preparation.
 
@@ -82,8 +84,9 @@ End your response to the human with:
 ```text
 # <Task Title> Execution Plan
 
-Local-only: yes | no
-Commit this plan: yes | no
+Local-only: yes
+Commit this plan: no
+Cleanup: remove after closeout
 Autonomy mode default: review-approved-auto-execute
 Phase branch mode default: on | off
 Phase branch flow default: implementation-first | pre-review
@@ -150,7 +153,7 @@ Out of scope:
 
 ## Cleanup
 
-- Remove/refresh this local plan when complete unless it should become durable documentation.
+- Remove this local plan after closeout.
 - Keep raw evidence under `/tmp/...` unless another approved evidence path is required.
 ```
 
@@ -192,7 +195,7 @@ Reviewers should return verdicts to the orchestrator or human relay. If Reviewer
 ## Source Plan
 
 Local plan path: `<absolute path>`
-Plan status: local-only | committed | not required because <reason>
+Plan status: local-only temporary | not required because <reason>
 Current gate: Backlog | Todo | In Progress | Review | Approval | Blocked | Waiting External Eval | Done
 Autonomy mode: review-approved-auto-execute | manual
 
@@ -213,7 +216,7 @@ Autonomy mode: review-approved-auto-execute | manual
 
 - No destructive/costly/cloud-mutating action without explicit human approval.
 - Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into the issue.
-- Keep local-only plan files uncommitted if marked local-only.
+- Keep local plan files uncommitted and remove them after closeout.
 - Use `/tmp/...` for raw evidence unless another approved evidence path is required.
 - Implement only the stated acceptance criteria; no opportunistic refactor or unrelated files.
 
@@ -454,6 +457,6 @@ Sensitive-data note:
 - No secrets/raw sensitive identifiers were committed or posted.
 
 Local cleanup:
-- <local plan removed/refreshed/left intentionally>
+- <temporary local plan removed, or "not created">
 - <raw evidence location, if any>
 ```

@@ -11,8 +11,8 @@ Handoff mode: reviewer1-subagent + manual reviewer2
 
 ## Source Plan
 
-Local plan path: `/path/to/repo/docs/example-execution-plan.md`
-Plan status: local-only
+Local plan path: `/path/to/repo/tmp/example-execution-plan.md`
+Plan status: local-only temporary
 Current gate: Review
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on

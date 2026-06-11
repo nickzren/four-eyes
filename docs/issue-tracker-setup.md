@@ -43,7 +43,7 @@ Remove stale gate labels when adding a new gate label.
 
 Every non-trivial task issue should include:
 
-- source plan path or link
+- temporary source plan path or link, when the ticket was not clear enough to execute directly
 - current gate
 - autonomy mode
 - phase branch mode, if enabled
@@ -58,6 +58,8 @@ Every non-trivial task issue should include:
 - reviewer prompts
 - execution log
 - closeout
+
+Local executable plans are temporary coordination artifacts. Do not commit them. Keep the issue tracker to sanitized summaries and remove the local plan after closeout.
 
 ## Autonomy Mode
 
@@ -130,3 +132,4 @@ Even with automatic links, keep the issue closeout explicit:
 - what was verified
 - what remains
 - whether sensitive data stayed out of public surfaces
+- temporary local plans and working artifacts removed

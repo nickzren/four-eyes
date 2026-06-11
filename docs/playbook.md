@@ -269,7 +269,7 @@ Read other reviews first: no
 
 ## Plan-First Rule
 
-For non-trivial repo, infrastructure, cloud, security, deploy, cleanup, migration, debugging, or operational work, create a local executable plan before creating or expanding issue tracker items.
+For non-trivial repo, infrastructure, cloud, security, deploy, cleanup, migration, debugging, or operational work, create a temporary local executable plan when the ticket or request is not clear enough to execute safely.
 
 The plan should state:
 
@@ -287,15 +287,18 @@ The plan should state:
 
 A local plan file is not required for simple issue admin, queue triage, one-line fixes, tiny doc edits, or tasks the human explicitly wants handled directly.
 
+When a local plan defines or clarifies the work, reviewers review the plan as part of the gate before execution; for implementation-first phase branches, that means before implementation starts. The plan must be specific enough for reviewers to confirm scope, acceptance criteria, commands, verification, stop conditions, and human gates.
+
 ## Local Plan Storage
 
 Use the least durable place that still supports the work:
 
 - repo-local temporary plan when agents need it next to code
 - `/tmp/...` for ephemeral evidence, raw command output, sensitive metadata, or large generated artifacts
-- committed docs only when the human explicitly wants the plan or runbook to become durable repo documentation
 
-Repo-local temporary plans should stay uncommitted unless the human says otherwise. Remove or refresh stale plan files after the slice is complete.
+Local executable plans are temporary coordination artifacts. Do not commit them, and prefer a gitignored path for repo-local plans so bulk staging cannot pick them up. If the work produces durable documentation, write that documentation separately from the temporary execution plan.
+
+Remove the temporary local plan after the issue, phase, or parent workflow is complete. If work pauses before completion, keep the plan only as long as it is needed to resume safely.
 
 If reviewers cannot access the local plan file, the orchestrator must include enough sanitized plan content in the issue for review to proceed safely.
 
@@ -390,7 +393,7 @@ If phase inference is unclear, default to one phase rather than many tiny issues
 
 Use this flow when phase branch mode is enabled:
 
-1. Orchestrator confirms the phase scope, base branch, phase branch, merge target, verification, and stop conditions.
+1. Orchestrator confirms the phase scope, base branch, phase branch, merge target, verification, and stop conditions. If a temporary local plan defines unclear work, expected reviewers confirm the plan before implementation starts.
 2. Orchestrator creates the phase branch from the base branch.
 3. Orchestrator implements the whole phase on that branch.
 4. Orchestrator commits and pushes only the named phase branch when remote push is allowed.
@@ -407,9 +410,9 @@ This flow is meant to reduce review loops. It trades pre-implementation review f
 
 Use this flow when phase branch mode is off, or when pre-implementation review is required.
 
-1. Orchestrator creates a local executable plan when required.
+1. Orchestrator creates a temporary local executable plan when the ticket or request is not clear enough to execute safely.
 2. Orchestrator creates one issue or decomposes the plan into parent and child slice issues.
-3. Orchestrator adds the plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
+3. Orchestrator adds the temporary plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
 4. The orchestrator creates or reuses any internal Reviewer 1 subagent with only the review packet and its own prior review history. The human sends the ready issue link(s), local plan or sanitized summary, and task prompt only to external expected reviewer slots. Current gate: Review for ready issue(s).
 5. Reviewers return verdicts independently to the orchestrator or human relay. Current gate: Review.
 6. Orchestrator synthesizes the expected reviews. Current gate: In Progress when auto-execute is authorized and execution is starting, Approval if human approval is needed, Review if material changes need re-review, or Blocked if blockers remain.

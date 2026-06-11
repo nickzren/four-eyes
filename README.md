@@ -21,19 +21,22 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 
 ## Default Workflow
 
-1. Give the orchestrator a local executable plan.
+1. If the ticket is not clear enough to execute, the orchestrator writes a temporary local executable plan.
 2. If the plan is big and has no phases, the orchestrator infers practical phases and creates a Linear parent issue plus phase child issues.
-3. For each phase, the orchestrator creates a phase branch from the base branch.
-4. The orchestrator implements the whole phase, commits to the phase branch, pushes only that branch, runs verification, and moves the phase issue to Review.
-5. The orchestrator prepares the review transport and reviewer handoff.
-6. When available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow. The human relays only the external reviewer prompt, usually Reviewer 2.
-7. Reviewers review the PR or packet independently and return verdicts outside the tracker.
-8. In manual relay, the human pastes external review replies back to the orchestrator; in PR transport, the orchestrator reads the PR reviews.
-9. If blocked, the orchestrator fixes the phase branch and requests delta review.
-10. When reviewers approve, the human approves merge to `main` or another protected branch.
-11. The orchestrator merges, verifies, updates or closes the tracker item, and deletes the phase branch if approved.
+3. Reviewers confirm the plan before implementation starts when the plan defines the work, using the same reviewer handoff as later reviews.
+4. For each phase, the orchestrator creates a phase branch from the base branch.
+5. The orchestrator implements the whole phase, commits to the phase branch, pushes only that branch, runs verification, and moves the phase issue to Review.
+6. The orchestrator prepares the review transport and reviewer handoff.
+7. When available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow. The human relays only the external reviewer prompt, usually Reviewer 2.
+8. Reviewers review the PR or packet independently and return verdicts outside the tracker.
+9. In manual relay, the human pastes external review replies back to the orchestrator; in PR transport, the orchestrator reads the PR reviews.
+10. If blocked, the orchestrator fixes the phase branch and requests delta review.
+11. When reviewers approve, the human approves merge to `main` or another protected branch.
+12. The orchestrator merges, verifies, updates or closes the tracker item, deletes the phase branch if approved, and removes the temporary local plan.
 
 This default shows the Full review path. Light uses one opposite-family reviewer. Skip uses no reviewer.
+
+Temporary local executable plans are coordination artifacts. They should stay uncommitted, be reviewed when they define unclear work, and be removed after closeout.
 
 ```mermaid
 flowchart LR
@@ -138,7 +141,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/issue-tracker-setup.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. If the ticket is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
