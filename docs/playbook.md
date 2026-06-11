@@ -170,6 +170,35 @@ Approved: merge <phase branch> into <target branch>, verify, close the issue, an
 
 If the repository has branch-push side effects, such as preview deploys, production deploys, release publishing, or data mutation, remote push is a human gate unless the human explicitly pre-authorizes that side effect.
 
+## Review Transport
+
+Every phase should state:
+
+```text
+Review transport: pr | manual-relay
+```
+
+Default to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.
+
+When review transport is `pr`:
+
+- the orchestrator opens or updates a PR from the phase branch to the merge target after verification
+- the PR body includes the tracker issue link, sanitized plan summary, acceptance criteria, verification evidence, and risk notes
+- reviewers review the PR diff directly and write their verdict before reading other reviews
+- verdict mapping is `Approve` -> approve, `Approve with nits` -> approve with comments, and `Block` -> request changes
+- reviewer bodies include the required reviewer header
+- the PR is the review artifact; the tracker remains the gate and status record
+
+Merge is the default routine per-phase human gate. Existing risk gates remain unchanged: deploy, apply, external mutation, destructive or costly action, scope change, tier downgrade, protected-branch push, and branch pushes with side effects still require human approval.
+
+Automation ladder:
+
+1. Current: PR transport with human-invoked reviewers.
+2. Future: orchestrator invokes reviewers against the PR or branch.
+3. Future: CI-triggered reviewers.
+
+Rungs 2 and 3 are not implemented or pre-authorized by this playbook.
+
 ## Review Tier
 
 Every plan, phase, or slice should state the review tier:
@@ -179,10 +208,10 @@ Review tier: skip | light | full
 ```
 
 - `skip`: tiny docs, typos, formatting, simple issue/admin work, or other changes from the playbook skip list. Run verification when useful and keep the configured branch or merge gate.
-- `light`: small, low-risk, reversible work. Use one reviewer from a different model family than the agent that authored the change, one round, and no autonomous fix loop. A blocker, failed verification, could-not-review result, sensitive path, or oversized diff escalates to `full` or to a human decision.
+- `light`: the default for routine low-risk, reversible repo work. Use one reviewer from a different model family than the agent that authored the change, one round, and no autonomous fix loop. A blocker, failed verification, could-not-review result, sensitive path, or oversized diff escalates to `full` or to a human decision.
 - `full`: the normal Four Eyes gate: two independent reviewers, synthesis, bounded fix/re-review, and human approval for real-risk gates.
 
-The human or local plan sets the review tier. If the tier is missing on non-trivial work, use `full` or ask the human. The orchestrator may escalate the tier but must not downgrade its own work without explicit human instruction.
+The human or local plan sets the review tier. If the tier is missing, use `light` for routine low-risk repo work and `full` for high-risk or broad work, or ask the human. The orchestrator may escalate the tier but must not downgrade its own work without explicit human instruction.
 
 Always use `full` for security, infrastructure, schema/data, production, deploy, destructive, costly, external-state, or hard-to-reverse work.
 
@@ -278,6 +307,16 @@ Review cost is per review run, not per change. Size slices to the run:
 - Batch related low-risk cleanup into one slice, one issue, one review run with a combined acceptance list.
 - Split into separate slices only when gates, rollback, owners, repos, deploy windows, or risk class differ.
 - Do not open one issue per tiny change; do not hide unrelated risk classes inside one slice.
+- Split an oversized phase diff instead of mega-reviewing it.
+
+### Token-Efficient Review
+
+Keep review tokens focused on judgment:
+
+- reviewers inspect PR or repo diffs directly; do not paste large diffs into prompts, issues, or PR comments
+- CI or check links replace pasted logs when CI exists
+- re-review is delta-only by default: send the delta diff plus that reviewer's own prior blocking findings
+- full re-review is required only when scope, risk, or acceptance criteria changed
 
 ### Phase Review
 
@@ -324,8 +363,8 @@ Use this flow when phase branch mode is enabled:
 3. Orchestrator implements the whole phase on that branch.
 4. Orchestrator commits and pushes only the named phase branch when remote push is allowed.
 5. Orchestrator runs verification and updates the tracker with the phase branch, diff summary, and reviewer prompts.
-6. The human sends the branch review packet to the expected reviewers.
-7. Reviewers review the branch diff and verification evidence independently, then return verdicts to the human relay or orchestrator.
+6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the PR as the review artifact. If review transport is `manual-relay`, the human sends the branch review packet to the expected reviewers.
+7. Reviewers review the PR or branch diff and verification evidence independently, then return verdicts through the selected transport.
 8. Orchestrator synthesizes feedback, fixes blockers on the same phase branch, commits and pushes the updates, and requests delta review when needed.
 9. When all expected reviewers approve, orchestrator asks the human for the merge approval phrase.
 10. After approval, orchestrator merges into the target branch, runs post-merge verification, updates or closes the tracker item if authorized, and deletes the phase branch if authorized.
@@ -497,6 +536,10 @@ Use an issue tracker as the agent orchestration board.
 Use GitHub Issues or PRs when the work is repo-native, public, or should be tied directly to branches, commits, code review, and PR closure.
 
 When a branch or PR exists, link it from the issue. Do not duplicate sensitive operational evidence into GitHub.
+
+When available, use branch protection on the merge target with required approvals and required status checks.
+
+Prefer squash merge for phase branches unless the repo has a different established convention.
 
 If a PR is opened, its description should briefly include:
 
