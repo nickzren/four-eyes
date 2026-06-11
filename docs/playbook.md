@@ -183,7 +183,8 @@ Default to `pr` when the repo has a remote and CI or branch protection. Use `man
 When review transport is `pr`:
 
 - the orchestrator opens or updates a PR from the phase branch to the merge target after verification
-- the PR body includes the tracker issue link, sanitized plan summary, acceptance criteria, verification evidence, and risk notes
+- the PR body includes the tracker issue link only when the repo is private or the tracker is accessible to the PR audience; otherwise it includes the tracker issue ID only
+- the PR body includes the sanitized plan summary, acceptance criteria, verification evidence, and risk notes
 - reviewers review the PR diff directly and write their verdict before reading other reviews
 - verdict mapping is `Approve` -> approve, `Approve with nits` -> approve with comments, and `Block` -> request changes
 - reviewer bodies include the required reviewer header
@@ -545,7 +546,7 @@ If a PR is opened, its description should briefly include:
 
 - what changed
 - why
-- issue link
+- issue link when the repo is private or the tracker is accessible to the PR audience; otherwise issue ID only
 - acceptance criteria checked
 - risk
 - how to test

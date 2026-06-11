@@ -34,7 +34,7 @@ If phase branch mode is off or phase branch flow is `pre-review`, do not execute
 
 If phase branch mode is on and phase branch flow is `implementation-first`, create the phase branch, set the gate to In Progress while implementing, implement the phase, commit and push only the named phase branch if remote push is allowed, run verification, set the gate to Review, then return reviewer prompts for the branch diff.
 
-Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. If review transport is `pr`, open or update the PR before requesting review and make the PR the review artifact.
+Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. If review transport is `pr`, open or update the PR before requesting review and make the PR the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 
 Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
