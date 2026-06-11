@@ -47,6 +47,7 @@ Every non-trivial task issue should include:
 - current gate
 - autonomy mode
 - phase branch mode, if enabled
+- review transport
 - goal
 - acceptance criteria
 - scope and non-goals
@@ -114,6 +115,12 @@ Avoid separate reviewer issues by default. Review identity belongs in the review
 If the tracker can link branches, commits, or pull requests automatically, enable it.
 
 Branch names should include the issue ID when possible.
+
+Use PR review transport when the repo has a remote and CI or branch protection. The PR is the review artifact; the tracker remains the gate and status record.
+
+When available, protect the merge target with required approvals and status checks.
+
+Prefer squash merge for phase branches unless the repo has a different established convention.
 
 Even with automatic links, keep the issue closeout explicit:
 

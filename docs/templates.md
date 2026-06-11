@@ -12,7 +12,7 @@ You are the orchestrator for this task.
 Follow the Four Eyes workflow.
 
 Assume Linear Quick Setup is already complete.
-Read the existing Four Eyes Playbook, Templates, and Issue Tracker Setup in Linear first.
+Read the existing Four Eyes Default Workflow, Playbook, Templates, and Issue Tracker Setup in Linear first.
 
 Writing rule: be brief, simple, and necessary. Include enough exact information for another human or AI to continue safely. Do not add narrative padding or omit required gates/evidence.
 
@@ -24,6 +24,7 @@ Review tier: skip | light | full
 Autonomy mode: review-approved-auto-execute | manual
 Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
+Review transport: pr | manual-relay
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
@@ -32,6 +33,8 @@ Merge target: <branch>
 If phase branch mode is off or phase branch flow is `pre-review`, do not execute the plan yet.
 
 If phase branch mode is on and phase branch flow is `implementation-first`, create the phase branch, set the gate to In Progress while implementing, implement the phase, commit and push only the named phase branch if remote push is allowed, run verification, set the gate to Review, then return reviewer prompts for the branch diff.
+
+Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. If review transport is `pr`, open or update the PR before requesting review and make the PR the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 
 Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
@@ -61,6 +64,7 @@ End your response to the human with:
 - why that gate is set
 - handoff mode and review tier
 - phase branch mode and branch names
+- review transport and PR link when applicable
 - filled Reviewer Prompt templates for each ready issue and expected reviewer slot
 - exact next human action
 - what you will do after that action
@@ -77,6 +81,7 @@ Commit this plan: yes | no
 Autonomy mode default: review-approved-auto-execute
 Phase branch mode default: on | off
 Phase branch flow default: implementation-first | pre-review
+Review transport default: pr | manual-relay
 Repo/path: <absolute repo/path>
 Issue: <fill after creation>
 
@@ -114,6 +119,7 @@ Out of scope:
    - autonomy mode: inherit | review-approved-auto-execute | manual
    - phase branch mode: inherit | on | off
    - phase branch flow: inherit | implementation-first | pre-review
+   - review transport: inherit | pr | manual-relay
    - base branch:
    - phase branch:
    - remote push: disallowed | allowed
@@ -159,6 +165,7 @@ Review tier: skip | light | full
 Phase: <phase name or "single slice">
 Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
+Review transport: pr | manual-relay
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
@@ -245,6 +252,8 @@ Use the required reviewer header from the playbook.
 
 ```text
 Review <ISSUE-ID> using the issue body, orchestrator-provided plan/update content, linked local plan file if accessible, current implementation diff if present, verification evidence, and local repo state if applicable.
+
+If review transport is `pr`, review the PR diff directly before writing your verdict. If review transport is `manual-relay`, review the provided branch or packet context.
 
 You are Reviewer <1|2>.
 

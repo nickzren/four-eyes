@@ -16,6 +16,7 @@ Current gate: Review
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
+Review transport: pr
 Base branch: main
 Phase branch: phase/EXAMPLE-retry-behavior
 Remote push: allowed
@@ -61,7 +62,7 @@ Review. Phase branch is ready for Reviewer 1 and Reviewer 2 verdicts.
 
 ## Next Human Action
 
-Send the reviewer prompt, issue context, phase branch, diff summary, and verification evidence to Reviewer 1 and Reviewer 2 separately. Paste both reviewer replies back to the orchestrator.
+Send the reviewer prompt, issue context, PR link, and verification evidence to Reviewer 1 and Reviewer 2 separately. Reviewers inspect the PR diff directly and return verdicts through the selected transport.
 
 If both reviewers approve with no blockers, the orchestrator asks for human merge approval. If either reviewer blocks, the orchestrator fixes the phase branch and requests delta review.
 
@@ -69,7 +70,7 @@ If both reviewers approve with no blockers, the orchestrator asks for human merg
 
 Please review independently before reading other reviewer output or orchestrator synthesis.
 
-Review the phase branch diff and verification evidence before merge or closeout.
+Review the PR diff and verification evidence before merge or closeout.
 
 Check acceptance criteria, scope, safety, tests, and whether this is ready for the next gate.
 

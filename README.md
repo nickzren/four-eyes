@@ -25,9 +25,9 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 2. If the plan is big and has no phases, the orchestrator infers practical phases and creates a Linear parent issue plus phase child issues.
 3. For each phase, the orchestrator creates a phase branch from the base branch.
 4. The orchestrator implements the whole phase, commits to the phase branch, pushes only that branch, runs verification, and moves the phase issue to Review.
-5. The human sends the reviewer packet to the expected reviewer slots for the selected tier.
-6. Reviewers reply to the human, not the tracker.
-7. The human pastes the review replies back to the orchestrator.
+5. The orchestrator prepares the review transport: PR when useful, manual relay when simpler.
+6. Reviewers review the PR or packet independently and return verdicts outside the tracker.
+7. In manual relay, the human pastes review replies back to the orchestrator; in PR transport, the orchestrator reads the PR reviews.
 8. If blocked, the orchestrator fixes the phase branch and requests delta review.
 9. When reviewers approve, the human approves merge to `main` or another protected branch.
 10. The orchestrator merges, verifies, updates or closes the tracker item, and deletes the phase branch if approved.
@@ -86,10 +86,18 @@ Human approval is still required before merging into `main` or another protected
 
 Phase branch mode is allowed only when branch pushes do not deploy, mutate live systems, publish releases, or trigger other hard-to-reverse external actions. If a branch push has those effects, treat push as a human gate.
 
+## Review Transport
+
+Use `Review transport: pr | manual-relay`.
+
+Default to `pr` when the repo has a remote and CI or branch protection. The PR is the review artifact; Linear stays the gate and status record.
+
+Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.
+
 ## Review Tiers
 
 - Skip: tiny docs, typos, formatting, and simple queue/admin work; run verification and keep the configured branch or merge gate.
-- Light: low-risk, reversible changes; one opposite-family reviewer, one round, no auto-fix loop. This is a single-review shortcut, not full Four Eyes.
+- Light: default for routine low-risk, reversible repo work; one opposite-family reviewer, one round, no auto-fix loop. This is a single-review shortcut, not full Four Eyes.
 - Full: high-risk or broad changes; two independent reviewers and bounded fix/re-review. Use Full for security, infrastructure, data/schema, production, deploy, destructive, costly, or irreversible work.
 
 The human or local plan sets the review tier. The orchestrator may escalate the tier, but must not downgrade its own work without explicit human instruction.
@@ -126,7 +134,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/issue-tracker-setup.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -145,6 +153,7 @@ Linear team/workspace or routing source: <team, workspace, or mapping doc>
 Act as orchestrator.
 
 Use phase branch mode with implementation-first flow unless the plan says otherwise.
+Use review transport `pr` when the repo has a remote and CI or branch protection; otherwise use `manual-relay`.
 
 If the plan is large and has no phases, infer practical phases from scope, files, verification, risk, branch target, and rollback. Create a Linear parent issue plus phase child issues.
 
@@ -155,8 +164,9 @@ For the first ready phase:
 2. Implement the whole phase.
 3. Commit and push only the named phase branch.
 4. Run verification.
-5. Update Linear to Review.
-6. Return filled Reviewer Prompt templates for the expected reviewer slots, including the issue link, phase branch, diff summary, verification evidence, and reviewer slot number.
+5. If review transport is `pr`, open or update the PR from phase branch to merge target. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
+6. Update Linear to Review.
+7. Return filled Reviewer Prompt templates for the expected reviewer slots, including the issue ID or safe link, review transport, PR link or phase branch, diff summary, verification evidence, and reviewer slot number.
 
 Do not merge to main or another protected branch. End with the current gate plus my exact next action.
 ```

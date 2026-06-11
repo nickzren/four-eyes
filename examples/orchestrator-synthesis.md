@@ -27,6 +27,9 @@ Verification:
 - `pytest tests/test_sync_worker.py`: pass.
 - `git diff --check`: pass.
 
+Review transport:
+- PR: <PR link>
+
 Autonomy decision:
 - phase branch approved; merge requires human approval
 

@@ -9,6 +9,7 @@ Current gate: Review
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
+Review transport: pr
 Merge target: main
 
 Execution order:
@@ -35,6 +36,7 @@ Current gate: Review
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
+Review transport: pr
 Base branch: main
 Phase branch: phase/EXAMPLE-201-retry-classification
 Remote push: allowed
@@ -44,7 +46,7 @@ Commitment: committed
 Depends on: none
 
 Next human action:
-- Send this ready slice context, phase branch, diff summary, and verification evidence to Reviewer 1 and Reviewer 2 with filled Reviewer Prompt templates. Paste both reviewer verdicts back to the orchestrator.
+- Send this ready slice context, PR link, and verification evidence to Reviewer 1 and Reviewer 2 with filled Reviewer Prompt templates. Reviewers inspect the PR diff directly.
 - If reviewers approve with no blockers, the orchestrator asks for human merge approval. If either reviewer blocks, the orchestrator fixes the phase branch and requests delta review.
 ```
 

@@ -46,6 +46,8 @@ If custom states are not available, use labels:
 - state:applied-awaiting-verification
 - blocked:<reason>
 
+Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`.
+
 Keep everything brief, generic, and public-safe. Do not include company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
