@@ -21,7 +21,7 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 
 ## Default Workflow
 
-1. If the ticket is not clear enough to execute, the orchestrator writes a temporary local executable plan.
+1. If the task input is not clear enough to execute, the orchestrator writes a temporary local executable plan.
 2. If the plan is big and has no phases, the orchestrator infers practical phases and creates a Linear parent issue plus phase child issues.
 3. Reviewers confirm the plan before implementation starts when the plan defines the work, using the same reviewer handoff as later reviews.
 4. For each phase, the orchestrator creates a phase branch from the base branch.
@@ -36,7 +36,7 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 
 This default shows the Full review path. Light uses one opposite-family reviewer. Skip uses no reviewer.
 
-Temporary local executable plans are coordination artifacts. They should stay uncommitted, be reviewed when they define unclear work, and be removed after closeout.
+Task input can be a user prompt, tracker issue, local note, or existing plan. Temporary local executable plans are coordination artifacts. They should stay uncommitted, be reviewed when they define unclear work, and be removed after closeout.
 
 ```mermaid
 flowchart LR
@@ -141,7 +141,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/issue-tracker-setup.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. If the ticket is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review

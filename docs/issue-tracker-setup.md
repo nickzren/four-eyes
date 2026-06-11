@@ -43,7 +43,7 @@ Remove stale gate labels when adding a new gate label.
 
 Every non-trivial task issue should include:
 
-- temporary source plan path or link, when the ticket was not clear enough to execute directly
+- temporary source plan path or link, when the task input was not clear enough to execute directly
 - current gate
 - autonomy mode
 - phase branch mode, if enabled

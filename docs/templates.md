@@ -48,7 +48,7 @@ If the local executable plan is big but has no named phases, infer practical pha
 
 Before editing or execution, confirm the plan states acceptance criteria, non-goals, current git status expectations, verification, and stop conditions.
 
-If the ticket or request is not clear enough to execute safely, write a temporary local executable plan first. Keep it uncommitted. Include the plan path and sanitized summary in the issue, ask reviewers to confirm the plan before execution when it defines the work, and remove the plan after closeout.
+If the task input is not clear enough to execute safely, write a temporary local executable plan first. Task input can be a user prompt, tracker issue, local note, or existing plan. Keep the plan uncommitted. Include the plan path and sanitized summary in the issue, ask reviewers to confirm the plan before execution when it defines the work, and remove the plan after closeout.
 
 Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, handoff mode, review tier, internal Reviewer 1 status when applicable, and filled Reviewer Prompt templates for each external expected reviewer slot.
 

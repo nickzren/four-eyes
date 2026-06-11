@@ -269,7 +269,7 @@ Read other reviews first: no
 
 ## Plan-First Rule
 
-For non-trivial repo, infrastructure, cloud, security, deploy, cleanup, migration, debugging, or operational work, create a temporary local executable plan when the ticket or request is not clear enough to execute safely.
+For non-trivial repo, infrastructure, cloud, security, deploy, cleanup, migration, debugging, or operational work, create a temporary local executable plan when the task input is not clear enough to execute safely. Task input can be a user prompt, tracker issue, local note, or existing plan.
 
 The plan should state:
 
@@ -410,7 +410,7 @@ This flow is meant to reduce review loops. It trades pre-implementation review f
 
 Use this flow when phase branch mode is off, or when pre-implementation review is required.
 
-1. Orchestrator creates a temporary local executable plan when the ticket or request is not clear enough to execute safely.
+1. Orchestrator creates a temporary local executable plan when the task input is not clear enough to execute safely.
 2. Orchestrator creates one issue or decomposes the plan into parent and child slice issues.
 3. Orchestrator adds the temporary plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
 4. The orchestrator creates or reuses any internal Reviewer 1 subagent with only the review packet and its own prior review history. The human sends the ready issue link(s), local plan or sanitized summary, and task prompt only to external expected reviewer slots. Current gate: Review for ready issue(s).
