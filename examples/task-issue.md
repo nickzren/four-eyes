@@ -4,9 +4,10 @@
 
 Use the Four Eyes workflow.
 
-Orchestrator: Primary agent
-Reviewer 1: Reviewer agent A
-Reviewer 2: Reviewer agent B
+Orchestrator: Codex App
+Reviewer 1: named Codex subagent `reviewer1`
+Reviewer 2: Claude Code
+Handoff mode: reviewer1-subagent + manual reviewer2
 
 ## Source Plan
 
@@ -58,11 +59,11 @@ Implement retry classification in the existing worker helper. Add focused tests 
 
 ## Current Gate
 
-Review. Phase branch is ready for Reviewer 1 and Reviewer 2 verdicts.
+Review. Phase branch is ready for Reviewer 1 and Reviewer 2 verdicts. The orchestrator runs or reuses Reviewer 1 internally and the human relays Reviewer 2.
 
 ## Next Human Action
 
-Send the reviewer prompt, issue context, PR link, and verification evidence to Reviewer 1 and Reviewer 2 separately. Reviewers inspect the PR diff directly and return verdicts through the selected transport.
+Send the Reviewer 2 prompt, issue context, PR link, and verification evidence to Claude Code. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent. Reviewers inspect the PR diff directly and return verdicts through the selected transport.
 
 If both reviewers approve with no blockers, the orchestrator asks for human merge approval. If either reviewer blocks, the orchestrator fixes the phase branch and requests delta review.
 

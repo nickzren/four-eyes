@@ -48,6 +48,8 @@ Every non-trivial task issue should include:
 - autonomy mode
 - phase branch mode, if enabled
 - review transport
+- reviewer handoff
+- verbatim reviewer verdicts or links to them
 - goal
 - acceptance criteria
 - scope and non-goals
@@ -85,7 +87,7 @@ Post-merge branch cleanup: yes | no
 
 When enabled, the orchestrator may create, commit to, and push the named phase branch without per-commit human approval. With `implementation-first`, reviewers review the completed phase branch diff and verification evidence. Human approval is still required before merge into the target branch. The merge approval may include post-merge verification, tracker closeout, and branch deletion.
 
-This label controls execution authorization only. It does not require any tool-run workflow. In manual relay mode, the human passes reviewer verdicts back to the orchestrator, and the orchestrator decides the next tracker update.
+This label controls execution authorization only. It does not require any tool-run workflow. In manual relay mode, the human passes external reviewer verdicts back to the orchestrator, and the orchestrator decides the next tracker update.
 
 ## Parent And Child Issues
 

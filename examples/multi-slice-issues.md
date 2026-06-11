@@ -10,6 +10,7 @@ Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
 Review transport: pr
+Handoff mode: reviewer1-subagent + manual reviewer2
 Merge target: main
 
 Execution order:
@@ -46,21 +47,26 @@ Commitment: committed
 Depends on: none
 
 Next human action:
-- Send this ready slice context, PR link, and verification evidence to Reviewer 1 and Reviewer 2 with filled Reviewer Prompt templates. Reviewers inspect the PR diff directly.
+- Send this ready slice context, PR link, and verification evidence to Reviewer 2 with the filled Reviewer Prompt template. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent. Reviewers inspect the PR diff directly.
 - If reviewers approve with no blockers, the orchestrator asks for human merge approval. If either reviewer blocks, the orchestrator fixes the phase branch and requests delta review.
 ```
 
 ## Orchestrator Output
 
 ```text
-Reviewer 1 prompt for EXAMPLE-201:
+Internal Reviewer 1 subagent:
+
+- Orchestrator creates or reuses the named `reviewer1` subagent with only the review packet and its own prior review history.
+- Do not send this prompt to the human unless subagents are unavailable.
+
+Human-facing Reviewer 2 prompt for EXAMPLE-201:
 
 Review EXAMPLE-201 using the issue body, linked local plan file if accessible, current repo state if applicable, and verification evidence if present.
 
-You are Reviewer 1.
+You are Reviewer 2.
 
-Reviewer slot: 1
-Agent/session: <agent name>
+Reviewer slot: 2
+Agent/session: Claude Code
 Read other reviews first: no
 
 Continue with the full Reviewer Prompt template from docs/templates.md.

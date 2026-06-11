@@ -25,12 +25,13 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 2. If the plan is big and has no phases, the orchestrator infers practical phases and creates a Linear parent issue plus phase child issues.
 3. For each phase, the orchestrator creates a phase branch from the base branch.
 4. The orchestrator implements the whole phase, commits to the phase branch, pushes only that branch, runs verification, and moves the phase issue to Review.
-5. The orchestrator prepares the review transport: PR when useful, manual relay when simpler.
-6. Reviewers review the PR or packet independently and return verdicts outside the tracker.
-7. In manual relay, the human pastes review replies back to the orchestrator; in PR transport, the orchestrator reads the PR reviews.
-8. If blocked, the orchestrator fixes the phase branch and requests delta review.
-9. When reviewers approve, the human approves merge to `main` or another protected branch.
-10. The orchestrator merges, verifies, updates or closes the tracker item, and deletes the phase branch if approved.
+5. The orchestrator prepares the review transport and reviewer handoff.
+6. When available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow. The human relays only the external reviewer prompt, usually Reviewer 2.
+7. Reviewers review the PR or packet independently and return verdicts outside the tracker.
+8. In manual relay, the human pastes external review replies back to the orchestrator; in PR transport, the orchestrator reads the PR reviews.
+9. If blocked, the orchestrator fixes the phase branch and requests delta review.
+10. When reviewers approve, the human approves merge to `main` or another protected branch.
+11. The orchestrator merges, verifies, updates or closes the tracker item, and deletes the phase branch if approved.
 
 This default shows the Full review path. Light uses one opposite-family reviewer. Skip uses no reviewer.
 
@@ -39,10 +40,10 @@ flowchart LR
     Plan["Local plan"] --> Issue["Issue tracker gate"]
     Issue --> Work["Orchestrator executes phase branch"]
     Work --> Verify["Verify phase branch"]
+    Verify --> R1["Reviewer 1 subagent"]
     Verify --> Relay["Human relay"]
-    Relay --> R1["Reviewer 1"]
     Relay --> R2["Reviewer 2"]
-    R1 --> Relay
+    R1 --> Synth
     R2 --> Relay
     Relay --> Synth["Orchestrator synthesis"]
     Synth --> Decision{"Any blocker?"}
@@ -69,12 +70,15 @@ Skip it for one-line fixes, tiny docs, and simple queue/admin work.
 Manual mode is the supported workflow:
 
 1. Codex App or another primary agent acts as orchestrator.
-2. The human sends reviewer prompts to the expected reviewer slots for the selected tier.
-3. Reviewers reply to the human with independent verdicts.
-4. The human pastes the review replies back to the orchestrator.
-5. The orchestrator synthesizes, updates Linear when useful, fixes blockers, and asks for human approval at real gates.
+2. If available, the orchestrator creates or reuses a named isolated Reviewer 1 subagent for the phase or parent workflow.
+3. The human sends prompts only to reviewers the orchestrator cannot launch directly, usually Reviewer 2.
+4. External reviewers reply to the human with independent verdicts.
+5. The human pastes the external review replies back to the orchestrator.
+6. The orchestrator synthesizes, updates Linear when useful, fixes blockers, and asks for human approval at real gates.
 
-Manual mode preserves independent judgment and keeps the workflow simple. It relies on the human to relay messages and keep reviewer outputs separate until the expected reviews are complete.
+Manual mode preserves independent judgment and keeps the workflow simple. It relies on the orchestrator to isolate any internal reviewer subagent and on the human to relay only external reviewer messages.
+
+For a Codex-led workflow, Reviewer 1 may be a reusable named Codex subagent. That gives isolated reviewer context and continuity, not model-family independence. Reviewer 2 should be the opposite-family reviewer when the tier requires independent judgment across model families.
 
 ## Phase Branch Mode
 
@@ -134,7 +138,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/issue-tracker-setup.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -154,6 +158,7 @@ Act as orchestrator.
 
 Use phase branch mode with implementation-first flow unless the plan says otherwise.
 Use review transport `pr` when the repo has a remote and CI or branch protection; otherwise use `manual-relay`.
+If you can create or reuse a named isolated Reviewer 1 subagent, run Reviewer 1 internally and return only the external Reviewer 2 prompt for human relay. If you cannot create an isolated subagent, return prompts for all expected reviewer slots.
 
 If the plan is large and has no phases, infer practical phases from scope, files, verification, risk, branch target, and rollback. Create a Linear parent issue plus phase child issues.
 
@@ -166,7 +171,7 @@ For the first ready phase:
 4. Run verification.
 5. If review transport is `pr`, open or update the PR from phase branch to merge target. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 6. Update Linear to Review.
-7. Return filled Reviewer Prompt templates for the expected reviewer slots, including the issue ID or safe link, review transport, PR link or phase branch, diff summary, verification evidence, and reviewer slot number.
+7. Run or reuse internal Reviewer 1 if available, then return filled Reviewer Prompt templates only for external reviewer slots, including the issue ID or safe link, review transport, PR link or phase branch, diff summary, verification evidence, and reviewer slot number.
 
 Do not merge to main or another protected branch. End with the current gate plus my exact next action.
 ```
@@ -176,10 +181,10 @@ Do not merge to main or another protected branch. End with the current gate plus
 Current default:
 
 - Orchestrator: Codex App
-- Reviewer 1: Codex in a separate session
-- Reviewer 2: Claude Code
+- Reviewer 1: named Codex subagent `reviewer1`, reused by the orchestrator for the phase or parent workflow
+- Reviewer 2: Claude Code, prompted by the human
 
-These roles are not fixed. Use the strongest current agent for orchestration, and prefer at least one reviewer from a different model family than the agent that wrote the change under review.
+These roles are not fixed. Use the strongest current agent for orchestration. For non-skip work, require at least one reviewer from a different model family than the agent that wrote or orchestrated the change unless the human explicitly overrides the review panel.
 
 ## Source Of Truth
 

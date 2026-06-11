@@ -27,11 +27,12 @@ This playbook is the Four Eyes policy. It works with any orchestrator and review
 The supported workflow is manual-first:
 
 - a Codex App orchestrator or another primary agent owns the plan, execution, synthesis, and tracker updates
-- the human relays reviewer prompts to separate reviewer agents
-- reviewers return verdicts to the human
+- when available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow
+- the human relays only reviewer prompts the orchestrator cannot launch directly, usually Reviewer 2
+- reviewers return verdicts to the orchestrator or human
 - the human pastes the expected reviews back to the orchestrator after they are complete
 
-Manual mode preserves independent judgment and keeps the process simple. It relies on human discipline for message passing and reviewer isolation.
+Manual mode preserves independent judgment and keeps the process simple. It relies on the orchestrator to isolate any internal reviewer subagent and on human discipline for external message passing.
 
 ## Tracker Ownership
 
@@ -47,6 +48,33 @@ The orchestrator owns tracker updates:
 - verification summary
 - required human action
 - remaining blockers or risks
+
+## Reviewer Handoff And Isolation
+
+Default Codex-led handoff:
+
+- Reviewer 1: named Codex subagent `reviewer1`, created by the orchestrator and reused across review rounds for the phase or parent workflow
+- Reviewer 2: external opposite-family reviewer, usually Claude Code, prompted by the human
+
+A reviewer subagent must receive only the review packet and its own prior review history:
+
+- issue or plan summary
+- PR or branch target
+- verification evidence
+- neutral prior phase summary when needed
+- the reviewer prompt and slot number
+
+Do not pass the parent orchestrator transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions into a reviewer before that reviewer has posted its own verdict.
+
+Create `reviewer1` once for the current phase or parent workflow and reuse the same subagent across fix/re-review rounds. Reuse across phases is allowed when those phases belong to the same parent plan and continuity helps the reviewer understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if the subagent context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. Send one verdict request per review round; delta rounds send only the delta packet, since the subagent already holds its own prior findings. A returned verdict stands: do not argue with or re-prompt the reviewer inside a round, and never discard, replace, or re-run a Block, error, timeout, or could-not-review verdict with a new subagent to sample for a better one.
+
+Record internal Reviewer 1's verdict verbatim. In `pr` transport, post it as a PR comment or review body. In `manual-relay`, quote it in full in the issue update or synthesis. Do not replace the original verdict with an orchestrator summary.
+
+Before trusting a subagent handoff in a new tool or runtime, run a one-time isolation check: spawn a test reviewer subagent and confirm it cannot describe the parent orchestrator's current task unless that task is passed in the review packet. If the check fails or cannot be verified, use manual external reviewer handoff for that slot.
+
+External Reviewer 2 should start as a fresh session for the parent workflow and may keep that session across phases and review rounds. Do not reuse a reviewer session for unrelated workflows unless the human explicitly chooses a long-lived reviewer conversation. If prior workflow context is needed, pass it as a neutral prior phase summary in the review packet.
+
+A same-family subagent gives isolated reviewer continuity, not model-family independence. For non-skip work, at least one expected reviewer should be from a different model family than the agent that authored or orchestrated the change, unless the human explicitly overrides the review panel.
 
 ## Roles
 
@@ -70,7 +98,7 @@ Responsibilities:
 
 ### Reviewer 1
 
-Usually a separate agent session.
+Usually a separate agent session or a named reviewer subagent.
 
 Responsibilities:
 
@@ -84,7 +112,7 @@ Responsibilities:
 
 ### Reviewer 2
 
-Usually a different model or agent family from Reviewer 1.
+Usually a different model or agent family from the orchestrator, especially when Reviewer 1 is an orchestrator-created same-family subagent.
 
 Responsibilities are the same as Reviewer 1.
 
@@ -194,11 +222,12 @@ Merge is the default routine per-phase human gate. Existing risk gates remain un
 
 Automation ladder:
 
-1. Current: PR transport with human-invoked reviewers.
-2. Future: orchestrator invokes reviewers against the PR or branch.
-3. Future: CI-triggered reviewers.
+1. Current baseline: PR transport with human-invoked external reviewers.
+2. Current Codex-led default: reused named internal Reviewer 1, human-relayed external Reviewer 2.
+3. Future: orchestrator invokes all reviewers against the PR or branch.
+4. Future: CI-triggered reviewers.
 
-Rungs 2 and 3 are not implemented or pre-authorized by this playbook.
+Rungs 3 and 4 are not implemented or pre-authorized by this playbook.
 
 ## Review Tier
 
@@ -211,6 +240,8 @@ Review tier: skip | light | full
 - `skip`: tiny docs, typos, formatting, simple issue/admin work, or other changes from the playbook skip list. Run verification when useful and keep the configured branch or merge gate.
 - `light`: the default for routine low-risk, reversible repo work. Use one reviewer from a different model family than the agent that authored the change, one round, and no autonomous fix loop. A blocker, failed verification, could-not-review result, sensitive path, or oversized diff escalates to `full` or to a human decision.
 - `full`: the normal Four Eyes gate: two independent reviewers, synthesis, bounded fix/re-review, and human approval for real-risk gates.
+
+In `light` tier, do not run a same-family internal Reviewer 1 subagent. The single reviewer must provide the cross-family check, so the human relays only that external reviewer prompt unless the orchestrator can launch a different-family reviewer directly.
 
 The human or local plan sets the review tier. If the tier is missing, use `light` for routine low-risk repo work and `full` for high-risk or broad work, or ask the human. The orchestrator may escalate the tier but must not downgrade its own work without explicit human instruction.
 
@@ -316,7 +347,7 @@ Keep review tokens focused on judgment:
 
 - reviewers inspect PR or repo diffs directly; do not paste large diffs into prompts, issues, or PR comments
 - CI or check links replace pasted logs when CI exists
-- re-review is delta-only by default: send the delta diff plus that reviewer's own prior blocking findings
+- re-review is delta-only by default: send the delta diff, plus that reviewer's own prior blocking findings only when the reviewer instance does not already hold them in context
 - full re-review is required only when scope, risk, or acceptance criteria changed
 
 ### Phase Review
@@ -364,7 +395,7 @@ Use this flow when phase branch mode is enabled:
 3. Orchestrator implements the whole phase on that branch.
 4. Orchestrator commits and pushes only the named phase branch when remote push is allowed.
 5. Orchestrator runs verification and updates the tracker with the phase branch, diff summary, and reviewer prompts.
-6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the PR as the review artifact. If review transport is `manual-relay`, the human sends the branch review packet to the expected reviewers.
+6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the PR as the review artifact. If Reviewer 1 can run as a named isolated subagent, the orchestrator creates or reuses it directly. The human sends only the remaining external reviewer prompt, usually Reviewer 2. If no isolated subagent is available, the human sends packets to all expected reviewers.
 7. Reviewers review the PR or branch diff and verification evidence independently, then return verdicts through the selected transport.
 8. Orchestrator synthesizes feedback, fixes blockers on the same phase branch, commits and pushes the updates, and requests delta review when needed.
 9. When all expected reviewers approve, orchestrator asks the human for the merge approval phrase.
@@ -379,7 +410,7 @@ Use this flow when phase branch mode is off, or when pre-implementation review i
 1. Orchestrator creates a local executable plan when required.
 2. Orchestrator creates one issue or decomposes the plan into parent and child slice issues.
 3. Orchestrator adds the plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
-4. The human sends the ready issue link(s), local plan or sanitized summary, and task prompt to the expected reviewer slots for the selected tier. Current gate: Review for ready issue(s).
+4. The orchestrator creates or reuses any internal Reviewer 1 subagent with only the review packet and its own prior review history. The human sends the ready issue link(s), local plan or sanitized summary, and task prompt only to external expected reviewer slots. Current gate: Review for ready issue(s).
 5. Reviewers return verdicts independently to the orchestrator or human relay. Current gate: Review.
 6. Orchestrator synthesizes the expected reviews. Current gate: In Progress when auto-execute is authorized and execution is starting, Approval if human approval is needed, Review if material changes need re-review, or Blocked if blockers remain.
 7. Orchestrator updates code or plan if needed. Current gate: Review if material changes need re-review.

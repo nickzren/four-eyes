@@ -19,12 +19,14 @@ Writing rule: be brief, simple, and necessary. Include enough exact information 
 Repo path: <absolute repo path>
 Local executable plan path: <absolute plan path>
 Linear team/workspace or routing source: <team, workspace, or mapping doc>
-Handoff mode: manual human relay
+Handoff mode: reviewer1-subagent + manual reviewer2 | manual human relay
 Review tier: skip | light | full
 Autonomy mode: review-approved-auto-execute | manual
 Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
 Review transport: pr | manual-relay
+Reviewer 1 handoff: internal named subagent | manual external reviewer
+Reviewer 2 handoff: manual external reviewer
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
@@ -36,6 +38,8 @@ If phase branch mode is on and phase branch flow is `implementation-first`, crea
 
 Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. If review transport is `pr`, open or update the PR before requesting review and make the PR the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 
+If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. In `light` tier, do not run a same-family internal Reviewer 1; the single reviewer must provide the cross-family check. Pass only the review packet: issue or plan summary, PR or branch target, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Delta rounds send only the delta packet; the subagent already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per round; a returned verdict stands. Record a Block, error, timeout, or could-not-review verdict and synthesize it; do not argue, re-prompt, discard, replace, or re-run with a new subagent to sample for a better verdict. Record the internal verdict verbatim as a PR comment or review body for `pr` transport, or quote it in full in the issue update or synthesis for `manual-relay`. Return filled Reviewer Prompt templates only for external reviewers, usually Reviewer 2. Ask the human to use a fresh external Reviewer 2 session for the parent workflow, reusable across phases and review rounds, unless they explicitly choose otherwise.
+
 Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
 Create or update one Linear issue for a one-slice or one-phase plan. For a finalized multi-slice plan, create or update the parent issue and one child issue for every named execution slice the plan commits to. Record execution order and dependencies in the parent issue. Set ready child slice issues to Review, except implementation-first phase branch slices should be In Progress while the branch is being implemented and Review after the branch is ready. Set downstream or unready child slice issues to Todo or Blocked.
@@ -44,7 +48,7 @@ If the local executable plan is big but has no named phases, infer practical pha
 
 Before editing or execution, confirm the plan states acceptance criteria, non-goals, current git status expectations, verification, and stop conditions.
 
-Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, handoff mode, review tier, and filled Reviewer Prompt templates for each ready issue and expected reviewer slot.
+Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, handoff mode, review tier, internal Reviewer 1 status when applicable, and filled Reviewer Prompt templates for each external expected reviewer slot.
 
 Record autonomy mode on every created issue. Default missing autonomy mode to `review-approved-auto-execute` unless a manual condition applies. When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning Approve or Approve with nits authorize local execution of the reviewed slice if there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands; do not ask the human for `Approved: execute ...`.
 
@@ -52,11 +56,13 @@ Record phase branch mode on every created issue. When phase branch mode is `on`,
 
 When phase branch flow is `implementation-first`, reviewers review the completed phase branch diff and verification evidence, not the plan before implementation.
 
-After a child slice reaches Done or Waiting External Eval, update parent and child gates in the tracker. If the next committed child slice is ready, move it to Review and post or prepare filled Reviewer Prompt templates. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve review preparation.
+After a child slice reaches Done or Waiting External Eval, update parent and child gates in the tracker. If the next committed child slice is ready, move it to Review and post or prepare filled Reviewer Prompt templates for external reviewer slots only. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve review preparation.
 
 Linear is the audit and status record, not the reviewer message bus. Reviewers return verdicts to you or to the human relay unless explicitly instructed to comment in the tracker. You decide what synthesis, progress, gate, and required-action updates belong in Linear.
 
 Do not paste secrets, raw identifiers, raw plans, raw logs, or sensitive evidence into the issue.
+
+If this tool or runtime has not been used for internal reviewer subagents before, run a one-time isolation check before relying on it: spawn a test reviewer subagent and confirm it cannot describe your current task unless that task is included in the review packet. If the check fails or cannot be verified, use manual external reviewer handoff for that slot.
 
 End your response to the human with:
 - issue ID or link; for multi-slice work, include the parent and ready child issue links
@@ -65,7 +71,7 @@ End your response to the human with:
 - handoff mode and review tier
 - phase branch mode and branch names
 - review transport and PR link when applicable
-- filled Reviewer Prompt templates for each ready issue and expected reviewer slot
+- filled Reviewer Prompt templates for each ready issue and external expected reviewer slot
 - exact next human action
 - what you will do after that action
 - what remains out of scope or forbidden
@@ -160,18 +166,20 @@ Writing rule: brief, simple, necessary, with no missing gate/evidence details.
 Orchestrator: <agent/session>
 Reviewer 1: <agent/session>
 Reviewer 2: <agent/session>
-Handoff mode: manual human relay
+Handoff mode: reviewer1-subagent + manual reviewer2 | manual human relay
 Review tier: skip | light | full
 Phase: <phase name or "single slice">
 Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
 Review transport: pr | manual-relay
+Reviewer 1 handoff: internal named subagent | manual external reviewer
+Reviewer 2 handoff: manual external reviewer
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
 Merge target: <branch>
 
-Reviewers should return verdicts to the orchestrator or human relay. Do not create child reviewer issues unless asked.
+Reviewers should return verdicts to the orchestrator or human relay. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it directly and the human relays only the external reviewer prompt. Do not create child reviewer issues unless asked.
 
 ## Agent Team Boundary
 
