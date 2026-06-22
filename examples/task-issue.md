@@ -22,6 +22,8 @@ Base branch: main
 Phase branch: phase/EXAMPLE-retry-behavior
 Remote push: allowed
 Merge target: main
+Post-merge branch cleanup: yes
+Abandoned branch cleanup: ask
 
 ## Goal
 

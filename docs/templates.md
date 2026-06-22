@@ -31,6 +31,8 @@ Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
 Merge target: <branch>
+Post-merge branch cleanup: yes | no
+Abandoned branch cleanup: yes | ask | no
 
 If phase branch mode is off or phase branch flow is `pre-review`, do not execute the plan yet.
 
@@ -91,6 +93,8 @@ Autonomy mode default: review-approved-auto-execute
 Phase branch mode default: on | off
 Phase branch flow default: implementation-first | pre-review
 Review transport default: pr | manual-relay
+Post-merge branch cleanup default: yes
+Abandoned branch cleanup default: ask
 Repo/path: <absolute repo/path>
 Issue: <fill after creation>
 
@@ -134,6 +138,7 @@ Out of scope:
    - remote push: disallowed | allowed
    - merge target:
    - post-merge branch cleanup: yes | no
+   - abandoned branch cleanup: yes | ask | no
    - files/resources:
    - commands: <list exact invocations; novel commands, flags, or pipelines require human approval>
    - approval required before:
@@ -181,6 +186,8 @@ Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
 Merge target: <branch>
+Post-merge branch cleanup: yes | no
+Abandoned branch cleanup: yes | ask | no
 
 Reviewers should return verdicts to the orchestrator or human relay. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it directly and the human relays only the external reviewer prompt. Do not create child reviewer issues unless asked.
 
@@ -373,6 +380,8 @@ For phase branch mode, use:
 ```text
 Approved: merge <phase branch> into <target branch>, verify, close the issue, and delete the phase branch.
 ```
+
+Before deleting any phase branch, record branch name, local tip SHA, remote tip SHA if present, PR link if present, and deletion reason in closeout. If local and remote tips differ, hand off to the human instead of deleting. If abandoned cleanup is authorized and a workflow-created PR exists for the abandoned branch, close that PR under the same cleanup gate before deleting the branch.
 ```
 
 ## Execution Log
@@ -459,4 +468,13 @@ Sensitive-data note:
 Local cleanup:
 - <temporary local plan removed, or "not created">
 - <raw evidence location, if any>
+
+Branch resolution:
+- <merged and deleted | abandoned and deleted | intentionally kept | handed off to human>
+- Branch: <phase branch>
+- Local tip SHA before cleanup: <sha or none>
+- Remote tip SHA before cleanup: <sha or none>
+- PR: <link/id or none>
+- Reason: <merge cleanup | abandoned because... | kept because... | handoff blocker...>
+- Revisit trigger if kept: <follow-up issue or date>
 ```

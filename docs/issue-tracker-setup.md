@@ -85,9 +85,12 @@ Phase branch: <branch>
 Remote push: allowed | disallowed
 Merge target: <target>
 Post-merge branch cleanup: yes | no
+Abandoned branch cleanup: yes | ask | no
 ```
 
 When enabled, the orchestrator may create, commit to, and push the named phase branch without per-commit human approval. With `implementation-first`, reviewers review the completed phase branch diff and verification evidence. Human approval is still required before merge into the target branch. The merge approval may include post-merge verification, tracker closeout, and branch deletion.
+
+Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`. Every agent-created phase branch must be resolved at closeout as merged and deleted, abandoned with any workflow-created PR closed and branch deleted, intentionally kept with owner and revisit trigger, or handed off to the human. Record branch name, local tip SHA, remote tip SHA if present, PR link if present, and reason before deletion. If local and remote tips differ, preserve the branch and hand off to the human.
 
 This label controls execution authorization only. It does not require any tool-run workflow. In manual relay mode, the human passes external reviewer verdicts back to the orchestrator, and the orchestrator decides the next tracker update.
 
@@ -133,3 +136,4 @@ Even with automatic links, keep the issue closeout explicit:
 - what remains
 - whether sensitive data stayed out of public surfaces
 - temporary local plans and working artifacts removed
+- phase branch resolution, including tip SHAs before cleanup

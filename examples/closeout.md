@@ -35,5 +35,26 @@ Sensitive-data note:
 Local cleanup:
 - Local execution plan removed.
 - Raw test output not retained.
-- Phase branch deleted after approved merge.
+
+Branch resolution:
+- Merged and deleted after approved merge.
+- Branch: phase/EXAMPLE-retry-behavior
+- Local tip SHA before cleanup: abc1234
+- Remote tip SHA before cleanup: abc1234
+- PR: <PR link>
+- Reason: post-merge cleanup authorized.
+```
+
+## Kept Branch Example
+
+```text
+Branch resolution:
+- Intentionally kept.
+- Branch: phase/EXAMPLE-retry-behavior
+- Local tip SHA before cleanup: abc1234
+- Remote tip SHA before cleanup: abc1234
+- PR: <PR link>
+- Reason: waiting for upstream API decision.
+- Next owner: <owner>
+- Revisit trigger: EXAMPLE-123 or 2026-07-01.
 ```

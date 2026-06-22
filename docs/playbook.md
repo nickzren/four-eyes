@@ -168,7 +168,10 @@ Phase branch: <phase branch name>
 Remote push: allowed | disallowed
 Merge target: <main or other protected branch>
 Post-merge branch cleanup: yes | no
+Abandoned branch cleanup: yes | ask | no
 ```
+
+Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`.
 
 When phase branch mode is `on`, the orchestrator may create the phase branch, commit to it, and push updates to that exact branch without asking the human for every commit or push, if all of these are true:
 
@@ -183,10 +186,10 @@ Phase branch mode is implementation-first by default: the orchestrator completes
 
 This intentionally allows local commits to the named phase branch before review. The review gate is before protected-branch push, merge, apply, deploy, or closeout.
 
-Phase branch mode does not authorize:
+Phase branch mode alone does not authorize:
 
 - direct commits or pushes to `main` or protected branches
-- force-push, rebase of shared history, tag creation, release creation, or branch deletion before merge
+- force-push, rebase of shared history, tag creation, release creation, or branch deletion before merge except through the explicit abandoned-branch cleanup path
 - deploy, apply, cloud/database mutation, destructive action, or costly action
 - merge into the target branch
 
@@ -197,6 +200,42 @@ Approved: merge <phase branch> into <target branch>, verify, close the issue, an
 ```
 
 If the repository has branch-push side effects, such as preview deploys, production deploys, release publishing, or data mutation, remote push is a human gate unless the human explicitly pre-authorizes that side effect.
+
+### Branch Lifecycle
+
+Every agent-created phase branch must be resolved at closeout.
+
+Resolution must be exactly one of:
+
+- merged, verified, and deleted locally and remotely when post-merge cleanup is authorized
+- abandoned, its workflow-created PR closed if present, and deleted locally and remotely when abandoned cleanup is authorized
+- intentionally kept, with reason, next owner, and a revisit trigger such as a follow-up issue or date recorded
+- handed off to the human, with the exact blocker recorded
+
+Before deleting any phase branch, record in the tracker closeout:
+
+- branch name
+- local tip SHA
+- remote tip SHA, if present
+- PR link or identifier, if present
+- reason for deletion
+
+If local and remote tips differ at cleanup time, treat the branch as needing preservation and hand it off to the human.
+
+Merged branch cleanup uses normal merged-branch deletion after merge and post-merge verification, when `Post-merge branch cleanup: yes`.
+
+Abandoned branch cleanup is the explicit path for deleting an unmerged branch. It is allowed only when all of these are true:
+
+- the branch was created by this workflow
+- the branch name matches the approved phase branch
+- any open PR for the branch was created by this workflow and is closed as part of the same abandoned cleanup; otherwise hand off to the human
+- the branch has no work that needs preservation
+- the branch name, local tip SHA, remote tip SHA if present, and abandonment reason are recorded first
+- remote deletion and closing any workflow-created PR are pre-authorized with `Abandoned branch cleanup: yes` or explicitly approved by the human
+
+When `Abandoned branch cleanup: ask`, the orchestrator records the branch state and asks before deleting. When `Abandoned branch cleanup: no`, the orchestrator records the branch state and leaves the branch for the named owner or follow-up.
+
+Never auto-delete main, protected, release, or unscoped branches; tags; branches this workflow did not create; branches whose names do not match the approved phase branch; branches whose local and remote tips differ; branches with open PRs not created by this workflow; branches with PRs or work needing preservation; or branches whose deletion triggers deploy, preview, or other external side effects unless explicitly approved.
 
 ## Review Transport
 
@@ -402,7 +441,7 @@ Use this flow when phase branch mode is enabled:
 7. Reviewers review the PR or branch diff and verification evidence independently, then return verdicts through the selected transport.
 8. Orchestrator synthesizes feedback, fixes blockers on the same phase branch, commits and pushes the updates, and requests delta review when needed.
 9. When all expected reviewers approve, orchestrator asks the human for the merge approval phrase.
-10. After approval, orchestrator merges into the target branch, runs post-merge verification, updates or closes the tracker item if authorized, and deletes the phase branch if authorized.
+10. After approval, orchestrator merges into the target branch, runs post-merge verification, updates or closes the tracker item if authorized, records branch cleanup SHAs, and deletes the phase branch if authorized.
 
 This flow is meant to reduce review loops. It trades pre-implementation review for branch isolation and a hard merge gate.
 

@@ -91,6 +91,8 @@ Phase branch mode is the default high-throughput path for repo implementation ph
 
 Human approval is still required before merging into `main` or another protected branch. The merge approval can also authorize post-merge verification, tracker closeout, and deleting the phase branch after the merge.
 
+Every agent-created phase branch must be resolved at closeout. Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`. If a phase branch is not merged, the orchestrator records whether it was abandoned, intentionally kept with an owner and revisit trigger, or handed off to the human. Abandoned cleanup may close this workflow's PR under the same cleanup gate.
+
 Phase branch mode is allowed only when branch pushes do not deploy, mutate live systems, publish releases, or trigger other hard-to-reverse external actions. If a branch push has those effects, treat push as a human gate.
 
 ## Review Transport
@@ -141,7 +143,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/issue-tracker-setup.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -160,6 +162,7 @@ Linear team/workspace or routing source: <team, workspace, or mapping doc>
 Act as orchestrator.
 
 Use phase branch mode with implementation-first flow unless the plan says otherwise.
+Use `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask` unless the plan says otherwise.
 Use review transport `pr` when the repo has a remote and CI or branch protection; otherwise use `manual-relay`.
 If you can create or reuse a named isolated Reviewer 1 subagent, run Reviewer 1 internally and return only the external Reviewer 2 prompt for human relay. If you cannot create an isolated subagent, return prompts for all expected reviewer slots.
 
