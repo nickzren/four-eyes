@@ -38,7 +38,7 @@ If phase branch mode is off or phase branch flow is `pre-review`, do not execute
 
 If phase branch mode is on and phase branch flow is `implementation-first`, create the phase branch, set the gate to In Progress while implementing, implement the phase, commit and push only the named phase branch if remote push is allowed, run verification, set the gate to Review, then return reviewer prompts for the branch diff.
 
-Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. If review transport is `pr`, open or update the PR before requesting review and make the PR the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
+Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. Selecting `pr` pre-authorizes creating or updating the PR for the recorded phase branch and merge target, maintaining its bounded review description, requesting expected reviewers, and submitting expected reviewer verdicts. It does not authorize merge, unrelated PR changes, repository-setting changes, or other GitHub writes. Open or update the PR before requesting review and make it the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 
 If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. In `light` tier, do not run a same-family internal Reviewer 1; the single reviewer must provide the cross-family check. Pass only the review packet: issue or plan summary, PR or branch target, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Delta rounds send only the delta packet; the subagent already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per round; a returned verdict stands. Record a Block, error, timeout, or could-not-review verdict and synthesize it; do not argue, re-prompt, discard, replace, or re-run with a new subagent to sample for a better verdict. Record the internal verdict verbatim as a PR comment or review body for `pr` transport, or quote it in full in the issue update or synthesis for `manual-relay`. Return filled Reviewer Prompt templates only for external reviewers, usually Reviewer 2. Ask the human to use a fresh external Reviewer 2 session for the parent workflow, reusable across phases and review rounds, unless they explicitly choose otherwise.
 
@@ -54,13 +54,13 @@ If the task input is not clear enough to execute safely, write a temporary local
 
 Set the current gate on each created issue according to readiness. Post a sanitized plan summary, acceptance criteria, boundaries, approval gates, handoff mode, review tier, internal Reviewer 1 status when applicable, and filled Reviewer Prompt templates for each external expected reviewer slot.
 
-Record autonomy mode on every created issue. Default missing autonomy mode to `review-approved-auto-execute` unless a manual condition applies. When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning Approve or Approve with nits authorize local execution of the reviewed slice if there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands; do not ask the human for `Approved: execute ...`.
+Record autonomy mode on every created issue. Default missing autonomy mode to `review-approved-auto-execute` unless a manual condition applies. When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning Approve or Approve with nits authorize local execution of the reviewed slice if there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or commands outside the pre-authorized local classes or reviewed plan; do not ask the human for `Approved: execute ...`.
 
-Record phase branch mode on every created issue. When phase branch mode is `on`, the orchestrator may create, commit to, and push the named phase branch without per-commit human approval. Human approval is still required for protected-branch push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, production data/resource change, closeout unless already authorized, scope change, unreviewed commands, or branch pushes that trigger hard-to-reverse external effects.
+Record phase branch mode on every created issue. When phase branch mode is `on`, the orchestrator may create, commit to, and push the named phase branch without per-commit human approval. Human approval is still required for protected-branch push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, production data/resource change, closeout unless already authorized, scope change, commands outside the pre-authorized local classes or reviewed plan, or branch pushes that trigger hard-to-reverse external effects.
 
 When phase branch flow is `implementation-first`, reviewers review the completed phase branch diff and verification evidence, not the plan before implementation — except when a temporary local plan defines unclear work: have the expected reviewers confirm that plan before implementing it.
 
-After a child slice reaches Done or Waiting External Eval, update parent and child gates in the tracker. If the next committed child slice is ready, move it to Review and post or prepare filled Reviewer Prompt templates for external reviewer slots only. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve review preparation.
+After a child slice reaches Done or Waiting External Eval, update parent and child gates in the tracker. If the next committed child slice is ready and uses implementation-first phase branch flow, move it to In Progress and implement it; otherwise move it to Review and post or prepare filled Reviewer Prompt templates for external reviewer slots only. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve tracker preparation or implementation-first promotion.
 
 Linear is the audit and status record, not the reviewer message bus. Reviewers return verdicts to you or to the human relay unless explicitly instructed to comment in the tracker. You decide what synthesis, progress, gate, and required-action updates belong in Linear.
 
@@ -128,7 +128,7 @@ Out of scope:
    - commitment: committed | optional | future
    - phase source: explicit | inferred by orchestrator
    - depends on: <none | slice name(s)>
-   - initial gate: Todo | Review | Blocked
+   - initial gate: Todo | In Progress | Review | Blocked
    - autonomy mode: inherit | review-approved-auto-execute | manual
    - phase branch mode: inherit | on | off
    - phase branch flow: inherit | implementation-first | pre-review
@@ -140,7 +140,7 @@ Out of scope:
    - post-merge branch cleanup: yes | no
    - abandoned branch cleanup: yes | ask | no
    - files/resources:
-   - commands: <list exact invocations; novel commands, flags, or pipelines require human approval>
+   - commands requiring explicit human approval: <commands outside the pre-authorized local classes, or none>
    - approval required before:
    - verification:
    - stop conditions:
@@ -233,6 +233,8 @@ Autonomy mode: review-approved-auto-execute | manual
 
 ## Current Gate
 
+Next gated action: <exact action, such as implement phase, create PR, merge to main, deploy, apply, or close out>
+
 <what is needed next: reviewer verdicts, human approval, execution, external eval, closeout>
 
 ## Next Human Action
@@ -271,6 +273,8 @@ Use the required reviewer header from the playbook.
 ```text
 Review <ISSUE-ID> using the issue body, orchestrator-provided plan/update content, linked local plan file if accessible, current implementation diff if present, verification evidence, and local repo state if applicable.
 
+Use the issue's `Next gated action` when stating required changes.
+
 If review transport is `pr`, review the PR diff directly before writing your verdict. If review transport is `manual-relay`, review the provided branch or packet context.
 
 You are Reviewer <1|2>.
@@ -296,7 +300,7 @@ Return your review with:
 - Blocking findings
 - Non-blocking findings
 - Questions
-- Required changes before execution
+- Required changes before <next gated action>
 ```
 
 ## Synthesis Comment
@@ -317,7 +321,7 @@ Non-blocking feedback:
 Nit resolution:
 - <which nits were addressed before auto-execute, or "none required">
 
-Required changes before execution:
+Required changes before <next gated action>:
 - <none | addressed changes | still blocking>
 
 Changes made:
@@ -352,7 +356,7 @@ Approval request
 
 I am ready to execute the reviewed slice.
 
-Use this only when human approval is required. Do not request approval when autonomy mode `review-approved-auto-execute` authorizes local execution after all expected reviewers for the selected tier approve with no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands.
+Use this only when human approval is required. Do not request approval when autonomy mode `review-approved-auto-execute` authorizes local execution after all expected reviewers for the selected tier approve with no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or commands outside the pre-authorized local classes or reviewed plan.
 
 Exact action:
 - <command/action>
@@ -368,7 +372,7 @@ Verification after execution:
 
 Please approve explicitly before I run it.
 
-Do not request approval for tracker-only preparation work such as promoting the next ready slice, posting reviewer prompts, or updating parent/child gates.
+Do not request approval for tracker-only preparation work such as moving a ready slice to its recorded next gate, posting reviewer prompts, or updating parent/child gates.
 
 Exact approval phrase:
 - Approved: execute <ISSUE-ID> <slice name> only.

@@ -63,6 +63,8 @@ Implement retry classification in the existing worker helper. Add focused tests 
 
 Review. Phase branch is ready for Reviewer 1 and Reviewer 2 verdicts. The orchestrator runs or reuses Reviewer 1 internally and the human relays Reviewer 2.
 
+Next gated action: merge
+
 ## Next Human Action
 
 Send the Reviewer 2 prompt, issue context, PR link, and verification evidence to Claude Code. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent. Reviewers inspect the PR diff directly and return verdicts through the selected transport.

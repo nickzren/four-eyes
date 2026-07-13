@@ -92,7 +92,7 @@ Responsibilities:
 - keep sensitive data out of issues, commits, and broad summaries
 - synthesize expected reviewer feedback for the selected tier
 - resolve blockers or ask the human for an explicit override
-- execute only after the review gate is clear
+- execute review-first work only after its review gate is clear; implementation-first phase branch work may execute before review but must reach Review before merge
 - post verification, commit summary, and remaining risks
 - after every issue or gate update, tell the human the current gate and exact next action
 
@@ -121,7 +121,7 @@ Responsibilities are the same as Reviewer 1.
 The human owns final approval for real risk gates:
 
 - execution when autonomy mode is `manual`
-- commands not listed in the reviewed plan
+- commands outside the pre-authorized local command classes or reviewed plan
 - commit or push when phase branch mode is not enabled
 - push to protected branches, tags, releases, or unscoped branches
 - merge into `main` or another protected branch
@@ -131,7 +131,7 @@ The human owns final approval for real risk gates:
 - live or external systems, databases, cloud, deploys, destructive actions, costly actions, or production data/resource changes
 - any action the plan or workflow marks as approval-gated
 
-Human approval is not required for tracker-only workflow preparation such as creating planned child issues, promoting the next ready slice to Review, posting reviewer prompts, synthesizing reviews, or updating gate metadata.
+Human approval is not required for tracker-only workflow preparation such as creating planned child issues, moving a ready slice to its recorded next gate, posting reviewer prompts, synthesizing reviews, or updating gate metadata.
 
 ## Autonomy Mode
 
@@ -143,9 +143,16 @@ Autonomy mode: review-approved-auto-execute | manual
 
 Default to `review-approved-auto-execute` for local repo code, docs, tests, or plan edits inside the reviewed slice. If autonomy mode is omitted, treat it as `review-approved-auto-execute` unless a manual condition applies. Use `manual` for live or external systems, databases, cloud, deploys, apply actions, destructive or costly actions, production data/resource changes, ambiguous ownership, or any slice the human marks approval-gated.
 
-Local execution means working-tree file changes and verification commands inside the reviewed slice. It excludes network mutation, external state changes, and starting persistent processes or services.
+Local execution means working-tree file changes and verification commands inside the reviewed slice. It excludes network mutation, external state changes, and starting persistent processes or services unless another recorded workflow setting explicitly authorizes the exact operation, such as phase-branch push or bounded PR transport.
 
-Reviewed commands are the commands, arguments, and flags listed in the reviewed plan. Novel commands, novel flags, chained pipelines, or commands outside the reviewed command list require human approval.
+Within the assigned local repo slice, these command classes are pre-authorized:
+
+- read-only inspection of the repo, plan, diff, history, and local tool output
+- existing repo-documented test, lint, type-check, build, and verification commands
+- bounded formatting or code-generation commands whose outputs stay inside the assigned slice and remain reviewable
+- temporary local evidence writes to the plan's approved evidence path
+
+A command or flag does not require approval only because it was absent from the plan. Human approval is required when a command leaves those classes, expands beyond the assigned slice, installs or upgrades software, changes external or live state, starts a persistent service, requires elevated privilege, or is destructive, costly, or hard to reverse. A pipeline is pre-authorized only when every stage stays inside the same pre-authorized class and all outputs remain local and in scope. A reviewed plan may pre-authorize additional exact commands only when they remain local, reversible, in scope, and below every human gate.
 
 A reviewer question is execution-affecting if its answer would change what or how the orchestrator executes. Cosmetic, follow-up, or post-execution questions do not block auto-execute.
 
@@ -153,9 +160,9 @@ Dirty worktree conflicts include uncommitted changes outside the slice scope, un
 
 Required changes before execution must be addressed and recorded in synthesis before auto-execute.
 
-When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning `Approve` or `Approve with nits` authorize the orchestrator to execute the reviewed local slice when there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or unreviewed commands. The orchestrator must not ask for `Approved: execute ...` for that slice.
+When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning `Approve` or `Approve with nits` authorize the orchestrator to execute the reviewed local slice when there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or commands outside the pre-authorized classes or reviewed plan. The orchestrator must not ask for `Approved: execute ...` for that slice.
 
-Auto-execute alone does not authorize commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, closeout unless already authorized, scope change, commands not listed in the reviewed plan, or work outside the assigned tracker issue set. Commit and push require phase branch mode or explicit human approval. Merge and protected-branch push remain separate human gates.
+Auto-execute alone does not authorize commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, closeout unless already authorized, scope change, commands outside the pre-authorized classes or reviewed plan, or work outside the assigned tracker issue set. Commit and push require phase branch mode or explicit human approval. Bounded PR writes require `Review transport: pr`. Merge and protected-branch push remain separate human gates.
 
 ## Phase Branch Mode
 
@@ -246,6 +253,8 @@ Review transport: pr | manual-relay
 ```
 
 Default to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.
+
+Selecting `Review transport: pr` pre-authorizes only these writes for the recorded phase branch and merge target: create or update its PR, maintain the bounded PR description, request the expected reviewers, and post or submit the expected reviewer verdicts. It does not authorize merge, closing unrelated PRs, changing repository settings, or any other GitHub write.
 
 When review transport is `pr`:
 
@@ -364,10 +373,10 @@ When a finalized local plan contains multiple execution slices:
 - parent gate mirrors the next active child gate; use Blocked only when no child is actionable, and Done only after all children are verified and closed
 - assign each ready child slice the Review gate, except implementation-first phase branch slices use In Progress while the branch is being implemented and Review after the branch is ready
 - keep downstream or unready slices Todo or Blocked when they depend on earlier slices, external decisions, missing evidence, or unresolved ownership
-- after a child slice reaches Done or Waiting External Eval, the orchestrator checks the next committed child slice; if it is ready, move it to Review and post filled reviewer prompts without asking for human approval
+- after a child slice reaches Done or Waiting External Eval, the orchestrator checks the next committed child slice; if it is ready and uses implementation-first phase branch flow, move it to In Progress and implement it, otherwise move it to Review and post filled reviewer prompts without asking for human approval
 - if the next committed child slice is not ready, leave its current gate and post a brief blocker note in the parent issue
 - reviewers review every ready slice and return feedback to the orchestrator or human relay
-- the orchestrator owns sequencing and may execute only the next approved slice
+- the orchestrator owns sequencing and may execute only the next ready slice according to its recorded phase branch flow and gates
 - post-execution review on each slice still applies before protected-branch push, apply, deploy, merge, or closeout
 - the parent issue is the agent team boundary; agents may read related issues for context but must not edit, comment on, or close any issue outside the parent and its child slice issues unless the human explicitly expands scope
 - if the parent plan changes materially, update affected slice issues in the same change under the Plan Drift Rule
@@ -468,7 +477,7 @@ If execution is read-only and creates no material diff, the orchestrator may mov
 
 In multi-slice mode, steps 5-7 run independently for each ready slice.
 
-In multi-slice mode, preparing the next committed ready slice for Review is tracker work owned by the orchestrator. If autonomy mode authorizes local execution, reviewer approval is the execution gate. If phase branch mode is enabled, commits and pushes to the named phase branch may be handled by the orchestrator. The next human approval is for manual execution, protected-branch push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated.
+In multi-slice mode, advancing the next committed ready slice is tracker work owned by the orchestrator. An implementation-first phase branch slice moves to In Progress and is implemented before Review; a pre-review slice moves to Review before execution. If autonomy mode authorizes local execution, reviewer approval is the execution gate for review-first work. If phase branch mode is enabled, commits and pushes to the named phase branch may be handled by the orchestrator. The next human approval is for manual execution, protected-branch push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated.
 
 ## Orchestrator Next-Action Rule
 
@@ -596,7 +605,7 @@ If a saved plan, deploy artifact, or generated evidence file is replaced, record
 
 - Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into issues.
 - Use sanitized summaries for plans, logs, findings, and metadata.
-- Destructive, costly, cloud-mutating, deploy, apply, protected-branch push, or external posting outside the assigned tracker issue set requires explicit human approval.
+- Destructive, costly, cloud-mutating, deploy, apply, protected-branch push, or external posting outside the assigned tracker issue set requires explicit human approval, except for bounded PR operations explicitly pre-authorized by `Review transport: pr`.
 - Phase branch commits and pushes may be pre-authorized only by phase branch mode.
 - Auto-execution is limited to reviewed local work inside the assigned slice.
 - The approved workflow may authorize issue closeout after acceptance criteria pass; otherwise human approval is required.

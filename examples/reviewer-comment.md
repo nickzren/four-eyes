@@ -18,7 +18,7 @@ Non-blocking findings:
 Questions:
 - None.
 
-Required changes before execution:
+Required changes before implementation:
 - None. The orchestrator can implement the plan and include the extra test if it fits the touched code.
 ```
 

@@ -6,6 +6,7 @@
 Title: EXAMPLE-200 Retry workflow cleanup
 
 Current gate: Review
+Next gated action: merge
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
@@ -34,6 +35,7 @@ Out of scope:
 Title: EXAMPLE-201 retry classification
 
 Current gate: Review
+Next gated action: merge
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
@@ -78,6 +80,7 @@ Continue with the full Reviewer Prompt template from docs/templates.md.
 Title: EXAMPLE-202 retry metrics
 
 Current gate: Blocked
+Next gated action: implementation
 Autonomy mode: review-approved-auto-execute
 
 Commitment: committed
@@ -88,4 +91,7 @@ Blocked because:
 
 Next human action:
 - None until EXAMPLE-201 reaches Done or Waiting External Eval.
+
+Then:
+- The orchestrator moves this implementation-first slice to In Progress and implements it before requesting review.
 ```

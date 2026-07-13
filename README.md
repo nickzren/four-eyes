@@ -101,6 +101,8 @@ Use `Review transport: pr | manual-relay`.
 
 Default to `pr` when the repo has a remote and CI or branch protection. The PR is the review artifact; Linear stays the gate and status record.
 
+Selecting `pr` pre-authorizes the orchestrator to create or update the PR for the recorded phase branch and merge target, maintain its bounded review description, request the expected reviewers, and submit expected reviewer verdicts. It does not authorize merge, unrelated PR changes, repository-setting changes, or other GitHub writes.
+
 Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.
 
 ## Review Tiers
@@ -175,7 +177,7 @@ For the first ready phase:
 2. Implement the whole phase.
 3. Commit and push only the named phase branch.
 4. Run verification.
-5. If review transport is `pr`, open or update the PR from phase branch to merge target. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
+5. If review transport is `pr`, open or update the PR from phase branch to merge target under the bounded PR-write authorization. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 6. Update Linear to Review.
 7. Run or reuse internal Reviewer 1 if available, then return filled Reviewer Prompt templates only for external reviewer slots, including the issue ID or safe link, review transport, PR link or phase branch, diff summary, verification evidence, and reviewer slot number.
 
