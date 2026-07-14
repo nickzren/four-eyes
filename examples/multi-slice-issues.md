@@ -14,6 +14,13 @@ Review transport: pr
 Handoff mode: reviewer1-subagent + manual reviewer2
 Merge target: main
 
+Active child: EXAMPLE-201
+Current review artifact:
+Review round: 1
+Reviewed head: 1111111111111111111111111111111111111111
+PR diff SHA-256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Workflow revision: cccccccccccccccccccccccccccccccccccccccc
+
 Execution order:
 1. EXAMPLE-201 retry classification
 2. EXAMPLE-202 retry metrics
@@ -45,12 +52,18 @@ Phase branch: phase/EXAMPLE-201-retry-classification
 Remote push: allowed
 Merge target: main
 
+Current review artifact:
+Review round: 1
+Reviewed head: 1111111111111111111111111111111111111111
+PR diff SHA-256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Workflow revision: cccccccccccccccccccccccccccccccccccccccc
+
 Commitment: committed
 Depends on: none
 
 Next human action:
-- Send this ready slice context, PR link, and verification evidence to Reviewer 2 with the filled Reviewer Prompt template. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent. Reviewers inspect the PR diff directly.
-- If reviewers approve with no blockers, the orchestrator asks for human merge approval. If either reviewer blocks, the orchestrator fixes the phase branch and requests delta review.
+- Send this ready slice context, PR link, exact artifact identity, and verification evidence to Reviewer 2 with the filled Reviewer Prompt template. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent. Reviewers inspect the exact PR artifact.
+- After both slots return or have terminal records, the orchestrator posts carried verdicts verbatim, recomputes identity, and synthesizes. If reviewers approve with no blockers and identity still matches, the orchestrator asks for human merge approval. If either reviewer blocks or the artifact changes, the orchestrator fixes the phase branch and requests the required delta review.
 ```
 
 ## Orchestrator Output
@@ -59,7 +72,7 @@ Next human action:
 Internal Reviewer 1 subagent:
 
 - Orchestrator creates or reuses the named `reviewer1` subagent with only the review packet and its own prior review history.
-- Do not send this prompt to the human unless subagents are unavailable.
+- This prompt is internal only. If no internal Reviewer 1 is available, prepare a separate external Reviewer 1 prompt for the human to relay.
 
 Human-facing Reviewer 2 prompt for EXAMPLE-201:
 
@@ -70,6 +83,10 @@ You are Reviewer 2.
 Reviewer slot: 2
 Agent/session: Claude Code
 Read other reviews first: no
+Review round: 1
+Reviewed head: 1111111111111111111111111111111111111111
+PR diff SHA-256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Workflow revision: cccccccccccccccccccccccccccccccccccccccc
 
 Continue with the full Reviewer Prompt template from docs/templates.md.
 ```
@@ -82,6 +99,9 @@ Title: EXAMPLE-202 retry metrics
 Current gate: Blocked
 Next gated action: implementation
 Autonomy mode: review-approved-auto-execute
+Review transport: pr
+Current review round: 1
+Workflow revision: cccccccccccccccccccccccccccccccccccccccc
 
 Commitment: committed
 Depends on: EXAMPLE-201

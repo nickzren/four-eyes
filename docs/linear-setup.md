@@ -46,7 +46,7 @@ If custom states are not available, use labels:
 - state:applied-awaiting-verification
 - blocked:<reason>
 
-Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use a named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow, with the human relaying only the external Reviewer 2 prompt. Require verbatim recording of internal Reviewer 1 verdicts and a fresh external Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout.
+Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. Require a fresh external Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and workflow revision. Until document markers exist, use the full pushed repo commit SHA in the latest successful sync note on the standing workflow-doc review issue as the authoritative workflow revision. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout.
 
 Keep everything brief, generic, and public-safe. Do not include company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
@@ -70,7 +70,7 @@ When updating the workflow:
 2. Commit the repo change.
 3. Push the repo change.
 4. Sync the matching Linear documents from the pushed commit by default unless the human explicitly asks for a repo-only change.
-5. Record the pushed repo commit SHA in the Linear review issue or sync note.
+5. Record the full pushed repo commit SHA in a successful sync note on the standing workflow-doc review issue. Until document-level revision markers exist, the latest such note is the authoritative workflow revision.
 
 If Linear is edited first, backport the change into this repo before treating it as durable.
 
@@ -98,4 +98,7 @@ Boundary:
 - Workflow-doc review only
 - Brief, simple, necessary comments
 - No private task history or sensitive data
+
+Latest successful sync note:
+- Workflow revision: <full pushed repo commit SHA>
 ```

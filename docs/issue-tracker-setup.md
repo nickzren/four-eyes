@@ -49,6 +49,9 @@ Every non-trivial task issue should include:
 - autonomy mode
 - phase branch mode, if enabled
 - review transport
+- current positive review round
+- workflow revision from the standing workflow-doc sync note
+- exact transport-specific artifact identity
 - reviewer handoff
 - verbatim reviewer verdicts or links to them
 - goal
@@ -62,6 +65,10 @@ Every non-trivial task issue should include:
 
 Local executable plans are temporary coordination artifacts. Do not commit them. Keep the issue tracker to sanitized summaries and remove the local plan after closeout.
 
+Until synced documents carry their own revision markers, use the full pushed repo commit SHA in the latest successful sync note on the standing workflow-doc review issue as the authoritative workflow revision. Unknown or mixed revisions hold the gate. Generate artifact identities and repository fingerprints with the canonical commands in the Playbook; do not copy those commands into tracker templates.
+
+Hold orchestrator-carried internal and relayed verdicts until all expected slots for the round have returned or have a Block, error, timeout, or could-not-review record. Direct PR reviews posted by external reviewers are outside orchestrator control. After the embargo lifts, post carried verdicts verbatim before synthesis.
+
 ## Autonomy Mode
 
 Every active task issue should record:
@@ -73,6 +80,8 @@ Autonomy mode: review-approved-auto-execute | manual
 Use `review-approved-auto-execute` for reviewed local repo code, docs, tests, or plan edits. If autonomy mode is missing, treat it as `review-approved-auto-execute` unless a manual condition applies. Use `manual` for live/external systems, databases, cloud, deploys, apply actions, destructive or costly actions, production data/resource changes, ambiguous ownership, or human-marked approval gates.
 
 When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning `Approve` or `Approve with nits` authorize local execution of the reviewed slice if there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or commands outside the pre-authorized local classes or reviewed plan. Repo-local inspection and existing repo verification commands are pre-authorized. Commands that expand scope, install software, start persistent services, change external state, or are destructive, costly, privileged, or hard to reverse still require human approval; listing or reviewing them only makes the approval request specific. Commit and push to a named phase branch may be pre-authorized only by phase branch mode. Publish, merge, deploy, apply, protected-branch push, live/external mutation, destructive/costly action, production data/resource change, closeout unless already authorized, and scope change still require human approval.
+
+Record each accepted nit as either deferred without an artifact change, with reason and follow-up, or implemented with delta review. A changed artifact requires all expected `full`-tier slots to re-review. `Light` permits one bounded, in-scope, same-risk fix and delta review by its same cross-family reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 
 ## Phase Branch Mode
 
@@ -128,7 +137,7 @@ Use PR review transport when the repo has a remote and CI or branch protection. 
 
 Selecting PR review transport pre-authorizes creating or updating the PR for the recorded phase branch and merge target, maintaining its bounded review description, requesting expected reviewers, and submitting expected reviewer verdicts. It does not authorize merge, unrelated PR changes, repository-setting changes, or other GitHub writes.
 
-When available, protect the merge target with required approvals and status checks.
+When available, protect the merge target with required approvals, status checks, and dismissal of stale approvals after new commits. Before merge, compare the current forge head and canonical PR diff SHA-256 with every approval. Any changed head or artifact invalidates prior approvals.
 
 Prefer squash merge for phase branches unless the repo has a different established convention.
 

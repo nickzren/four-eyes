@@ -25,6 +25,8 @@ Autonomy mode: review-approved-auto-execute | manual
 Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
 Review transport: pr | manual-relay
+Current review round: <positive integer>
+Workflow revision: <full pushed repo commit SHA from latest successful sync note>
 Reviewer 1 handoff: internal named subagent | manual external reviewer
 Reviewer 2 handoff: manual external reviewer
 Base branch: <branch>
@@ -40,7 +42,9 @@ If phase branch mode is on and phase branch flow is `implementation-first`, crea
 
 Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. Selecting `pr` pre-authorizes creating or updating the PR for the recorded phase branch and merge target, maintaining its bounded review description, requesting expected reviewers, and submitting expected reviewer verdicts. It does not authorize merge, unrelated PR changes, repository-setting changes, or other GitHub writes. Open or update the PR before requesting review and make it the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 
-If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. In `light` tier, do not run a same-family internal Reviewer 1; the single reviewer must provide the cross-family check. Pass only the review packet: issue or plan summary, PR or branch target, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Delta rounds send only the delta packet; the subagent already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per round; a returned verdict stands. Record a Block, error, timeout, or could-not-review verdict and synthesize it; do not argue, re-prompt, discard, replace, or re-run with a new subagent to sample for a better verdict. Record the internal verdict verbatim as a PR comment or review body for `pr` transport, or quote it in full in the issue update or synthesis for `manual-relay`. Return filled Reviewer Prompt templates only for external reviewers, usually Reviewer 2. Ask the human to use a fresh external Reviewer 2 session for the parent workflow, reusable across phases and review rounds, unless they explicitly choose otherwise.
+Before requesting review, use the canonical artifact and repository commands in the Playbook. Record the exact transport-specific artifact identity in the issue and every filled reviewer prompt. Unknown, mixed, malformed, or mismatched identity is could-not-review and holds the gate. Recompute the live repository fingerprint and artifact after all slots return and immediately before the next gated action.
+
+If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. In `light` tier, do not run a same-family internal Reviewer 1; the single reviewer must provide the cross-family check and is human-relayed. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; the subagent already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per round; a returned verdict stands. Record a Block, error, timeout, or could-not-review result; do not argue, re-prompt, discard, replace, or re-run with a new subagent to sample for a better verdict. Hold internal and relayed verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for the human to relay to every external reviewer. Ask the human to use a fresh external Reviewer 2 session for the parent workflow, reusable across phases and review rounds, unless they explicitly choose otherwise.
 
 Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
@@ -93,6 +97,7 @@ Autonomy mode default: review-approved-auto-execute
 Phase branch mode default: on | off
 Phase branch flow default: implementation-first | pre-review
 Review transport default: pr | manual-relay
+Workflow revision: <full pushed repo commit SHA from latest successful sync note>
 Post-merge branch cleanup default: yes
 Abandoned branch cleanup default: ask
 Repo/path: <absolute repo/path>
@@ -133,6 +138,7 @@ Out of scope:
    - phase branch mode: inherit | on | off
    - phase branch flow: inherit | implementation-first | pre-review
    - review transport: inherit | pr | manual-relay
+   - current review round: <positive integer>
    - base branch:
    - phase branch:
    - remote push: disallowed | allowed
@@ -189,7 +195,22 @@ Merge target: <branch>
 Post-merge branch cleanup: yes | no
 Abandoned branch cleanup: yes | ask | no
 
-Reviewers should return verdicts to the orchestrator or human relay. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it directly and the human relays only the external reviewer prompt. Do not create child reviewer issues unless asked.
+Current PR artifact identity, when transport is `pr`:
+Review round: <positive integer>
+Reviewed head: <full commit SHA>
+PR diff SHA-256: <bare lowercase 64-character digest of exact merge-base-to-head diff>
+Workflow revision: <full commit SHA>
+
+Current manual-relay artifact identity, when transport is `manual-relay`:
+Review round: <positive integer>
+Review stage: plan | implementation | delta
+Base: <full commit SHA or none>
+Reviewed head: <full commit SHA or uncommitted at HEAD <full SHA>>
+Prior reviewed head: <full commit SHA or none>
+Review artifact SHA-256: <bare lowercase 64-character digest>
+Workflow revision: <full commit SHA>
+
+Reviewers should return verdicts to the orchestrator or human relay. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it. The human relays every external reviewer prompt, including every Reviewer 2 prompt. Hold internal and relayed verdicts until all expected slots return or have terminal records, then post carried verdicts verbatim before synthesis. Do not create child reviewer issues unless asked.
 
 ## Agent Team Boundary
 
@@ -247,9 +268,9 @@ Please review independently before reading other reviewer output or orchestrator
 
 Review against:
 - the linked local plan file, if accessible
-- sanitized plan content in this issue if the local file is not accessible
+- the full public-safe manual-relay artifact if the local plan is not accessible
 - current repo state, if applicable
-- current implementation diff and verification evidence, if execution has already changed files or resources
+- the exact transport-identified implementation artifact and verification evidence, if execution has already changed files or resources
 - issue body and orchestrator-provided plan/update content
 
 Do not read prior reviewer output or orchestrator synthesis before writing your own review.
@@ -266,6 +287,7 @@ Check:
 - whether the next gate is ready
 
 Use the required reviewer header from the playbook.
+If any identity is missing, malformed, mismatched, or inaccessible, return `Review status: could-not-review`; a summary or hash without accessible content is insufficient.
 ```
 
 ## Reviewer Prompt
@@ -275,7 +297,7 @@ Review <ISSUE-ID> using the issue body, orchestrator-provided plan/update conten
 
 Use the issue's `Next gated action` when stating required changes.
 
-If review transport is `pr`, review the PR diff directly before writing your verdict. If review transport is `manual-relay`, review the provided branch or packet context.
+If review transport is `pr`, review the exact identified PR artifact before writing your verdict. If review transport is `manual-relay`, review the exact identified packet.
 
 You are Reviewer <1|2>.
 
@@ -286,21 +308,47 @@ Reviewer slot: <1|2>
 Agent/session: <agent name>
 Read other reviews first: no
 
+For `pr`, immediately follow it with:
+Review round: <positive integer>
+Reviewed head: <full commit SHA>
+PR diff SHA-256: <bare lowercase 64-character digest of exact merge-base-to-head diff>
+Workflow revision: <full commit SHA>
+
+For `manual-relay`, immediately follow it with:
+Review round: <positive integer>
+Review stage: plan | implementation | delta
+Base: <full commit SHA or none>
+Reviewed head: <full commit SHA or uncommitted at HEAD <full SHA>>
+Prior reviewed head: <full commit SHA or none>
+Review artifact SHA-256: <bare lowercase 64-character digest>
+Workflow revision: <full commit SHA>
+
 Do not read other reviewer output or orchestrator synthesis before writing your own review.
 Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into the issue.
 Do not edit, comment on, or close any issue outside this issue and its parent or child slice set unless the human explicitly expands scope.
-If the user sends changes tied to a tracker issue, review the current local diff and verification evidence for that issue, then return the review to the orchestrator or human relay. Reply in chat with the verdict unless explicitly instructed to post to the tracker.
+If the user sends changes tied to a tracker issue, review the exact transport-identified artifact and verification evidence for that issue, then return the review to the orchestrator or human relay. Reply in chat with the verdict unless explicitly instructed to post to the tracker.
 Review only against the linked issue, plan, current implementation diff if present, and verification evidence. Do not suggest unrelated improvements unless severe.
-If the local plan file is not accessible, review against the sanitized plan content in the issue and state that limitation.
-If execution already created a material diff, review that diff before protected-branch push, apply, deploy, merge, or closeout. If phase branch mode is enabled, review the phase branch diff against the base branch.
+If the local plan file is not accessible, require its full public-safe contents in the manual-relay artifact. A summary or hash-only inaccessible artifact is could-not-review.
+If execution already created a material diff, inspect the exact transport-identified artifact before protected-branch push, apply, deploy, merge, or closeout.
+Echo the provided identity exactly. Missing, malformed, mismatched, or inaccessible identity is `Review status: could-not-review` and no approval.
 Do not post to Linear or another tracker unless explicitly instructed.
 
-Return your review with:
+Return exactly one outcome form.
+
+Completed review:
+- Review status: completed
 - Verdict: Approve | Approve with nits | Block
 - Blocking findings
 - Non-blocking findings
 - Questions
 - Required changes before <next gated action>
+
+Could not review:
+- Review status: could-not-review
+- Reason: <brief exact reason>
+- Verdict: not issued
+
+The orchestrator, not the reviewer, records an `error` or `timeout` terminal result with the same Reason and `Verdict: not issued` fields. Every terminal result holds the gate.
 ```
 
 ## Synthesis Comment
@@ -308,9 +356,29 @@ Return your review with:
 ```text
 Primary synthesis
 
+Review transport: pr | manual-relay
+
+For `pr`:
+Review round: <positive integer>
+Reviewed head: <full commit SHA>
+PR diff SHA-256: <bare lowercase 64-character digest of exact merge-base-to-head diff>
+Workflow revision: <full commit SHA>
+
+For `manual-relay`:
+Review round: <positive integer>
+Review stage: plan | implementation | delta
+Base: <full commit SHA or none>
+Reviewed head: <full commit SHA or uncommitted at HEAD <full SHA>>
+Prior reviewed head: <full commit SHA or none>
+Review artifact SHA-256: <bare lowercase 64-character digest>
+Workflow revision: <full commit SHA>
+
+Verdict embargo:
+- all expected slots returned or have terminal records
+- orchestrator-carried verdicts posted verbatim before this synthesis
+
 Reviewer outcomes:
-- Reviewer 1: <verdict>
-- Reviewer 2: <verdict>
+- <one line per expected slot for the selected tier: Reviewer N: Approve | Approve with nits | Block | error | timeout | could-not-review>
 
 Blocking feedback:
 - <finding and decision>
@@ -319,7 +387,7 @@ Non-blocking feedback:
 - <finding and decision>
 
 Nit resolution:
-- <which nits were addressed before auto-execute, or "none required">
+- <deferred without artifact change with reason/follow-up | implemented and delta-reviewed | none>
 
 Required changes before <next gated action>:
 - <none | addressed changes | still blocking>
@@ -329,6 +397,7 @@ Changes made:
 
 Verification:
 - <commands/checks run>
+- <live repository fingerprint and artifact identity matched every approval | mismatch and gate held>
 
 Autonomy decision:
 - manual approval required | auto-execute authorized
