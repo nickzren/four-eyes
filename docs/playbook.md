@@ -28,7 +28,7 @@ The supported workflow is manual-first:
 
 - a Codex App orchestrator or another primary agent owns the plan, execution, synthesis, and tracker updates
 - when available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow
-- the human relays only reviewer prompts the orchestrator cannot launch directly, usually Reviewer 2
+- the orchestrator launches only internal Reviewer 1; the human relays every external reviewer prompt, including every Reviewer 2 prompt
 - reviewers return verdicts to the orchestrator or human
 - the human pastes the expected reviews back to the orchestrator after they are complete
 
@@ -56,6 +56,8 @@ Default Codex-led handoff:
 - Reviewer 1: named Codex subagent `reviewer1`, created by the orchestrator and reused across review rounds for the phase or parent workflow
 - Reviewer 2: external opposite-family reviewer, usually Claude Code, prompted by the human
 
+The orchestrator does not launch any external reviewer. The human relays every external prompt and verdict, including every Reviewer 2 prompt and verdict.
+
 A reviewer subagent must receive only the review packet and its own prior review history:
 
 - issue or plan summary
@@ -68,7 +70,7 @@ Do not pass the parent orchestrator transcript, hidden reasoning, other reviewer
 
 Create `reviewer1` once for the current phase or parent workflow and reuse the same subagent across fix/re-review rounds. Reuse across phases is allowed when those phases belong to the same parent plan and continuity helps the reviewer understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if the subagent context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. Send one verdict request per review round; delta rounds send only the delta packet, since the subagent already holds its own prior findings. A returned verdict stands: do not argue with or re-prompt the reviewer inside a round, and never discard, replace, or re-run a Block, error, timeout, or could-not-review verdict with a new subagent to sample for a better one.
 
-Record internal Reviewer 1's verdict verbatim. In `pr` transport, post it as a PR comment or review body. In `manual-relay`, quote it in full in the issue update or synthesis. Do not replace the original verdict with an orchestrator summary.
+Hold every internal or relayed verdict until all expected slots for the round have returned or are recorded as Block, error, timeout, or could-not-review. Direct PR reviews posted by an external reviewer are outside orchestrator control. The embargo is vacuous in `light` tier because it has one expected slot. After the embargo lifts, post every verdict carried on a reviewer's behalf verbatim, then post synthesis. Do not replace the original verdict with an orchestrator summary.
 
 Before trusting a subagent handoff in a new tool or runtime, run a one-time isolation check: spawn a test reviewer subagent and confirm it cannot describe the parent orchestrator's current task unless that task is passed in the review packet. If the check fails or cannot be verified, use manual external reviewer handoff for that slot.
 
@@ -105,8 +107,10 @@ Responsibilities:
 - review independently before reading other reviewer output or orchestrator synthesis
 - when prompted with a current-work issue reference, treat it as a review request: read the provided issue or packet context, review the current diff and verification evidence, and return the review to the orchestrator or human relay
 - review against the linked local plan file, current repo state, current implementation diff and verification evidence if present, issue body, and orchestrator-provided plan/update content
-- if the local plan file is not accessible, review against sanitized plan content in the issue and state that limitation
+- if the local plan file is not accessible, require its full public-safe contents through the manual-relay artifact; a summary or hash alone is could-not-review
 - check acceptance criteria, correctness, scope, safety, missing tests, and operational risks
+- inspect the exact identified review artifact and independently recompute or confirm its hash
+- fail closed as could-not-review when the workflow revision or artifact identity is missing, malformed, mismatched, or inaccessible
 - avoid unrelated suggestions unless severe
 - return findings with the required header
 
@@ -244,6 +248,202 @@ When `Abandoned branch cleanup: ask`, the orchestrator records the branch state 
 
 Never auto-delete main, protected, release, or unscoped branches; tags; branches this workflow did not create; branches whose names do not match the approved phase branch; branches whose local and remote tips differ; branches with open PRs not created by this workflow; branches with PRs or work needing preservation; or branches whose deletion triggers deploy, preview, or other external side effects unless explicitly approved.
 
+## Workflow Revision And Artifact Identity
+
+The workflow revision is the full pushed repo commit SHA from which the active workflow documents were last successfully synced. Until document-level revision markers are added, the latest successful sync note in the standing workflow-doc tracker issue is authoritative. Record that full SHA on every active task issue and every verdict. Unknown, abbreviated, conflicting, or mixed workflow revisions fail closed.
+
+The task issue also records the current positive review round and review transport. A new or changed artifact starts a new round. Preserve the reviewer provenance fields, then use the transport-specific identity fields below with identical wording and order.
+
+PR verdict identity:
+
+```text
+Review round: <positive integer>
+Reviewed head: <full commit SHA>
+PR diff SHA-256: <bare lowercase 64-character digest of exact merge-base-to-head diff>
+Workflow revision: <full commit SHA>
+```
+
+Manual-relay verdict identity:
+
+```text
+Review round: <positive integer>
+Review stage: plan | implementation | delta
+Base: <full commit SHA or none>
+Reviewed head: <full commit SHA or uncommitted at HEAD <full SHA>>
+Prior reviewed head: <full commit SHA or none>
+Review artifact SHA-256: <bare lowercase 64-character digest>
+Workflow revision: <full commit SHA>
+```
+
+A missing, malformed, or mismatched identity is could-not-review and holds the gate. Hash fields contain only the bare lowercase digest. A reviewer inspects the exact identified artifact and echoes its identity. Hash-only content that the reviewer cannot access is not reviewable; return could-not-review.
+
+### Canonical Artifact And Repository Commands
+
+Run this block from the repository root in Bash. Other documents and templates refer here instead of copying it. Commit, PR, and merge-capable reviews always use `scope=(.)` so no changed path can sit outside the reviewed artifact. Right-size or split an oversized phase instead of narrowing the hash. Every producer propagates failure explicitly; do not rely on Bash `errexit` or local diff defaults.
+
+```bash
+set -o pipefail || exit 1
+export LC_ALL=C
+
+scope=(.)
+
+sha256_bare() {
+  local output
+  output=$(shasum -a 256) || return 1
+  [[ "$output" =~ ^([0-9a-f]{64})[[:space:]]+-$ ]] || return 1
+  printf '%s\n' "${BASH_REMATCH[1]}" || return 1
+}
+
+canonical_diff() {
+  GIT_ATTR_NOSYSTEM=1 git \
+    -c core.attributesFile=/dev/null \
+    -c core.quotePath=true \
+    -c diff.mnemonicPrefix=false \
+    -c diff.suppressBlankEmpty=false \
+    diff \
+    --diff-algorithm=myers \
+    --no-indent-heuristic \
+    --inter-hunk-context=0 \
+    --src-prefix=a/ \
+    --dst-prefix=b/ \
+    --unified=3 \
+    --no-ext-diff \
+    --no-textconv \
+    --no-color \
+    --no-renames \
+    --no-relative \
+    --ignore-submodules=none \
+    --submodule=short \
+    --full-index \
+    --binary \
+    -O/dev/null \
+    "$@" || return 1
+}
+
+write_untracked_manifest() {
+  local output=$1 names="${1}.names" sorted="${1}.sorted" file_path digest
+  git ls-files --others --exclude-standard -z -- "${scope[@]}" >"$names" || return 1
+  perl -0 -e 'print sort <STDIN>' <"$names" >"$sorted" || return 1
+  : >"$output" || return 1
+  while IFS= read -r -d '' file_path; do
+    if [[ -L "$file_path" ]]; then
+      digest=$(perl -e '$p = shift; defined($t = readlink($p)) or die "readlink: $p\n"; print $t' "$file_path" |
+        sha256_bare) || return 1
+    elif [[ -f "$file_path" ]]; then
+      digest=$(sha256_bare <"$file_path") || return 1
+    else
+      printf 'unsupported or missing untracked path: %s\n' "$file_path" >&2
+      return 1
+    fi
+    printf '%s\0%s\0' "$digest" "$file_path" >>"$output" || return 1
+  done <"$sorted" || return 1
+}
+
+repository_fingerprint() {
+  local evidence_dir=$1 head_sha staged_sha unstaged_sha untracked_sha
+  [[ -d "$evidence_dir" ]] || return 1
+  head_sha=$(git rev-parse --verify 'HEAD^{commit}') || return 1
+  staged_sha=$(canonical_diff --cached "$head_sha" -- "${scope[@]}" | sha256_bare) || return 1
+  unstaged_sha=$(canonical_diff -- "${scope[@]}" | sha256_bare) || return 1
+  write_untracked_manifest "$evidence_dir/untracked.manifest" || return 1
+  untracked_sha=$(sha256_bare <"$evidence_dir/untracked.manifest") || return 1
+  printf 'HEAD=%s\nstaged=%s\nunstaged=%s\nuntracked=%s\n' \
+    "$head_sha" "$staged_sha" "$unstaged_sha" "$untracked_sha" || return 1
+}
+
+append_packet_record() {
+  local label=$1 file=$2 size
+  size=$(wc -c <"$file") || return 1
+  size=${size//[[:space:]]/}
+  [[ "$size" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\0%s\0' "$label" "$size" || return 1
+  cat "$file" || return 1
+}
+
+append_untracked_content_records() {
+  local evidence_dir=$1 body=$2 file_path one="$1/untracked.one"
+  while IFS= read -r -d '' file_path; do
+    if [[ -L "$file_path" ]]; then
+      perl -e '$p = shift; defined($t = readlink($p)) or die "readlink: $p\n"; print $t' \
+        "$file_path" >"$one" || return 1
+    elif [[ -f "$file_path" ]]; then
+      cat "$file_path" >"$one" || return 1
+    else
+      return 1
+    fi
+    append_packet_record untracked-content "$one" >>"$body" || return 1
+  done <"$evidence_dir/untracked.manifest.sorted" || return 1
+}
+```
+
+Before dispatching review, create a retained evidence directory, capture the repository tuple, and hash each reviewed plan directly by path even when it is ignored:
+
+```bash
+evidence_dir=$(mktemp -d /tmp/four-eyes.XXXXXX) || exit 1
+before_tuple=$(repository_fingerprint "$evidence_dir") || exit 1
+plan_sha256=$(sha256_bare <"$plan_path") || exit 1
+printf 'Evidence retained for OS cleanup: %s\n' "$evidence_dir" || exit 1
+```
+
+After all expected slots return, and again immediately before the next gated action, recompute and compare. Omit the plan comparison only when no plan was reviewed:
+
+```bash
+after_evidence_dir=$(mktemp -d /tmp/four-eyes.XXXXXX) || exit 1
+after_tuple=$(repository_fingerprint "$after_evidence_dir") || exit 1
+after_plan_sha256=$(sha256_bare <"$plan_path") || exit 1
+[[ "$before_tuple" == "$after_tuple" && "$plan_sha256" == "$after_plan_sha256" ]] || {
+  printf 'repository or reviewed plan changed during review\n' >&2
+  exit 1
+}
+printf 'Evidence retained for OS cleanup: %s\n' "$after_evidence_dir" || exit 1
+```
+
+Create only the artifact needed for the selected transport:
+
+```bash
+# Plan:
+plan_sha256=$(sha256_bare <"$plan_path") || exit 1
+
+# Committed manual-relay diff:
+base_sha=$(git rev-parse --verify "$base_ref^{commit}") || exit 1
+reviewed_head=$(git rev-parse --verify "$head_ref^{commit}") || exit 1
+artifact_base=$(git merge-base "$base_sha" "$reviewed_head") || exit 1
+canonical_diff "$artifact_base" "$reviewed_head" -- "${scope[@]}" >"$evidence_dir/committed.diff" || exit 1
+review_artifact_sha256=$(sha256_bare <"$evidence_dir/committed.diff") || exit 1
+
+# PR diff; forge_base_sha and forge_head_sha must come from current forge state:
+git cat-file -e "$forge_base_sha^{commit}" || exit 1
+git cat-file -e "$forge_head_sha^{commit}" || exit 1
+pr_merge_base=$(git merge-base "$forge_base_sha" "$forge_head_sha") || exit 1
+canonical_diff "$pr_merge_base" "$forge_head_sha" -- "${scope[@]}" >"$evidence_dir/pr.diff" || exit 1
+pr_diff_sha256=$(sha256_bare <"$evidence_dir/pr.diff") || exit 1
+
+# Uncommitted manual-relay components:
+head_sha=$(git rev-parse --verify 'HEAD^{commit}') || exit 1
+canonical_diff --cached "$head_sha" -- "${scope[@]}" >"$evidence_dir/staged.diff" || exit 1
+canonical_diff -- "${scope[@]}" >"$evidence_dir/unstaged.diff" || exit 1
+write_untracked_manifest "$evidence_dir/untracked.manifest" || exit 1
+: >"$evidence_dir/uncommitted.body" || exit 1
+append_packet_record staged-diff "$evidence_dir/staged.diff" >>"$evidence_dir/uncommitted.body" || exit 1
+append_packet_record unstaged-diff "$evidence_dir/unstaged.diff" >>"$evidence_dir/uncommitted.body" || exit 1
+append_packet_record untracked-manifest "$evidence_dir/untracked.manifest" >>"$evidence_dir/uncommitted.body" || exit 1
+case "${reviewer_has_repo_access:-}" in
+  yes) ;;
+  # Inspect every untracked name and byte before selecting no.
+  no) append_untracked_content_records "$evidence_dir" "$evidence_dir/uncommitted.body" || exit 1 ;;
+  *) printf 'reviewer_has_repo_access must be yes or no\n' >&2; exit 1 ;;
+esac
+review_artifact_sha256=$(sha256_bare <"$evidence_dir/uncommitted.body") || exit 1
+```
+
+The packet grammar is exact: each record is UTF-8 label, NUL, ASCII decimal byte length, NUL, then exactly that many raw bytes. The fixed labels are `staged-diff`, `unstaged-diff`, `untracked-manifest`, followed by one `untracked-content` record per manifest path in sorted order. Omit content records when the reviewer has approved repository access. When content records are required, inspect every untracked name and byte before running the append command; if anything cannot be shared safely, record could-not-review. Put the body digest in the identity header, then prepend the header. The header is excluded from the body hash to avoid a circular digest.
+
+Capture the fingerprint before review and recompute it after all expected slots return and immediately before every next gated action. Recompute the applicable artifact hash too, including reviewed ignored plans. Every tuple and identity must match. Unexplained drift invalidates the round; never auto-revert it.
+
+For PR transport, resolve the base and head full SHAs from current forge state, ensure those exact commits exist locally, and generate the exact merge-base-to-head bytes with the canonical command. Do not trust stale remote-tracking refs. Immediately before merge, resolve and recompute both the head SHA and PR diff SHA-256; either mismatch invalidates every approval.
+
+This fingerprint is orchestrator-attested. It detects changes visible to these commands but does not protect against a lying orchestrator, ignored-file mutation other than separately hashed reviewed plans, external-state mutation, or a compromised forge.
+
 ## Review Transport
 
 Every phase should state:
@@ -259,12 +459,15 @@ Selecting `Review transport: pr` pre-authorizes only these writes for the record
 When review transport is `pr`:
 
 - the orchestrator opens or updates a PR from the phase branch to the merge target after verification
+- the issue records the current review round, workflow revision, full reviewed head SHA, and PR diff SHA-256
 - the PR body includes the tracker issue link only when the repo is private or the tracker is accessible to the PR audience; otherwise it includes the tracker issue ID only
 - the PR body includes the sanitized plan summary, acceptance criteria, verification evidence, and risk notes
 - reviewers review the PR diff directly and write their verdict before reading other reviews
 - verdict mapping is `Approve` -> approve, `Approve with nits` -> approve with comments, and `Block` -> request changes
 - reviewer bodies include the required reviewer header
 - the PR is the review artifact; the tracker remains the gate and status record
+- branch protection should dismiss stale approvals when the head changes
+- immediately before merge, the orchestrator compares the current forge head and canonical PR diff SHA-256 with every approval; all must match
 
 Merge is the default routine per-phase human gate. Existing risk gates remain unchanged: deploy, apply, external mutation, destructive or costly action, scope change, tier downgrade, protected-branch push, and branch pushes with side effects still require human approval.
 
@@ -289,7 +492,7 @@ Review tier: skip | light | full
 - `light`: the default for routine low-risk, reversible repo work. Use one reviewer from a different model family than the agent that authored the change, one round, and no autonomous fix loop. A blocker, failed verification, could-not-review result, sensitive path, or oversized diff escalates to `full` or to a human decision.
 - `full`: the normal Four Eyes gate: two independent reviewers, synthesis, bounded fix/re-review, and human approval for real-risk gates.
 
-In `light` tier, do not run a same-family internal Reviewer 1 subagent. The single reviewer must provide the cross-family check, so the human relays only that external reviewer prompt unless the orchestrator can launch a different-family reviewer directly.
+In `light` tier, do not run a same-family internal Reviewer 1 subagent. The single reviewer must provide the cross-family check, so the human relays that external reviewer prompt.
 
 The human or local plan sets the review tier. If the tier is missing, use `light` for routine low-risk repo work and `full` for high-risk or broad work, or ask the human. The orchestrator may escalate the tier but must not downgrade its own work without explicit human instruction.
 
@@ -299,21 +502,32 @@ Use the highest available reasoning for agents that judge: orchestrator decision
 
 ## Required Reviewer Header
 
-Reviewer 1:
+Every completed verdict starts with the existing provenance fields:
 
 ```text
-Reviewer slot: 1
+Reviewer slot: <1|2>
 Agent/session: <agent name>
 Read other reviews first: no
 ```
 
-Reviewer 2:
+Immediately follow those fields with the exact PR or manual-relay verdict identity block defined above. Do not reorder, rename, or omit identity fields. Then use exactly one outcome form.
+
+Completed review:
 
 ```text
-Reviewer slot: 2
-Agent/session: <agent name>
-Read other reviews first: no
+Review status: completed
+Verdict: Approve | Approve with nits | Block
 ```
+
+Terminal result with no verdict:
+
+```text
+Review status: error | timeout | could-not-review
+Reason: <brief exact reason>
+Verdict: not issued
+```
+
+The reviewer returns `could-not-review` when it cannot inspect the identified artifact. The orchestrator records `error` or `timeout` when no reviewer response can be obtained. Every terminal result holds the gate and cannot be counted as an approval.
 
 ## Plan-First Rule
 
@@ -348,7 +562,7 @@ Local executable plans are temporary coordination artifacts. Do not commit them,
 
 Remove the temporary local plan after the issue, phase, or parent workflow is complete. If work pauses before completion, keep the plan only as long as it is needed to resume safely.
 
-If reviewers cannot access the local plan file, the orchestrator must include enough sanitized plan content in the issue for review to proceed safely.
+If reviewers cannot access the local plan file, the orchestrator must provide the full public-safe plan contents as the manual-relay artifact. A checksum or sanitized summary alone does not permit review; return could-not-review when the full artifact cannot be shared safely through an approved path.
 
 ## Issue Rule
 
@@ -398,8 +612,8 @@ Keep review tokens focused on judgment:
 
 - reviewers inspect PR or repo diffs directly; do not paste large diffs into prompts, issues, or PR comments
 - CI or check links replace pasted logs when CI exists
-- re-review is delta-only by default: send the delta diff, plus that reviewer's own prior blocking findings only when the reviewer instance does not already hold them in context
-- full re-review is required only when scope, risk, or acceptance criteria changed
+- delta re-review may send the exact delta packet plus that reviewer's own prior findings, but it must bind the current complete head or artifact and prior reviewed head
+- after any artifact change, every expected `full`-tier slot re-reviews it; `light` does not run a second round and instead escalates to `full` or a human decision
 
 ### Phase Review
 
@@ -409,7 +623,7 @@ For high-throughput bug fixing, review phases instead of every bug:
 - In phase branch mode, the orchestrator may complete all fixes in the current phase, commit them, and push the phase branch before asking reviewers to review.
 - Reviewers review the phase diff and verification evidence once, not every individual bug.
 - The orchestrator fixes all blocking feedback in one batch.
-- Re-review should focus on the blocker delta unless risk changed or the phase expanded.
+- Re-review may focus on the blocker delta, but every expected slot must bind its new verdict to the changed complete head or artifact.
 - Default loop: initial review plus one fix/re-review. If still blocked, the human decides whether to continue, split, downgrade, or defer.
 
 ### Phase Inference
@@ -445,11 +659,11 @@ Use this flow when phase branch mode is enabled:
 2. Orchestrator creates the phase branch from the base branch.
 3. Orchestrator implements the whole phase on that branch.
 4. Orchestrator commits and pushes only the named phase branch when remote push is allowed.
-5. Orchestrator runs verification and updates the tracker with the phase branch, diff summary, and reviewer prompts.
-6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the PR as the review artifact. If Reviewer 1 can run as a named isolated subagent, the orchestrator creates or reuses it directly. The human sends only the remaining external reviewer prompt, usually Reviewer 2. If no isolated subagent is available, the human sends packets to all expected reviewers.
-7. Reviewers review the PR or branch diff and verification evidence independently, then return verdicts through the selected transport.
-8. Orchestrator synthesizes feedback, fixes blockers on the same phase branch, commits and pushes the updates, and requests delta review when needed.
-9. When all expected reviewers approve, orchestrator asks the human for the merge approval phrase.
+5. Orchestrator runs verification and updates the tracker with the current round, workflow revision, transport-specific artifact identity, phase branch, diff summary, and reviewer prompts.
+6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the exact identified PR artifact. If Reviewer 1 can run as a named isolated internal subagent, the orchestrator creates or reuses it. The human sends every external reviewer prompt, including every Reviewer 2 prompt and any Reviewer 1 prompt needed when no internal Reviewer 1 is available.
+7. Reviewers inspect the exact artifact and verification evidence independently, then return verdicts through the selected transport. The orchestrator holds internal and relayed verdicts under the embargo until every expected slot has returned or has a terminal record.
+8. After the embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, synthesizes feedback, fixes blockers on the same phase branch, commits and pushes updates when authorized, and requests the required delta review.
+9. When all expected reviewers approve the unchanged current artifact, the orchestrator recomputes its identity and asks the human for the merge approval phrase.
 10. After approval, orchestrator merges into the target branch, runs post-merge verification, updates or closes the tracker item if authorized, records branch cleanup SHAs, and deletes the phase branch if authorized.
 
 This flow is meant to reduce review loops. It trades pre-implementation review for branch isolation and a hard merge gate.
@@ -461,15 +675,15 @@ Use this flow when phase branch mode is off, or when pre-implementation review i
 1. Orchestrator creates a temporary local executable plan when the task input is not clear enough to execute safely.
 2. Orchestrator creates one issue or decomposes the plan into parent and child slice issues.
 3. Orchestrator adds the temporary plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
-4. The orchestrator creates or reuses any internal Reviewer 1 subagent with only the review packet and its own prior review history. The human sends the ready issue link(s), local plan or sanitized summary, and task prompt only to external expected reviewer slots. Current gate: Review for ready issue(s).
-5. Reviewers return verdicts independently to the orchestrator or human relay. Current gate: Review.
-6. Orchestrator synthesizes the expected reviews. Current gate: In Progress when auto-execute is authorized and execution is starting, Approval if human approval is needed, Review if material changes need re-review, or Blocked if blockers remain.
+4. The orchestrator creates or reuses any internal Reviewer 1 subagent with only the review packet and its own prior review history. The human sends the ready issue link(s), exact accessible review artifact, and task prompt only to external expected reviewer slots. Current gate: Review for ready issue(s).
+5. Reviewers return verdicts independently to the orchestrator or human relay. The orchestrator holds internal and relayed verdicts under the embargo until every expected slot has returned or has a terminal record. Current gate: Review.
+6. After the embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, and synthesizes the expected reviews. Current gate: In Progress when auto-execute is authorized and execution is starting, Approval if human approval is needed, Review if material changes need re-review, or Blocked if blockers remain.
 7. Orchestrator updates code or plan if needed. Current gate: Review if material changes need re-review.
 8. If changes are material, repeat review on the updated slice.
 9. Human approves execution, apply, deploy, or merge when needed. Skip this for local execution authorized by autonomy mode. Current gate: Approval until approved.
 10. Orchestrator executes the approved or auto-authorized slice and posts verification. If phase branch mode is enabled, the orchestrator may commit and push updates to the named phase branch as part of this work. If execution creates material code, doc, config, infra, data, or plan changes, Current gate: Review.
-11. Reviewers review the implementation diff, phase branch diff when applicable, and verification evidence before merge, apply, deploy, or closeout approval.
-12. Orchestrator synthesizes implementation reviews and updates the tracker with the status, gate, and required human action. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
+11. Reviewers review the exact identified implementation artifact and verification evidence before merge, apply, deploy, or closeout approval.
+12. After the verdict embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, synthesizes implementation reviews, and updates the tracker with the status, gate, and required human action. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
 13. Orchestrator commits only the intended tracked changes when phase branch mode authorizes branch commits, when the human approves the commit, or when the approved workflow explicitly calls for it.
 14. Orchestrator closes the issue only after verification, or moves it to an explicit waiting state.
 
@@ -541,6 +755,7 @@ Material changes include:
 After material execution changes, the orchestrator must:
 
 - update the issue Current gate to Review
+- increment the review round and record the workflow revision and exact transport-specific artifact identity
 - identify the exact files, resources, or diff to review
 - include verification already run
 - tell reviewers where to return feedback, either to the orchestrator or human relay
@@ -581,6 +796,15 @@ Proceed when the expected reviewer slots for the selected tier are complete and 
 
 A Block from any expected reviewer holds the gate. The orchestrator must address it or the human must explicitly override it in the issue before execution.
 
+An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots re-review the changed artifact. `Light` has exactly one round: a blocker or changed artifact escalates to `full` or a human decision instead of starting a second Light round.
+
+Resolve every accepted nit before the next gate in one of two ways:
+
+- defer it without changing the artifact, recording the reason and follow-up
+- implement it and obtain the required delta review of the changed artifact; a Light-tier task must first escalate to Full
+
+Do not carry an approval across an implemented nit. Immediately before the next gated action, recompute the live repository fingerprint and artifact identity, including reviewed ignored temporary plans, and compare them with every approval.
+
 When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning `Approve` or `Approve with nits` authorize local execution when no Autonomy Mode stop condition or required change before execution applies. Otherwise move to Approval when the next action needs human approval.
 
 Use a third reviewer only when the human asks for a tie-break or extra risk review.
@@ -593,7 +817,7 @@ A change is material if it alters acceptance criteria, scope, non-goals, gates, 
 
 Typo fixes, formatting, and rewording without semantic change are not material.
 
-For tracked code changes, include the commit SHA when available.
+For tracked code changes, include the full commit SHA when available. Any changed reviewed head or artifact starts a new round and invalidates prior approvals.
 
 For uncommitted plan changes, include the plan path and a short summary of the changed gate, scope, or command.
 
@@ -620,7 +844,7 @@ Use GitHub Issues or PRs when the work is repo-native, public, or should be tied
 
 When a branch or PR exists, link it from the issue. Do not duplicate sensitive operational evidence into GitHub.
 
-When available, use branch protection on the merge target with required approvals and required status checks.
+When available, use branch protection on the merge target with required approvals, required status checks, and dismissal of stale approvals after new commits.
 
 Prefer squash merge for phase branches unless the repo has a different established convention.
 

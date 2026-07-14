@@ -27,10 +27,10 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 4. For each phase, the orchestrator creates a phase branch from the base branch.
 5. The orchestrator implements the whole phase, commits to the phase branch, pushes only that branch, runs verification, and moves the phase issue to Review.
 6. The orchestrator prepares the review transport and reviewer handoff.
-7. When available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow. The human relays only the external reviewer prompt, usually Reviewer 2.
-8. Reviewers review the PR or packet independently and return verdicts outside the tracker.
-9. In manual relay, the human pastes external review replies back to the orchestrator; in PR transport, the orchestrator reads the PR reviews.
-10. If blocked, the orchestrator fixes the phase branch and requests delta review.
+7. When available, the orchestrator runs Reviewer 1 as a named isolated internal subagent and reuses it for the phase or parent workflow. The orchestrator does not launch external reviewers; the human relays every external prompt, including every Reviewer 2 prompt.
+8. Reviewers inspect the exact revision-bound PR or packet independently and return verdicts outside the tracker.
+9. After every expected slot returns or has a terminal record, the orchestrator posts carried verdicts verbatim, verifies the repository and artifact are unchanged, then synthesizes.
+10. If blocked or an accepted nit changes the artifact, the orchestrator fixes the phase branch and requests the required delta review.
 11. When reviewers approve, the human approves merge to `main` or another protected branch.
 12. The orchestrator merges, verifies, updates or closes the tracker item, deletes the phase branch if approved, and removes the temporary local plan.
 
@@ -74,7 +74,7 @@ Manual mode is the supported workflow:
 
 1. Codex App or another primary agent acts as orchestrator.
 2. If available, the orchestrator creates or reuses a named isolated Reviewer 1 subagent for the phase or parent workflow.
-3. The human sends prompts only to reviewers the orchestrator cannot launch directly, usually Reviewer 2.
+3. The orchestrator launches only internal Reviewer 1. The human sends every external reviewer prompt, including every Reviewer 2 prompt.
 4. External reviewers reply to the human with independent verdicts.
 5. The human pastes the external review replies back to the orchestrator.
 6. The orchestrator synthesizes, updates Linear when useful, fixes blockers, and asks for human approval at real gates.
@@ -104,6 +104,8 @@ Default to `pr` when the repo has a remote and CI or branch protection. The PR i
 Selecting `pr` pre-authorizes the orchestrator to create or update the PR for the recorded phase branch and merge target, maintain its bounded review description, request the expected reviewers, and submit expected reviewer verdicts. It does not authorize merge, unrelated PR changes, repository-setting changes, or other GitHub writes.
 
 Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.
+
+Workflow revision, artifact identity, repository mutation checks, verdict embargo, stale approvals, and nit handling are defined in the [Playbook](docs/playbook.md).
 
 ## Review Tiers
 
@@ -145,7 +147,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/issue-tracker-setup.md
 - docs/linear-setup.md
 
-Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use a named isolated Reviewer 1 subagent when available, reused across review rounds for the same phase or parent workflow, with the human relaying only the external Reviewer 2 prompt. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. Require a fresh external Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and workflow revision. Until document markers exist, use the full pushed repo commit SHA in the latest successful sync note on the standing workflow-doc review issue as the authoritative workflow revision. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -166,7 +168,7 @@ Act as orchestrator.
 Use phase branch mode with implementation-first flow unless the plan says otherwise.
 Use `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask` unless the plan says otherwise.
 Use review transport `pr` when the repo has a remote and CI or branch protection; otherwise use `manual-relay`.
-If you can create or reuse a named isolated Reviewer 1 subagent, run Reviewer 1 internally and return only the external Reviewer 2 prompt for human relay. If you cannot create an isolated subagent, return prompts for all expected reviewer slots.
+If you can create or reuse a named isolated Reviewer 1 subagent, run Reviewer 1 internally and return the external Reviewer 2 prompt for human relay. If you cannot create an isolated subagent, return prompts for all expected reviewer slots for human relay. Never launch an external reviewer.
 
 If the plan is large and has no phases, infer practical phases from scope, files, verification, risk, branch target, and rollback. Create a Linear parent issue plus phase child issues.
 
@@ -179,7 +181,7 @@ For the first ready phase:
 4. Run verification.
 5. If review transport is `pr`, open or update the PR from phase branch to merge target under the bounded PR-write authorization. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 6. Update Linear to Review.
-7. Run or reuse internal Reviewer 1 if available, then return filled Reviewer Prompt templates only for external reviewer slots, including the issue ID or safe link, review transport, PR link or phase branch, diff summary, verification evidence, and reviewer slot number.
+7. Run or reuse internal Reviewer 1 if available, then return filled Reviewer Prompt templates only for external reviewer slots, including the issue ID or safe link, current round, workflow revision, exact artifact identity, review transport, PR link or phase branch, verification evidence, and reviewer slot number.
 
 Do not merge to main or another protected branch. End with the current gate plus my exact next action.
 ```

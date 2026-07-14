@@ -3,9 +3,21 @@
 ```text
 Primary synthesis
 
+Review transport: pr
+Review round: 2
+Reviewed head: 2222222222222222222222222222222222222222
+PR diff SHA-256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+Workflow revision: cccccccccccccccccccccccccccccccccccccccc
+
+Verdict embargo:
+- Both Full-tier slots returned for round 2.
+- Orchestrator-carried verdicts were posted verbatim before synthesis.
+
 Reviewer outcomes:
-- Reviewer 1: Approve with nits
-- Reviewer 2: Approve
+- Round 1 Reviewer 1: Approve.
+- Round 1 Reviewer 2: Approve with nits.
+- Round 2 Reviewer 1: Approve.
+- Round 2 Reviewer 2: Approve.
 
 Blocking feedback:
 - None.
@@ -14,7 +26,8 @@ Non-blocking feedback:
 - Add retry-exhaustion test. Accepted.
 
 Nit resolution:
-- Retry-exhaustion test was added on the phase branch.
+- The retry-exhaustion test was implemented after round 1, changing the head and invalidating both approvals.
+- Both Full-tier slots reviewed the new head and PR diff in round 2.
 
 Required changes before merge:
 - None.
@@ -27,8 +40,9 @@ Verification:
 - `pytest tests/test_sync_worker.py`: pass.
 - `git diff --check`: pass.
 
-Review transport:
-- PR: <PR link>
+Review artifact:
+- PR: <PR link>.
+- Live forge head and canonical PR diff SHA-256 were recomputed after review and match both round 2 approvals.
 
 Autonomy decision:
 - phase branch approved; merge requires human approval
