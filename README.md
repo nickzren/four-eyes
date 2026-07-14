@@ -110,7 +110,7 @@ Workflow revision, artifact identity, repository mutation checks, verdict embarg
 ## Review Tiers
 
 - Skip: tiny docs, typos, formatting, and simple queue/admin work; run verification and keep the configured branch or merge gate.
-- Light: default for routine low-risk, reversible repo work; one opposite-family reviewer, one round, no auto-fix loop. This is a single-review shortcut, not full Four Eyes.
+- Light: default for routine low-risk, reversible repo work; one opposite-family reviewer, one initial review, and at most one bounded same-reviewer fix/delta when scope and risk stay unchanged. Then escalate. This is not full Four Eyes.
 - Full: high-risk or broad changes; two independent reviewers and bounded fix/re-review. Use Full for security, infrastructure, data/schema, production, deploy, destructive, costly, or irreversible work.
 
 The human or local plan sets the review tier. The orchestrator may escalate the tier, but must not downgrade its own work without explicit human instruction.

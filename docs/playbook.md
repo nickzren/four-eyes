@@ -376,6 +376,8 @@ append_untracked_content_records() {
 }
 ```
 
+Do not pin `core.autocrlf` in this recipe. It affects working-tree conversion rather than object-to-object PR diffs. If canonical unstaged bytes differ across machines with otherwise unchanged content, fail closed and compare checkout line-ending normalization and `core.autocrlf` before starting a new round.
+
 Before dispatching review, create a retained evidence directory, capture the repository tuple, and hash each reviewed plan directly by path even when it is ignored:
 
 ```bash
@@ -489,7 +491,7 @@ Review tier: skip | light | full
 ```
 
 - `skip`: tiny docs, typos, formatting, simple issue/admin work, or other changes from the playbook skip list. Run verification when useful and keep the configured branch or merge gate.
-- `light`: the default for routine low-risk, reversible repo work. Use one reviewer from a different model family than the agent that authored the change, one round, and no autonomous fix loop. A blocker, failed verification, could-not-review result, sensitive path, or oversized diff escalates to `full` or to a human decision.
+- `light`: the default for routine low-risk, reversible repo work. Use one reviewer from a different model family than the agent that authored the change. Allow one bounded fix and one delta review by that same reviewer only when scope and risk stay unchanged; this is not an open-ended autonomous fix loop. A scope or risk change, failed verification, could-not-review result, sensitive path, oversized diff, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 - `full`: the normal Four Eyes gate: two independent reviewers, synthesis, bounded fix/re-review, and human approval for real-risk gates.
 
 In `light` tier, do not run a same-family internal Reviewer 1 subagent. The single reviewer must provide the cross-family check, so the human relays that external reviewer prompt.
@@ -613,7 +615,7 @@ Keep review tokens focused on judgment:
 - reviewers inspect PR or repo diffs directly; do not paste large diffs into prompts, issues, or PR comments
 - CI or check links replace pasted logs when CI exists
 - delta re-review may send the exact delta packet plus that reviewer's own prior findings, but it must bind the current complete head or artifact and prior reviewed head
-- after any artifact change, every expected `full`-tier slot re-reviews it; `light` does not run a second round and instead escalates to `full` or a human decision
+- after any artifact change, every expected `full`-tier slot re-reviews it; `light` permits only its one bounded same-reviewer delta, then escalates to `full` or a human decision
 
 ### Phase Review
 
@@ -796,12 +798,12 @@ Proceed when the expected reviewer slots for the selected tier are complete and 
 
 A Block from any expected reviewer holds the gate. The orchestrator must address it or the human must explicitly override it in the issue before execution.
 
-An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots re-review the changed artifact. `Light` has exactly one round: a blocker or changed artifact escalates to `full` or a human decision instead of starting a second Light round.
+An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots re-review the changed artifact. `Light` may address one in-scope, same-risk finding and send the changed artifact to the same cross-family reviewer once. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 
 Resolve every accepted nit before the next gate in one of two ways:
 
 - defer it without changing the artifact, recording the reason and follow-up
-- implement it and obtain the required delta review of the changed artifact; a Light-tier task must first escalate to Full
+- implement it and obtain the required delta review of the changed artifact; Light may use its one bounded same-reviewer delta when scope and risk stay unchanged
 
 Do not carry an approval across an implemented nit. Immediately before the next gated action, recompute the live repository fingerprint and artifact identity, including reviewed ignored temporary plans, and compare them with every approval.
 
