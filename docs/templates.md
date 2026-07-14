@@ -12,7 +12,7 @@ You are the orchestrator for this task.
 Follow the Four Eyes workflow.
 
 Assume Linear Quick Setup is already complete.
-Read the existing Four Eyes Default Workflow, Playbook, Templates, and Issue Tracker Setup in Linear first.
+Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts first. Load Four Eyes Playbook, Templates, Issue Tracker Setup, or Linear Setup only when the task needs their exact rule, template, tracker behavior, or sync procedure.
 
 Writing rule: be brief, simple, and necessary. Include enough exact information for another human or AI to continue safely. Do not add narrative padding or omit required gates/evidence.
 
@@ -26,7 +26,7 @@ Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
 Review transport: pr | manual-relay
 Current review round: <positive integer>
-Workflow revision: <full pushed repo commit SHA from latest successful sync note>
+Workflow revision: <full commit SHA from matching loaded workflow document markers>
 Reviewer 1 handoff: internal named subagent | manual external reviewer
 Reviewer 2 handoff: manual external reviewer
 Base branch: <branch>
@@ -43,6 +43,8 @@ If phase branch mode is on and phase branch flow is `implementation-first`, crea
 Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. Selecting `pr` pre-authorizes creating or updating the PR for the recorded phase branch and merge target, maintaining its bounded review description, requesting expected reviewers, and submitting expected reviewer verdicts. It does not authorize merge, unrelated PR changes, repository-setting changes, or other GitHub writes. Open or update the PR before requesting review and make it the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 
 Before requesting review, use the canonical artifact and repository commands in the Playbook. Record the exact transport-specific artifact identity in the issue and every filled reviewer prompt. Unknown, mixed, malformed, or mismatched identity is could-not-review and holds the gate. Recompute the live repository fingerprint and artifact after all slots return and immediately before the next gated action.
+
+Give reviewers the filled immutable packet and exact task evidence. Reviewers do not need to load the workflow-document set unless a disputed workflow rule is itself under review.
 
 If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. In `light` tier, do not run a same-family internal Reviewer 1; the single reviewer must provide the cross-family check and is human-relayed. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; the subagent already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per round; a returned verdict stands. Record a Block, error, timeout, or could-not-review result; do not argue, re-prompt, discard, replace, or re-run with a new subagent to sample for a better verdict. Hold internal and relayed verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for the human to relay to every external reviewer. Ask the human to use a fresh external Reviewer 2 session for the parent workflow, reusable across phases and review rounds, unless they explicitly choose otherwise.
 
@@ -97,7 +99,7 @@ Autonomy mode default: review-approved-auto-execute
 Phase branch mode default: on | off
 Phase branch flow default: implementation-first | pre-review
 Review transport default: pr | manual-relay
-Workflow revision: <full pushed repo commit SHA from latest successful sync note>
+Workflow revision: <full commit SHA from matching loaded workflow document markers>
 Post-merge branch cleanup default: yes
 Abandoned branch cleanup default: ask
 Repo/path: <absolute repo/path>

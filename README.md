@@ -122,6 +122,7 @@ If a big local executable plan has no phases yet, the orchestrator should infer 
 ## Start
 
 - [Playbook](docs/playbook.md)
+- [Role contracts](docs/role-contracts.md)
 - [Templates](docs/templates.md)
 - [Linear setup](docs/linear-setup.md)
 - [Issue tracker setup](docs/issue-tracker-setup.md)
@@ -146,8 +147,10 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/templates.md
 - docs/issue-tracker-setup.md
 - docs/linear-setup.md
+- docs/role-contracts.md
+- scripts/check-docs.rb
 
-Create or update Linear docs for the default workflow, playbook, templates, issue tracker setup, and Linear setup. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. Require a fresh external Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and workflow revision. Until document markers exist, use the full pushed repo commit SHA in the latest successful sync note on the standing workflow-doc review issue as the authoritative workflow revision. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update five runtime documents for Default Workflow, Playbook, Templates, Issue Tracker Setup, and Role Contracts, plus one Linear Setup maintainer document. Generate Role Contracts and all six revision-marked sync payloads with `scripts/check-docs.rb`; do not hand-edit the derived document or marker values. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. Require a fresh external Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and the full workflow revision from matching loaded document markers. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -157,7 +160,7 @@ Prerequisite: Linear Quick Setup is already complete.
 ```text
 Use the Four Eyes workflow in Linear for this task.
 
-Read the existing Four Eyes Default Workflow, Playbook, Templates, and Issue Tracker Setup in Linear first.
+Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts first. Load Four Eyes Playbook, Templates, Issue Tracker Setup, or Linear Setup only when the task needs their exact rule, template, tracker behavior, or sync procedure.
 
 Repo path: <repo path>
 Plan path: <local plan path>
