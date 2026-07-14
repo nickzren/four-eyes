@@ -438,7 +438,7 @@ esac
 review_artifact_sha256=$(sha256_bare <"$evidence_dir/uncommitted.body") || exit 1
 ```
 
-The packet grammar is exact: each record is UTF-8 label, NUL, ASCII decimal byte length, NUL, then exactly that many raw bytes. The fixed labels are `staged-diff`, `unstaged-diff`, `untracked-manifest`, followed by one `untracked-content` record per manifest path in sorted order. Omit content records when the reviewer has approved repository access. When content records are required, inspect every untracked name and byte before running the append command; if anything cannot be shared safely, record could-not-review. Put the body digest in the identity header, then prepend the header. The header is excluded from the body hash to avoid a circular digest.
+The packet grammar is exact: each record is UTF-8 label, NUL, ASCII decimal byte length, NUL, then exactly that many raw bytes. The fixed labels are `staged-diff`, `unstaged-diff`, `untracked-manifest`, followed by one `untracked-content` record per manifest path in sorted order. Omit content records when the reviewer has approved repository access. When content records are required, inspect every untracked name and byte before running the append command; if anything cannot be shared safely, record could-not-review. Put the body digest in the identity header carried by the relay prompt or envelope. Send `uncommitted.body` unchanged as the immutable attachment; do not prepend the header or alter the body after hashing.
 
 Capture the fingerprint before review and recompute it after all expected slots return and immediately before every next gated action. Recompute the applicable artifact hash too, including reviewed ignored plans. Every tuple and identity must match. Unexplained drift invalidates the round; never auto-revert it.
 
@@ -798,7 +798,7 @@ Proceed when the expected reviewer slots for the selected tier are complete and 
 
 A Block from any expected reviewer holds the gate. The orchestrator must address it or the human must explicitly override it in the issue before execution.
 
-An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots re-review the changed artifact. `Light` may address one in-scope, same-risk finding and send the changed artifact to the same cross-family reviewer once. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
+An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots re-review the changed artifact. `Light` may apply one bounded, in-scope, same-risk fix and send the changed artifact to the same cross-family reviewer once. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 
 Resolve every accepted nit before the next gate in one of two ways:
 
