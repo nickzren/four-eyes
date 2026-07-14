@@ -166,13 +166,17 @@ module FourEyesDocs
     end
 
     def canonical_body(bytes, label = "source body")
+      normalize_text(bytes, label).sub(/\n*\z/, "") + "\n"
+    end
+
+    def normalize_text(bytes, label = "source body")
       value = bytes.dup.force_encoding(Encoding::UTF_8)
       fail_check("#{label}: invalid UTF-8") unless value.valid_encoding?
       fail_check("#{label}: NUL byte") if value.include?("\0")
 
       value = value.gsub("\r\n", "\n")
       fail_check("#{label}: bare CR") if value.include?("\r")
-      value.sub(/\n*\z/, "") + "\n"
+      value
     end
 
     private
@@ -187,8 +191,12 @@ module FourEyesDocs
       fail_check("missing file: #{relative}")
     end
 
+    def normalized_read(relative)
+      normalize_text(read(relative), relative)
+    end
+
     def role_contracts_source
-      playbook = read("docs/playbook.md")
+      playbook = normalized_read("docs/playbook.md")
       start = playbook.index(ROLE_BEGIN)
       finish = start && playbook.index(ROLE_END, start + ROLE_BEGIN.bytesize)
       fail_check("marked Role Contracts source missing or malformed") unless start && finish
@@ -203,7 +211,7 @@ module FourEyesDocs
     end
 
     def default_workflow_source_from(bytes, label)
-      readme = canonical_body(bytes, label)
+      readme = normalize_text(bytes, label)
       start_match = /^## Default Workflow\n/.match(readme)
       fail_check("README Default Workflow section missing") unless start_match
       finish_match = /^## /m.match(readme, start_match.end(0))
@@ -217,12 +225,12 @@ module FourEyesDocs
 
     def check_derived!
       expected = role_contracts_source
-      actual = read("docs/role-contracts.md")
+      actual = normalized_read("docs/role-contracts.md")
       fail_check("generated Role Contracts differ from marked Playbook source") unless actual == expected
     end
 
     def check_rule_groups!
-      contract = read("docs/role-contracts.md")
+      contract = normalized_read("docs/role-contracts.md")
       RULE_GROUPS.each do |group|
         heading = "## #{group}\n"
         fail_check("missing role-contract rule group: #{group}") unless contract.scan(heading).length == 1
@@ -237,7 +245,7 @@ module FourEyesDocs
       fail_check("bootstrap membership mismatch") unless @bootstrap_members == POST_BOOTSTRAP_MEMBERS
       fail_check("pre-change bootstrap total mismatch") unless PRE_BOOTSTRAP_COMPONENTS.values.sum == PRE_BOOTSTRAP_TOTAL
 
-      linear_setup = read("docs/linear-setup.md")
+      linear_setup = normalized_read("docs/linear-setup.md")
       PRE_BOOTSTRAP_COMPONENTS.each do |name, bytes|
         display_name = name == "README.md#Default Workflow" ? "README Default Workflow section" : "complete #{File.basename(name, ".md").split("-").map(&:capitalize).join(" ")}"
         fail_check("pre-change bootstrap record missing: #{name}") unless linear_setup.include?("#{display_name}: #{bytes.to_s.reverse.scan(/.{1,3}/).join(",").reverse} bytes")
@@ -245,7 +253,7 @@ module FourEyesDocs
       fail_check("pre-change bootstrap total record missing") unless linear_setup.include?("92,036 UTF-8 bytes")
       fail_check("live Linear readback record missing") unless linear_setup.include?("92,059 bytes")
 
-      post_bytes = default_workflow_source.bytesize + read("docs/role-contracts.md").bytesize
+      post_bytes = default_workflow_source.bytesize + normalized_read("docs/role-contracts.md").bytesize
       fail_check("bootstrap byte budget exceeded: #{post_bytes} > #{POST_BOOTSTRAP_BUDGET}") if post_bytes > POST_BOOTSTRAP_BUDGET
       saved = PRE_BOOTSTRAP_TOTAL - post_bytes
       {
@@ -258,22 +266,22 @@ module FourEyesDocs
 
     def check_loading_prompts!
       ["README.md", "docs/templates.md"].each do |relative|
-        count = read(relative).scan(Regexp.new(Regexp.escape(LOADING_SENTENCE))).length
+        count = normalized_read(relative).scan(Regexp.new(Regexp.escape(LOADING_SENTENCE))).length
         fail_check("orchestrator loading prompt mismatch in #{relative}") unless count == 1
       end
-      linear_loading = section(read("docs/linear-setup.md"), "## Loading Rule", "## Canonical Sync Source Map")
+      linear_loading = section(normalized_read("docs/linear-setup.md"), "## Loading Rule", "## Canonical Sync Source Map")
       load_rule_start = linear_loading.index("Default orchestrator bootstrap is:")
       load_rule_finish = linear_loading.index(LOAD_ON_DEMAND_RULE)
       fail_check("default loading instructions mismatch") unless load_rule_start && load_rule_finish
       bootstrap_region = linear_loading.byteslice(load_rule_start...load_rule_finish)
       loading_bullets = bootstrap_region.lines.map(&:chomp).select { |line| line.start_with?("- ") }
       fail_check("default loading instructions mismatch") unless bootstrap_region == DEFAULT_LOADING_BLOCK && loading_bullets == DEFAULT_LOADING_BULLETS
-      fail_check("role-contract loading instructions mismatch") unless read("docs/role-contracts.md").scan(ROLE_LOADING_RULE).length == 1
-      fail_check("tracker loading instructions mismatch") unless read("docs/issue-tracker-setup.md").scan(TRACKER_LOADING_RULE).length == 1
+      fail_check("role-contract loading instructions mismatch") unless normalized_read("docs/role-contracts.md").scan(ROLE_LOADING_RULE).length == 1
+      fail_check("tracker loading instructions mismatch") unless normalized_read("docs/issue-tracker-setup.md").scan(TRACKER_LOADING_RULE).length == 1
     end
 
     def check_field_order!
-      templates = read("docs/templates.md")
+      templates = normalized_read("docs/templates.md")
       new_prompt = section(templates, "## New Orchestrator Prompt", "## Local Plan Template")
       task_issue = section(templates, "## Task Issue Template", "## Reviewer Prompt")
       expected_lines = workflow_field_lines(new_prompt)
@@ -299,7 +307,7 @@ module FourEyesDocs
     end
 
     def check_sync_contract!
-      linear_setup = read("docs/linear-setup.md")
+      linear_setup = normalized_read("docs/linear-setup.md")
       fail_check("canonical sync source map mismatch") unless @sync_sources == SYNC_SOURCES
       positions = self.class.source_map_lines(@sync_sources).map do |line|
         fail_check("sync source map incomplete: #{line}") unless linear_setup.scan(line).length == 1
@@ -362,7 +370,7 @@ module FourEyesDocs
 
     def check_links!
       markdown_paths.each do |relative|
-        content = read(relative)
+        content = normalized_read(relative)
         content.scan(/!?\[[^\]]*\]\(([^)]+)\)/).flatten.each do |raw_target|
           target = raw_target.strip.sub(/\A</, "").sub(/>\z/, "").split(/\s+/, 2).first
           next if target.nil? || target.empty? || target.start_with?("#") || target.match?(/\A[a-z][a-z0-9+.-]*:/i)
@@ -375,7 +383,7 @@ module FourEyesDocs
     end
 
     def check_stale_phrases!
-      corpus = markdown_paths.map { |relative| read(relative) }.join("\n")
+      corpus = markdown_paths.map { |relative| normalized_read(relative) }.join("\n")
       STALE_PHRASES.each do |phrase|
         fail_check("stale phrase present: #{phrase}") if corpus.include?(phrase)
       end
@@ -429,6 +437,10 @@ module FourEyesDocs
 
       expect_failure("derived-file drift", "generated Role Contracts differ") do |root|
         append(root, "docs/role-contracts.md", "drift\n")
+      end
+
+      expect_failure("derived-file trailing-byte drift", "generated Role Contracts differ") do |root|
+        append(root, "docs/role-contracts.md", "\n")
       end
 
       Checker::RULE_GROUPS.each do |group|
@@ -510,7 +522,6 @@ module FourEyesDocs
         replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "5. Read all six documents back.")
       end
 
-
       with_fixture do |root|
         write(root, "README.md", read(root, "README.md").gsub("\n", "\r\n"))
         Checker.new(root).check!
@@ -543,16 +554,16 @@ module FourEyesDocs
           checker.write_sync_dir!(File.join(File.dirname(root), "nonexistent-sync"), "a" * 40)
         end
 
-      append(root, "examples/task-issue.md", "\nrevision fixture\n")
-      git!(root, "add", "examples/task-issue.md")
-      git!(root, "commit", "-q", "-m", "fixture second revision")
-      second_revision = git!(root, "rev-parse", "HEAD")
+        append(root, "examples/task-issue.md", "\nrevision fixture\n")
+        git!(root, "add", "examples/task-issue.md")
+        git!(root, "commit", "-q", "-m", "fixture second revision")
+        second_revision = git!(root, "rev-parse", "HEAD")
 
-      assert_failure("unpushed workflow revision", "workflow revision must be pushed before sync generation") do
-        checker.write_sync_dir!(File.join(File.dirname(root), "unpushed-sync"), second_revision)
-      end
+        assert_failure("unpushed workflow revision", "workflow revision must be pushed before sync generation") do
+          checker.write_sync_dir!(File.join(File.dirname(root), "unpushed-sync"), second_revision)
+        end
 
-      git!(root, "push", "-q", "origin", "HEAD:refs/heads/main")
+        git!(root, "push", "-q", "origin", "HEAD:refs/heads/main")
 
         assert_failure("mismatched workflow revision", "workflow revision must equal HEAD") do
           checker.write_sync_dir!(File.join(File.dirname(root), "mismatched-sync"), revision)
@@ -563,6 +574,18 @@ module FourEyesDocs
           checker.write_sync_dir!(File.join(File.dirname(root), "dirty-sync"), second_revision)
         end
       end
+
+      with_crlf_git_fixture do |root, revision|
+        source_paths = ["README.md"] + Checker::SYNC_SOURCES.map { |entry| entry.fetch(:source) }.reject { |source| source == "README.md#Default Workflow" }
+        missing_crlf = source_paths.reject { |source| read(root, source).include?("\r\n") }
+        raise "CRLF fixture did not convert: #{missing_crlf.join(', ')}" unless missing_crlf.empty?
+        raise "CRLF fixture is not clean" unless git!(root, "status", "--porcelain=v1", "--untracked-files=all").empty?
+
+        checker = Checker.new(root)
+        checker.check!
+        checker.write_sync_dir!(File.join(File.dirname(root), "crlf-sync"), revision)
+      end
+      pass("clean CRLF check and revision-bound sync")
 
       expect_failure("broken local link", "broken local Markdown link") do |root|
         append(root, "README.md", "\n[broken](docs/does-not-exist.md)\n")
@@ -604,6 +627,30 @@ module FourEyesDocs
         git!(tmp, "init", "--bare", "-q", remote)
         git!(root, "remote", "add", "origin", remote)
         git!(root, "push", "-q", "-u", "origin", "HEAD:refs/heads/main")
+        yield root, git!(root, "rev-parse", "HEAD")
+      end
+    end
+
+    def with_crlf_git_fixture
+      Dir.mktmpdir("four-eyes-check-docs-crlf-") do |tmp|
+        source = File.join(tmp, "source")
+        root = File.join(tmp, "clone")
+        remote = File.join(tmp, "remote.git")
+        FileUtils.mkdir_p(source)
+        %w[README.md docs examples].each do |entry|
+          FileUtils.cp_r(File.join(@source_root, entry), File.join(source, entry))
+        end
+        git!(source, "init", "-q")
+        git!(source, "config", "user.name", "Four Eyes Self Test")
+        git!(source, "config", "user.email", "self-test@example.invalid")
+        git!(source, "add", ".")
+        git!(source, "commit", "-q", "-m", "fixture revision")
+        git!(tmp, "init", "--bare", "-q", remote)
+        git!(source, "remote", "add", "origin", remote)
+        git!(source, "push", "-q", "origin", "HEAD:refs/heads/main")
+        git!(remote, "symbolic-ref", "HEAD", "refs/heads/main")
+        git!(tmp, "-c", "core.autocrlf=true", "clone", "-q", remote, root)
+        git!(root, "config", "core.autocrlf", "true")
         yield root, git!(root, "rev-parse", "HEAD")
       end
     end
