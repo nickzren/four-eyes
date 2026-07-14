@@ -184,6 +184,7 @@ Reviewer 1: <agent/session>
 Reviewer 2: <agent/session>
 Handoff mode: reviewer1-subagent + manual reviewer2 | manual human relay
 Review tier: skip | light | full
+Autonomy mode: review-approved-auto-execute | manual
 Phase: <phase name or "single slice">
 Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
@@ -227,7 +228,6 @@ Reviewers should return verdicts to the orchestrator or human relay. If Reviewer
 Local plan path: `<absolute path>`
 Plan status: local-only temporary | not required because <reason>
 Current gate: Backlog | Todo | In Progress | Review | Approval | Blocked | Waiting External Eval | Done
-Autonomy mode: review-approved-auto-execute | manual
 
 ## Goal
 

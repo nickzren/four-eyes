@@ -16,7 +16,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Give each reviewer only the immutable packet and that reviewer's own prior findings. Never provide peer verdicts, synthesis, hidden reasoning, or the parent transcript before independent judgment.
 - Wait for every expected slot to return a verdict or terminal record. Then post carried verdicts verbatim before synthesis.
 - Treat Block, error, timeout, could-not-review, identity mismatch, repository drift, or unknown workflow revision as gate-holding outcomes. Never re-roll a reviewer for a better result.
-- Implementation-first phase work may execute on its recorded branch before review when phase branch mode authorizes it, but it must pass review before merge. Review-first local work auto-executes only after the selected tier approves with no blockers, scope change, dirty conflict, or unapproved command.
+- Implementation-first phase work may execute on its recorded branch before review when phase branch mode authorizes it, but it must pass review before merge. Review-first local work auto-executes only after the selected tier approves with no blockers, required changes before execution, unresolved execution-affecting questions, scope change, dirty conflict, or unapproved command.
 
 ## Reviewer
 
@@ -36,7 +36,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Human Gate
 
-- Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, or production mutation; destructive, costly, privileged, or hard-to-reverse action; scope change; and any plan-marked gate.
+- Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned tracker issue set; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
 - Phase branch mode may pre-authorize commits and pushes only to the recorded phase branch when pushes have no gated side effects.
 - PR transport may pre-authorize only bounded operations on the recorded phase PR. It never authorizes merge, unrelated PR changes, or repository settings changes.
 - Tracker bookkeeping and already-authorized local verification do not need repeated human approval.
