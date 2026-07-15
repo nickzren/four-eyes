@@ -574,7 +574,9 @@ module FourEyesDocs
           entry[:context] = :indented_code
         else
           visible_line = mask_inline_code_spans(line)
-          if list_line_contains_heading?(visible_line)
+          if container_line_contains_heading?(visible_line)
+            fail_check("container-prefixed headings are not allowed in checked workflow Markdown")
+          elsif list_line_contains_heading?(visible_line)
             fail_check("list-contained headings are not allowed in checked workflow Markdown")
           elsif raw_html_block_start?(visible_line)
             fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
@@ -705,6 +707,11 @@ module FourEyesDocs
       content = match[1].lstrip
       return true if container_prefixed_heading?(content)
       content.match?(/(?:\A|[ \t])\#{1,6}(?:[ \t]|\z)/)
+    end
+
+    def container_line_contains_heading?(line)
+      match = /\A {0,3}>[ \t]?(.*)\z/.match(line)
+      match && container_prefixed_heading?(match[1].lstrip)
     end
 
     def container_prefixed_heading?(content)
@@ -1207,6 +1214,38 @@ module FourEyesDocs
 
       expect_failure("list blockquote cannot hide duplicate Default Workflow", "ambiguous indented heading") do |root|
         append(root, "README.md", "\n- item\n    > ## Default Workflow\n")
+      end
+
+      expect_failure("bare blockquote cannot hide duplicate H2", "container-prefixed headings") do |root|
+        append(root, "docs/templates.md", "\n> ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("repeated blockquote cannot hide duplicate H2", "container-prefixed headings") do |root|
+        append(root, "docs/templates.md", "\n> > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("minimum unordered continuation cannot hide blockquote H2", "container-prefixed headings") do |root|
+        append(root, "docs/templates.md", "\n- item\n  > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("loose minimum unordered continuation cannot hide blockquote H2", "container-prefixed headings") do |root|
+        append(root, "docs/templates.md", "\n- item\n\n  > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("minimum ordered continuation cannot hide blockquote H2", "container-prefixed headings") do |root|
+        append(root, "docs/templates.md", "\n1. item\n   > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("minimum continuation cannot hide blockquote Setext H2", "container-prefixed headings") do |root|
+        append(root, "docs/templates.md", "\n- item\n  > New Orchestrator Prompt\n  > ---\n")
+      end
+
+      expect_failure("mixed minimum containers cannot hide duplicate H2", "container-prefixed headings") do |root|
+        append(root, "docs/templates.md", "\n- item\n  > 1. > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("minimum continuation cannot hide duplicate Default Workflow", "container-prefixed headings") do |root|
+        append(root, "README.md", "\n- item\n  > ## Default Workflow\n")
       end
 
       expect_failure("intervening peer section", "section order mismatch: ## New Orchestrator Prompt") do |root|
