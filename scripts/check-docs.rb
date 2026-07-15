@@ -695,8 +695,7 @@ module FourEyesDocs
     end
 
     def ambiguous_indented_heading_line?(line)
-      content = line.lstrip
-      atx_heading_parts(content) || setext_underline_level(content) || list_line_contains_heading?(content)
+      container_prefixed_heading?(line.lstrip)
     end
 
     def list_line_contains_heading?(line)
@@ -704,8 +703,20 @@ module FourEyesDocs
       return false unless match
 
       content = match[1].lstrip
-      return true if atx_heading_parts(content)
+      return true if container_prefixed_heading?(content)
       content.match?(/(?:\A|[ \t])\#{1,6}(?:[ \t]|\z)/)
+    end
+
+    def container_prefixed_heading?(content)
+      loop do
+        return true if atx_heading_parts(content) || setext_underline_level(content)
+
+        match = /\A>[ \t]?(.*)\z/.match(content)
+        match ||= /\A(?:[-+*]|\d{1,9}[.)])[ \t]+(.*)\z/.match(content)
+        return false unless match
+
+        content = match[1].lstrip
+      end
     end
 
     def raw_html_block_start?(line)
@@ -1172,6 +1183,30 @@ module FourEyesDocs
 
       expect_failure("list-contained Setext H2 is rejected", "indented Setext headings") do |root|
         append(root, "docs/templates.md", "\n- New Orchestrator Prompt\n  ---\n")
+      end
+
+      expect_failure("tight unordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
+        append(root, "docs/templates.md", "\n- item\n    > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("loose unordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
+        append(root, "docs/templates.md", "\n- item\n\n    > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("ordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
+        append(root, "docs/templates.md", "\n1. item\n    > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("nested ordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
+        append(root, "docs/templates.md", "\n1. outer\n    1. inner\n        > ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("list blockquote Setext cannot hide duplicate H2", "ambiguous indented heading") do |root|
+        append(root, "docs/templates.md", "\n- item\n    > New Orchestrator Prompt\n    > ---\n")
+      end
+
+      expect_failure("list blockquote cannot hide duplicate Default Workflow", "ambiguous indented heading") do |root|
+        append(root, "README.md", "\n- item\n    > ## Default Workflow\n")
       end
 
       expect_failure("intervening peer section", "section order mismatch: ## New Orchestrator Prompt") do |root|
