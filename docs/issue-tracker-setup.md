@@ -50,7 +50,7 @@ Every non-trivial task issue should include:
 - phase branch mode, if enabled
 - review transport
 - current positive review round
-- workflow revision from the standing workflow-doc sync note
+- workflow revision matching the loaded workflow document markers
 - exact transport-specific artifact identity
 - reviewer handoff
 - verbatim reviewer verdicts or links to them
@@ -65,7 +65,9 @@ Every non-trivial task issue should include:
 
 Local executable plans are temporary coordination artifacts. Do not commit them. Keep the issue tracker to sanitized summaries and remove the local plan after closeout.
 
-Until synced documents carry their own revision markers, use the full pushed repo commit SHA in the latest successful sync note on the standing workflow-doc review issue as the authoritative workflow revision. Unknown or mixed revisions hold the gate. Generate artifact identities and repository fingerprints with the canonical commands in the Playbook; do not copy those commands into tracker templates.
+Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, Issue Tracker Setup, or Linear Setup only when their exact policy, template, tracker behavior, or sync procedure is needed. Reviewers receive filled immutable packets and do not need the workflow-document set.
+
+Every loaded workflow document and the task issue must carry the same full workflow revision. Missing, abbreviated, unknown, or mixed markers hold the gate. Generate artifact identities and repository fingerprints with the canonical commands in the Playbook; do not copy those commands into tracker templates.
 
 Hold orchestrator-carried internal and relayed verdicts until all expected slots for the round have returned or have a Block, error, timeout, or could-not-review record. Direct PR reviews posted by external reviewers are outside orchestrator control. After the embargo lifts, post carried verdicts verbatim before synthesis.
 
