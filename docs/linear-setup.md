@@ -86,6 +86,8 @@ Canonical source-body bytes are defined once here: require valid UTF-8; convert 
 
 Each synced document starts with exactly `Workflow revision: <full-sha>`, then `Source body SHA-256: <digest>`, then one blank line, followed by the canonical source body.
 
+Linear may reserialize Markdown because documents are stored as rich text. The source-body digest attests to canonical committed source bytes; it is not a digest of Linear's serialized body. The repo remains the byte-exact source of truth.
+
 Repository source files never hard-code the current revision or source-body digest.
 
 This phase introduces the repo's first checked-in helper convention: documentation helpers use only the Ruby standard library. This is a new owner decision, not a pre-existing implementation pattern.
@@ -117,9 +119,10 @@ When updating the workflow:
    ```
 
 4. Create or update all six Linear documents from those payload bytes unless the human explicitly requested a repo-only change.
-5. Read all six documents back. Parse the two exact marker lines and required blank line, apply the canonical source-body algorithm to the remaining bytes, rebuild the payload, and compare every byte with the generated expected payload.
-6. Any missing document, abbreviated or mixed revision, wrong source-body digest, malformed marker block, or byte mismatch leaves the sync gate open.
-7. Record the full pushed revision, six successful byte comparisons, and manifest digest in the standing workflow-doc review issue.
+5. Read all six documents back once. For each document, require the exact expected title, exact workflow revision and source-body digest marker block, the expected first Markdown heading, and non-empty content after that heading.
+6. Write each first readback content back unchanged, read the document a second time, and require the exact title again plus byte-identical first and second content. This confirms stable Linear serialization for that write/read cycle; it does not prove source-body byte preservation.
+7. Any missing document, title mismatch, abbreviated or mixed revision, wrong source-body digest, malformed marker block, missing expected heading, empty content after the heading, or unstable second readback leaves the sync gate open.
+8. Record the full pushed revision, generated manifest digest, each stable readback content SHA-256, and six successful marker, heading/content, and stability checks in the standing workflow-doc review issue.
 
 If Linear is edited first, backport the change into this repo and regenerate all affected payloads before treating it as durable.
 
@@ -154,5 +157,6 @@ Boundary:
 Latest successful sync:
 - Workflow revision: <full pushed repo commit SHA>
 - Manifest SHA-256: <bare digest>
-- Readback: all six payloads byte-exact
+- Readback: all six marker and heading/content checks passed; titles exact and first/second content byte-identical
+- Stable readback content SHA-256: <one bare digest per title>
 ```
