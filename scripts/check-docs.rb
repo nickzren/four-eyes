@@ -474,36 +474,66 @@ module FourEyesDocs
         next unless entry[:context] == :prose
 
         identity = level_two_heading_identity(entry[:line])
-        if identity
+        unless identity.nil?
           headings << [entry[:offset], identity]
           next
         end
 
-        setext_identity = setext_level_two_heading_identity(entries, index)
-        headings << [entries[index - 1][:offset], setext_identity] if setext_identity
+        setext_heading = setext_level_two_heading(entries, index)
+        headings << setext_heading if setext_heading
       end
     end
 
     def level_two_heading_identity(line)
-      match = /\A {0,3}##[ \t]+(.+)\z/.match(line)
-      return unless match
+      parts = atx_heading_parts(line)
+      return unless parts && parts.fetch(:level) == 2
 
-      identity = match[1].rstrip.sub(/[ \t]+#+\z/, "").rstrip
-      identity unless identity.empty?
+      identity = parts.fetch(:content).rstrip.sub(/[ \t]+#+\z/, "").rstrip
+      identity = "" if identity.match?(/\A#+\z/)
+      validate_heading_identity!(identity)
     end
 
-    def setext_level_two_heading_identity(entries, index)
+    def atx_heading_parts(line)
+      match = /\A {0,3}(\#{1,6})(?:[ \t]+(.*))?\z/.match(line)
+      return unless match
+
+      {
+        level: match[1].length,
+        content: match[2] || ""
+      }
+    end
+
+    def validate_heading_identity!(identity)
+      unsupported = identity.match?(/[\\`*_{}\[\]<>~#]/) || identity.match?(/&(?:\#\d+|\#x[0-9a-f]+|[a-z][a-z0-9]+);/i)
+      fail_check("unsupported inline syntax in level-two heading") if unsupported
+      identity
+    end
+
+    def setext_level_two_heading(entries, index)
       return unless index.positive?
       return unless entries[index][:line].match?(/\A {0,3}-+[ \t]*\z/)
 
-      previous = entries[index - 1]
-      return unless previous[:context] == :prose
+      paragraph = []
+      cursor = index - 1
+      while cursor >= 0 && setext_paragraph_line?(entries[cursor])
+        paragraph.unshift(entries[cursor])
+        cursor -= 1
+      end
+      return if paragraph.empty?
 
-      identity = previous[:line].strip
-      return if identity.empty? || level_two_heading_identity(previous[:line])
-      return if identity.match?(/\A(?:\#{1,6}[ \t]|>|[-+*][ \t]|\d{1,9}[.)][ \t])/)
+      identity = paragraph.map { |entry| entry[:line].strip }.join(" ")
+      [paragraph.first[:offset], validate_heading_identity!(identity)]
+    end
 
-      identity
+    def setext_paragraph_line?(entry)
+      return false unless entry[:context] == :prose
+
+      line = entry[:line]
+      return false if line.strip.empty? || atx_heading_parts(line)
+      return false if line.match?(/\A {0,3}>/)
+      return false if markdown_list_line?(line) || thematic_break_line?(line)
+
+      true
     end
 
     def markdown_lines(content)
@@ -530,18 +560,25 @@ module FourEyesDocs
           end
         elsif in_comment
           entry[:context] = :comment
-          in_comment = comment_open_after_line?(line, in_comment)
+          in_comment = continue_block_comment?(line)
         elsif (opening = fence_opening(line))
           entry[:context] = :fence_open
           entry[:fence] = opening
           fence = opening
-        elsif line.include?("<!--")
-          entry[:context] = :comment
-          in_comment = comment_open_after_line?(line, false)
-        elsif raw_html_block_start?(line)
-          fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
+        elsif indented_code_line?(line)
+          entry[:context] = :indented_code
         else
-          entry[:context] = :prose
+          visible_line = mask_inline_code_spans(line)
+          if raw_html_block_start?(visible_line)
+            fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
+          elsif visible_line.match?(/\A {0,3}<!--/)
+            entry[:context] = :comment
+            in_comment = block_comment_open_after_line?(line)
+          elsif visible_line.include?("<!--") || visible_line.include?("-->")
+            fail_check("inline HTML comments are not allowed in checked workflow Markdown")
+          else
+            entry[:context] = :prose
+          end
         end
 
         entries << entry
@@ -551,17 +588,98 @@ module FourEyesDocs
       entries
     end
 
-    def comment_open_after_line?(line, initially_open)
-      open = initially_open
-      offset = 0
-      loop do
-        marker = open ? line.index("-->", offset) : line.index("<!--", offset)
-        break unless marker
+    def block_comment_open_after_line?(line)
+      opening = line.index("<!--")
+      fail_check("invalid HTML comment structure") unless opening
+      fail_check("invalid HTML comment structure") if line.index("<!--", opening + 4)
 
-        open = !open
-        offset = marker + (open ? 4 : 3)
+      closing = line.index("-->", opening + 4)
+      return true unless closing
+
+      trailing = line[(closing + 3)..]
+      fail_check("invalid HTML comment structure") unless trailing.strip.empty?
+      false
+    end
+
+    def continue_block_comment?(line)
+      fail_check("invalid HTML comment structure") if line.include?("<!--")
+
+      closing = line.index("-->")
+      return true unless closing
+
+      trailing = line[(closing + 3)..]
+      fail_check("invalid HTML comment structure") unless trailing.strip.empty?
+      false
+    end
+
+    def mask_inline_code_spans(line)
+      masked = line.dup
+      cursor = 0
+      while cursor < line.length
+        unless line[cursor] == "`" && !escaped_character?(line, cursor)
+          cursor += 1
+          next
+        end
+
+        opening_start = cursor
+        opening_length = backtick_run_length(line, cursor)
+        cursor += opening_length
+        closing_end = nil
+
+        while cursor < line.length
+          unless line[cursor] == "`"
+            cursor += 1
+            next
+          end
+
+          candidate_length = backtick_run_length(line, cursor)
+          if candidate_length == opening_length
+            closing_end = cursor + candidate_length
+            break
+          end
+          cursor += candidate_length
+        end
+
+        fail_check("multiline or unclosed inline code spans are not allowed in checked workflow Markdown") unless closing_end
+        masked[opening_start...closing_end] = " " * (closing_end - opening_start)
+        cursor = closing_end
       end
-      open
+      masked
+    end
+
+    def backtick_run_length(line, start)
+      finish = start
+      finish += 1 while finish < line.length && line[finish] == "`"
+      finish - start
+    end
+
+    def escaped_character?(line, index)
+      backslashes = 0
+      cursor = index - 1
+      while cursor >= 0 && line[cursor] == "\\"
+        backslashes += 1
+        cursor -= 1
+      end
+      backslashes.odd?
+    end
+
+    def indented_code_line?(line)
+      columns = 0
+      line.each_char do |character|
+        case character
+        when " "
+          columns += 1
+        when "\t"
+          columns += 4 - (columns % 4)
+        else
+          break
+        end
+      end
+      columns >= 4
+    end
+
+    def thematic_break_line?(line)
+      line.match?(/\A {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})\z/)
     end
 
     def raw_html_block_start?(line)
@@ -767,7 +885,7 @@ module FourEyesDocs
         Checker.new(root).write_derived!
       end
 
-      expect_failure("reopened comment hides role-contract rule group", "missing role-contract rule group: Authority") do |root|
+      expect_failure("reopened comment hides role-contract rule group", "invalid HTML comment structure") do |root|
         content = read(root, "docs/playbook.md")
         match = /\n## Authority\n.*?(?=\n## Orchestrator\n)/m.match(content) || raise("Authority fixture missing")
         content.sub!(match[0], "\n<!-- first\n--> <!-- second#{match[0]}-->\n")
@@ -937,6 +1055,15 @@ module FourEyesDocs
         end
       end
 
+      expect_failure("inline-code comment markers cannot hide source-map expansion", "canonical sync source map entries mismatch") do |root|
+        extra = "- `<!--` Four Eyes Runtime <- complete docs/runtime.md `-->`\n"
+        replace(root, "docs/linear-setup.md", "#{Checker.source_map_lines.last}\n", "#{Checker.source_map_lines.last}\n#{extra}")
+      end
+
+      expect_failure("mixed raw HTML and comment", "raw HTML blocks are not allowed") do |root|
+        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "#{Checker::MARKER_RULE}\n\n<div><!-- harmless --></div>")
+      end
+
       expect_failure("commented source-map block", "canonical") do |root|
         block = "#{Checker::SOURCE_MAP_INTRO}\n\n#{Checker.source_map_lines.join("\n")}\n\n#{Checker::CANONICAL_BODY_RULE}"
         replace(root, "docs/linear-setup.md", block, "<!--\n#{block}\n-->")
@@ -1005,11 +1132,27 @@ module FourEyesDocs
         replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n## Unrelated Peer Section\n\n## Local Plan Template\n")
       end
 
-      expect_failure("invalid backtick fence hides duplicate section heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
+      expect_failure("empty intervening level-two heading", "section order mismatch: ## New Orchestrator Prompt") do |root|
+        replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n##\n\n## Local Plan Template\n")
+      end
+
+      expect_failure("comment-bearing empty level-two heading", "inline HTML comments are not allowed") do |root|
+        replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n## <!-- empty -->\n\n## Local Plan Template\n")
+      end
+
+      expect_failure("formatted duplicate level-two heading", "unsupported inline syntax in level-two heading") do |root|
+        append(root, "docs/templates.md", "\n## *New Orchestrator Prompt*\n")
+      end
+
+      expect_failure("inline-code comment markers cannot hide duplicate heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
+        append(root, "docs/templates.md", "\n`<!--`\n## New Orchestrator Prompt\n`-->`\n")
+      end
+
+      expect_failure("invalid backtick fence hides duplicate section heading", "multiline or unclosed inline code spans are not allowed") do |root|
         append(root, "docs/templates.md", "\n```invalid`info\n## New Orchestrator Prompt\n```\n")
       end
 
-      expect_failure("invalid backtick fence hides duplicate Default Workflow", "README Default Workflow section missing or duplicated") do |root|
+      expect_failure("invalid backtick fence hides duplicate Default Workflow", "multiline or unclosed inline code spans are not allowed") do |root|
         append(root, "README.md", "\n```invalid`info\n## Default Workflow\n```\n")
       end
 
@@ -1051,6 +1194,26 @@ module FourEyesDocs
         raise "Setext heading did not bound Default Workflow" if source.include?("Unexpected Peer Section")
       end
       pass("Setext heading bounds Default Workflow")
+
+      with_fixture do |root|
+        baseline_bytes = Checker.new(root).send(:default_workflow_source).bytesize
+        replacement = "\nUnexpected Peer\nSection\n-------\n\nNot part of Default Workflow.\n\n## Use It For\n"
+        replace(root, "README.md", "\n## Use It For\n", replacement)
+        source = Checker.new(root).send(:default_workflow_source)
+        raise "multiline Setext heading leaked into Default Workflow" if source.include?("Unexpected Peer") || source.include?("Section\n-------")
+        raise "multiline Setext changed Default Workflow byte count" unless source.bytesize == baseline_bytes
+      end
+      pass("multiline Setext heading preserves Default Workflow bytes")
+
+      with_fixture do |root|
+        baseline_bytes = Checker.new(root).send(:default_workflow_source).bytesize
+        addition = "    `indented code\n---\nActive policy remains in Default Workflow.\n"
+        replace(root, "README.md", "\n## Use It For\n", "\n#{addition}\n## Use It For\n")
+        source = Checker.new(root).send(:default_workflow_source)
+        raise "indented code thematic break truncated Default Workflow" unless source.include?("Active policy remains in Default Workflow.")
+        raise "indented code fixture did not expand Default Workflow bytes" unless source.bytesize > baseline_bytes
+      end
+      pass("indented code thematic break stays inside Default Workflow")
 
       with_fixture do |root|
         write(root, "README.md", read(root, "README.md").gsub("\n", "\r\n"))
