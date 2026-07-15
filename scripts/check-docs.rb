@@ -29,11 +29,12 @@ module FourEyesDocs
     LINEAR_SERIALIZATION_RULE = "Linear may reserialize Markdown because documents are stored as rich text. The source-body digest attests to canonical committed source bytes; it is not a digest of Linear's serialized body. The repo remains the byte-exact source of truth."
     RUNTIME_DOCUMENT_RULE = "- five runtime documents named Four Eyes Default Workflow, Four Eyes Playbook, Four Eyes Templates, Four Eyes Issue Tracker Setup, and Four Eyes Role Contracts"
     READBACK_RULE = "5. Read all six documents back once. For each document, require the exact expected title, exact workflow revision and source-body digest marker block, the expected first Markdown heading, and non-empty content after that heading."
-    READBACK_STABILITY_RULE = "6. Write each first readback content back unchanged, read the document a second time, and require the exact title again plus byte-identical first and second content. This proves stable Linear serialization, not source-body byte preservation."
+    READBACK_STABILITY_RULE = "6. Write each first readback content back unchanged, read the document a second time, and require the exact title again plus byte-identical first and second content. This confirms stable Linear serialization for that write/read cycle; it does not prove source-body byte preservation."
     READBACK_FAILURE_RULE = "7. Any missing document, title mismatch, abbreviated or mixed revision, wrong source-body digest, malformed marker block, missing expected heading, empty content after the heading, or unstable second readback leaves the sync gate open."
     READBACK_RECORD_RULE = "8. Record the full pushed revision, generated manifest digest, each stable readback content SHA-256, and six successful marker, heading/content, and stability checks in the standing workflow-doc review issue."
     STANDING_READBACK_RULE = "- Readback: all six marker and heading/content checks passed; titles exact and first/second content byte-identical"
     STANDING_READBACK_DIGEST_RULE = "- Stable readback content SHA-256: <one bare digest per title>"
+    STANDING_DESCRIPTION_INTRO = "Use this issue for reviews and sync evidence for the Four Eyes workflow documents."
     PRE_BOOTSTRAP_COMPONENTS = {
       "README.md#Default Workflow" => 2_630,
       "docs/playbook.md" => 54_802,
@@ -111,7 +112,8 @@ module FourEyesDocs
       "five documents total",
       "all six payloads byte-exact",
       "six successful byte comparisons",
-      "compare every byte with the generated expected payload"
+      "compare every byte with the generated expected payload",
+      "This proves stable Linear serialization, not source-body byte preservation."
     ].freeze
 
     attr_reader :root
@@ -387,6 +389,11 @@ module FourEyesDocs
       source_map = section(linear_setup, "## Canonical Sync Source Map", "## Sync Rule")
       sync_rule = section(linear_setup, "## Sync Rule", "## Standing Review Issue")
       standing_review = section(linear_setup, "## Standing Review Issue")
+      standing_descriptions = fenced_code_blocks(standing_review).select do |block|
+        block[:info] == "text" && block[:body].start_with?("#{STANDING_DESCRIPTION_INTRO}\n")
+      end
+      fail_check("standing review issue Description missing") unless standing_descriptions.length == 1
+      standing_description = standing_descriptions.first[:body]
 
       expected_entries = self.class.source_map_lines(@sync_sources)
       require_unique_operative_line_in_section!(linear_setup, source_map, CANONICAL_BODY_RULE, "canonical source-body rule missing")
@@ -416,8 +423,8 @@ module FourEyesDocs
       require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_STABILITY_RULE, "sync readback stability procedure missing")
       require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_FAILURE_RULE, "sync readback failure rule missing")
       require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_RECORD_RULE, "sync readback record rule missing")
-      require_unique_line_in_section!(linear_setup, standing_review, STANDING_READBACK_RULE, "standing readback record missing")
-      require_unique_line_in_section!(linear_setup, standing_review, STANDING_READBACK_DIGEST_RULE, "standing readback digest record missing")
+      require_unique_line_in_section!(linear_setup, standing_description, STANDING_READBACK_RULE, "standing readback record missing")
+      require_unique_line_in_section!(linear_setup, standing_description, STANDING_READBACK_DIGEST_RULE, "standing readback digest record missing")
     end
 
     def exact_line_positions(content, expected)
@@ -1214,6 +1221,12 @@ module FourEyesDocs
 
       expect_failure("standing readback digest omission", "standing readback digest record missing") do |root|
         replace(root, "docs/linear-setup.md", Checker::STANDING_READBACK_DIGEST_RULE, "- Stable readback SHA-256: omitted")
+      end
+
+      expect_failure("standing readback records moved outside Description", "standing readback record missing") do |root|
+        replace(root, "docs/linear-setup.md", Checker::STANDING_READBACK_RULE, "- Readback: omitted")
+        replace(root, "docs/linear-setup.md", Checker::STANDING_READBACK_DIGEST_RULE, "- Stable readback content SHA-256: omitted")
+        append(root, "docs/linear-setup.md", "\n#{Checker::STANDING_READBACK_RULE}\n#{Checker::STANDING_READBACK_DIGEST_RULE}\n")
       end
 
       expect_failure("duplicate Default Workflow heading", "README Default Workflow section missing or duplicated") do |root|

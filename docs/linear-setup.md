@@ -120,7 +120,7 @@ When updating the workflow:
 
 4. Create or update all six Linear documents from those payload bytes unless the human explicitly requested a repo-only change.
 5. Read all six documents back once. For each document, require the exact expected title, exact workflow revision and source-body digest marker block, the expected first Markdown heading, and non-empty content after that heading.
-6. Write each first readback content back unchanged, read the document a second time, and require the exact title again plus byte-identical first and second content. This proves stable Linear serialization, not source-body byte preservation.
+6. Write each first readback content back unchanged, read the document a second time, and require the exact title again plus byte-identical first and second content. This confirms stable Linear serialization for that write/read cycle; it does not prove source-body byte preservation.
 7. Any missing document, title mismatch, abbreviated or mixed revision, wrong source-body digest, malformed marker block, missing expected heading, empty content after the heading, or unstable second readback leaves the sync gate open.
 8. Record the full pushed revision, generated manifest digest, each stable readback content SHA-256, and six successful marker, heading/content, and stability checks in the standing workflow-doc review issue.
 
