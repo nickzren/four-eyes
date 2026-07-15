@@ -511,7 +511,9 @@ module FourEyesDocs
 
     def setext_level_two_heading(entries, index)
       return unless index.positive?
-      return unless entries[index][:line].match?(/\A {0,3}-+[ \t]*\z/)
+      underline = entries[index][:line]
+      return unless setext_underline_level(underline) == 2
+      fail_check("indented Setext headings are not allowed in checked workflow Markdown") if underline.match?(/\A[ \t]/)
 
       paragraph = []
       cursor = index - 1
@@ -531,7 +533,7 @@ module FourEyesDocs
       line = entry[:line]
       return false if line.strip.empty? || atx_heading_parts(line)
       return false if line.match?(/\A {0,3}>/)
-      return false if markdown_list_line?(line) || thematic_break_line?(line)
+      return false if markdown_list_line?(line) || thematic_break_line?(line) || setext_underline_level(line)
 
       true
     end
@@ -566,10 +568,15 @@ module FourEyesDocs
           entry[:fence] = opening
           fence = opening
         elsif indented_code_line?(line)
+          if ambiguous_indented_heading_line?(line)
+            fail_check("ambiguous indented heading is not allowed in checked workflow Markdown")
+          end
           entry[:context] = :indented_code
         else
           visible_line = mask_inline_code_spans(line)
-          if raw_html_block_start?(visible_line)
+          if list_line_contains_heading?(visible_line)
+            fail_check("list-contained headings are not allowed in checked workflow Markdown")
+          elsif raw_html_block_start?(visible_line)
             fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
           elsif visible_line.match?(/\A {0,3}<!--/)
             entry[:context] = :comment
@@ -680,6 +687,25 @@ module FourEyesDocs
 
     def thematic_break_line?(line)
       line.match?(/\A {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})\z/)
+    end
+
+    def setext_underline_level(line)
+      return 1 if line.match?(/\A {0,3}=+[ \t]*\z/)
+      return 2 if line.match?(/\A {0,3}-+[ \t]*\z/)
+    end
+
+    def ambiguous_indented_heading_line?(line)
+      content = line.lstrip
+      atx_heading_parts(content) || setext_underline_level(content) || list_line_contains_heading?(content)
+    end
+
+    def list_line_contains_heading?(line)
+      match = /\A {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+(.*)\z/.match(line)
+      return false unless match
+
+      content = match[1].lstrip
+      return true if atx_heading_parts(content)
+      content.match?(/(?:\A|[ \t])\#{1,6}(?:[ \t]|\z)/)
     end
 
     def raw_html_block_start?(line)
@@ -1128,6 +1154,26 @@ module FourEyesDocs
         append(root, "docs/templates.md", "\nNew Orchestrator Prompt\n-----------------------\n\nDuplicate prompt.\n")
       end
 
+      expect_failure("Setext H1 does not hide adjacent duplicate H2", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
+        append(root, "docs/templates.md", "\nContainer Heading\n===\nNew Orchestrator Prompt\n---\n")
+      end
+
+      expect_failure("unordered-list continuation cannot hide duplicate H2", "ambiguous indented heading") do |root|
+        append(root, "docs/templates.md", "\n- item\n    ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("ordered-list continuation cannot hide duplicate H2", "ambiguous indented heading") do |root|
+        append(root, "docs/templates.md", "\n1. item\n    ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("same-line list item cannot hide duplicate H2", "list-contained headings") do |root|
+        append(root, "docs/templates.md", "\n- ## New Orchestrator Prompt\n")
+      end
+
+      expect_failure("list-contained Setext H2 is rejected", "indented Setext headings") do |root|
+        append(root, "docs/templates.md", "\n- New Orchestrator Prompt\n  ---\n")
+      end
+
       expect_failure("intervening peer section", "section order mismatch: ## New Orchestrator Prompt") do |root|
         replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n## Unrelated Peer Section\n\n## Local Plan Template\n")
       end
@@ -1194,6 +1240,19 @@ module FourEyesDocs
         raise "Setext heading did not bound Default Workflow" if source.include?("Unexpected Peer Section")
       end
       pass("Setext heading bounds Default Workflow")
+
+      with_fixture do |root|
+        replacement = "\nContainer Heading\n===\nUnexpected Peer\n---\n\n## Use It For\n"
+        replace(root, "README.md", "\n## Use It For\n", replacement)
+        readme = read(root, "README.md")
+        start = readme.index("## Default Workflow\n") || raise("Default Workflow heading missing")
+        finish = readme.index("Unexpected Peer\n---\n", start) || raise("Setext H2 boundary missing")
+        expected = readme[start...finish]
+        source = Checker.new(root).send(:default_workflow_source)
+        raise "Setext H1/H2 boundary bytes differ" unless source == expected
+        raise "Setext H1 bytes missing from Default Workflow" unless source.end_with?("Container Heading\n===\n")
+      end
+      pass("Setext H1 bytes precede adjacent Default Workflow H2 boundary")
 
       with_fixture do |root|
         baseline_bytes = Checker.new(root).send(:default_workflow_source).bytesize
