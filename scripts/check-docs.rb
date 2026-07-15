@@ -568,8 +568,11 @@ module FourEyesDocs
           entry[:fence] = opening
           fence = opening
         elsif indented_code_line?(line)
-          if ambiguous_indented_heading_line?(line)
+          content = line.lstrip
+          if container_prefixed_heading?(content)
             fail_check("ambiguous indented heading is not allowed in checked workflow Markdown")
+          elsif raw_html_after_containers?(content)
+            fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
           end
           entry[:context] = :indented_code
         else
@@ -578,7 +581,7 @@ module FourEyesDocs
             fail_check("container-prefixed headings are not allowed in checked workflow Markdown")
           elsif list_line_contains_heading?(visible_line)
             fail_check("list-contained headings are not allowed in checked workflow Markdown")
-          elsif raw_html_block_start?(visible_line)
+          elsif raw_html_after_containers?(visible_line.lstrip)
             fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
           elsif visible_line.match?(/\A {0,3}<!--/)
             entry[:context] = :comment
@@ -696,10 +699,6 @@ module FourEyesDocs
       return 2 if line.match?(/\A {0,3}-+[ \t]*\z/)
     end
 
-    def ambiguous_indented_heading_line?(line)
-      container_prefixed_heading?(line.lstrip)
-    end
-
     def list_line_contains_heading?(line)
       match = /\A {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+(.*)\z/.match(line)
       return false unless match
@@ -718,12 +717,24 @@ module FourEyesDocs
       loop do
         return true if atx_heading_parts(content) || setext_underline_level(content)
 
-        match = /\A>[ \t]?(.*)\z/.match(content)
-        match ||= /\A(?:[-+*]|\d{1,9}[.)])[ \t]+(.*)\z/.match(content)
-        return false unless match
-
-        content = match[1].lstrip
+        content = content_after_container_prefix(content)
+        return false unless content
       end
+    end
+
+    def raw_html_after_containers?(content)
+      loop do
+        return true if raw_html_block_start?(content)
+
+        content = content_after_container_prefix(content)
+        return false unless content
+      end
+    end
+
+    def content_after_container_prefix(content)
+      match = /\A>[ \t]?(.*)\z/.match(content)
+      match ||= /\A(?:[-+*]|\d{1,9}[.)])[ \t]+(.*)\z/.match(content)
+      match && match[1].lstrip
     end
 
     def raw_html_block_start?(line)
@@ -1247,6 +1258,62 @@ module FourEyesDocs
       expect_failure("minimum continuation cannot hide duplicate Default Workflow", "container-prefixed headings") do |root|
         append(root, "README.md", "\n- item\n  > ## Default Workflow\n")
       end
+
+      expect_failure("unordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n- item\n    <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("ordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n1. item\n    <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("nested continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n- outer\n    - inner\n        <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("tabbed continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n- item\n\t<h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("minimum unordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n- item\n  <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("minimum ordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n1. item\n   <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("same-line list cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n- <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("blockquote cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n> <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("mixed containers cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n- > <h2>New Orchestrator Prompt</h2>\n")
+      end
+
+      expect_failure("list continuation cannot hide raw HTML Default Workflow", "raw HTML blocks are not allowed") do |root|
+        append(root, "README.md", "\n- item\n    <h2>Default Workflow</h2>\n")
+      end
+
+      expect_failure("list continuation cannot hide generic raw HTML", "raw HTML blocks are not allowed") do |root|
+        append(root, "docs/templates.md", "\n- item\n    <div>Visible policy</div>\n")
+      end
+
+      with_fixture do |root|
+        append(root, "docs/templates.md", "\n> `<h2>New Orchestrator Prompt</h2>`\n")
+        Checker.new(root).check!
+      end
+      pass("blockquoted inline-code HTML remains literal")
+
+      with_fixture do |root|
+        append(root, "docs/templates.md", "\n```html\n<h2>New Orchestrator Prompt</h2>\n```\n")
+        Checker.new(root).check!
+      end
+      pass("fenced raw HTML remains literal")
 
       expect_failure("intervening peer section", "section order mismatch: ## New Orchestrator Prompt") do |root|
         replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n## Unrelated Peer Section\n\n## Local Plan Template\n")
