@@ -35,6 +35,8 @@ module FourEyesDocs
       "docs/issue-tracker-setup.md" => 8_995
     }.freeze
     PRE_BOOTSTRAP_TOTAL = 92_036
+    PRE_BOOTSTRAP_RECORD_RULE = "The reproducible pre-change source bootstrap at revision `225430672fad342d693137254c256ca44f2bd8ef` was 92,036 UTF-8 bytes:"
+    LIVE_LINEAR_READBACK_RULE = "The separate live Linear readback was 92,059 bytes. Do not use that readback or maintainer-document bytes in the source-savings denominator. `ruby scripts/check-docs.rb` reports the current source bootstrap, bytes saved, and percentage reduction; the post-change source bootstrap must not exceed 12,000 bytes."
     POST_BOOTSTRAP_MEMBERS = ["README.md#Default Workflow", "docs/role-contracts.md"].freeze
     POST_BOOTSTRAP_BUDGET = 12_000
     FIELD_PREFIXES = [
@@ -247,13 +249,22 @@ module FourEyesDocs
 
     def check_rule_groups!
       contract = normalized_read("docs/role-contracts.md")
-      RULE_GROUPS.each do |group|
-        heading = "## #{group}\n"
-        fail_check("missing role-contract rule group: #{group}") unless contract.scan(heading).length == 1
-        body_start = contract.index(heading) + heading.length
-        next_heading = contract.index("\n## ", body_start)
-        body = contract[body_start...(next_heading || contract.length)]
-        fail_check("empty role-contract rule group: #{group}") unless body.lines.any? { |line| line.start_with?("- ") }
+      headings = level_two_headings(contract)
+      positions = RULE_GROUPS.map do |group|
+        matches = heading_positions(contract, "## #{group}")
+        fail_check("missing role-contract rule group: #{group}") unless matches.length == 1
+        matches.first
+      end
+      fail_check("role-contract rule group order mismatch") unless positions == positions.sort
+
+      RULE_GROUPS.each_with_index do |group, index|
+        start = positions[index]
+        finish = headings.map(&:first).find { |position| position > start } || contract.length
+        body = contract[start...finish]
+        operative_bullet = markdown_lines(body).any? do |entry|
+          entry[:context] == :prose && entry[:line].start_with?("- ")
+        end
+        fail_check("empty role-contract rule group: #{group}") unless operative_bullet
       end
     end
 
@@ -262,12 +273,14 @@ module FourEyesDocs
       fail_check("pre-change bootstrap total mismatch") unless PRE_BOOTSTRAP_COMPONENTS.values.sum == PRE_BOOTSTRAP_TOTAL
 
       linear_setup = normalized_read("docs/linear-setup.md")
+      loading_rule = section(linear_setup, "## Loading Rule", "## Canonical Sync Source Map")
       PRE_BOOTSTRAP_COMPONENTS.each do |name, bytes|
         display_name = name == "README.md#Default Workflow" ? "README Default Workflow section" : "complete #{File.basename(name, ".md").split("-").map(&:capitalize).join(" ")}"
-        fail_check("pre-change bootstrap record missing: #{name}") unless linear_setup.include?("#{display_name}: #{bytes.to_s.reverse.scan(/.{1,3}/).join(",").reverse} bytes")
+        expected = "- #{display_name}: #{bytes.to_s.reverse.scan(/.{1,3}/).join(",").reverse} bytes"
+        require_unique_operative_line_in_section!(linear_setup, loading_rule, expected, "pre-change bootstrap record missing: #{name}")
       end
-      fail_check("pre-change bootstrap total record missing") unless linear_setup.include?("92,036 UTF-8 bytes")
-      fail_check("live Linear readback record missing") unless linear_setup.include?("92,059 bytes")
+      require_unique_operative_line_in_section!(linear_setup, loading_rule, PRE_BOOTSTRAP_RECORD_RULE, "pre-change bootstrap total record missing")
+      require_unique_operative_line_in_section!(linear_setup, loading_rule, LIVE_LINEAR_READBACK_RULE, "live Linear readback record missing")
 
       post_bytes = default_workflow_source.bytesize + normalized_read("docs/role-contracts.md").bytesize
       fail_check("bootstrap byte budget exceeded: #{post_bytes} > #{POST_BOOTSTRAP_BUDGET}") if post_bytes > POST_BOOTSTRAP_BUDGET
@@ -282,36 +295,40 @@ module FourEyesDocs
 
     def check_loading_prompts!
       readme = normalized_read("README.md")
-      readme_prompt = section(readme, "## Run Your First Review", "## Example Agent Mix")
+      readme_section = section(readme, "## Run Your First Review", "## Example Agent Mix")
+      readme_prompt = unique_text_prompt(readme_section, "orchestrator loading prompt mismatch in README.md")
       require_unique_line_in_section!(readme, readme_prompt, LOADING_SENTENCE, "orchestrator loading prompt mismatch in README.md")
 
       templates = normalized_read("docs/templates.md")
-      orchestrator_prompt = section(templates, "## New Orchestrator Prompt", "## Local Plan Template")
+      orchestrator_section = section(templates, "## New Orchestrator Prompt", "## Local Plan Template")
+      orchestrator_prompt = unique_text_prompt(orchestrator_section, "orchestrator loading prompt mismatch in docs/templates.md")
       require_unique_line_in_section!(templates, orchestrator_prompt, LOADING_SENTENCE, "orchestrator loading prompt mismatch in docs/templates.md")
 
       linear_setup = normalized_read("docs/linear-setup.md")
       linear_loading = section(linear_setup, "## Loading Rule", "## Canonical Sync Source Map")
-      load_rule_start = linear_loading.index("Default orchestrator bootstrap is:")
-      load_rule_finish = linear_loading.index(LOAD_ON_DEMAND_RULE)
-      fail_check("default loading instructions mismatch") unless load_rule_start && load_rule_finish
-      bootstrap_region = linear_loading[load_rule_start...load_rule_finish]
+      load_rule_starts = operative_line_positions(linear_loading, "Default orchestrator bootstrap is:")
+      load_rule_finishes = operative_line_positions(linear_loading, LOAD_ON_DEMAND_RULE)
+      fail_check("default loading instructions mismatch") unless load_rule_starts.length == 1 && load_rule_finishes.length == 1
+      bootstrap_region = linear_loading[load_rule_starts.first...load_rule_finishes.first]
       loading_bullets = bootstrap_region.lines.map(&:chomp).select { |line| line.start_with?("- ") }
       fail_check("default loading instructions mismatch") unless bootstrap_region == DEFAULT_LOADING_BLOCK && loading_bullets == DEFAULT_LOADING_BULLETS
-      require_unique_line_in_section!(linear_setup, linear_loading, LOAD_ON_DEMAND_RULE, "default loading instructions mismatch")
+      require_unique_operative_line_in_section!(linear_setup, linear_loading, LOAD_ON_DEMAND_RULE, "default loading instructions mismatch")
 
       role_contracts = normalized_read("docs/role-contracts.md")
       role_loading = section(role_contracts, "## Loading")
-      require_unique_line_in_section!(role_contracts, role_loading, ROLE_LOADING_RULE, "role-contract loading instructions mismatch")
+      require_unique_operative_line_in_section!(role_contracts, role_loading, ROLE_LOADING_RULE, "role-contract loading instructions mismatch")
 
       tracker_setup = normalized_read("docs/issue-tracker-setup.md")
       tracker_loading = section(tracker_setup, "## Recommended Issue Shape", "## Autonomy Mode")
-      require_unique_line_in_section!(tracker_setup, tracker_loading, TRACKER_LOADING_RULE, "tracker loading instructions mismatch")
+      require_unique_operative_line_in_section!(tracker_setup, tracker_loading, TRACKER_LOADING_RULE, "tracker loading instructions mismatch")
     end
 
     def check_field_order!
       templates = normalized_read("docs/templates.md")
-      new_prompt = section(templates, "## New Orchestrator Prompt", "## Local Plan Template")
-      task_issue = section(templates, "## Task Issue Template", "## Reviewer Prompt")
+      new_section = section(templates, "## New Orchestrator Prompt", "## Local Plan Template")
+      task_issue_section = section(templates, "## Task Issue Template", "## Reviewer Prompt")
+      new_prompt = unique_text_prompt(new_section, "workflow field template mismatch")
+      task_issue = unique_text_prompt(task_issue_section, "workflow field template mismatch")
       expected_lines = workflow_field_lines(new_prompt)
       actual_lines = workflow_field_lines(task_issue)
       fail_check("workflow field order mismatch") unless expected_lines == actual_lines
@@ -333,17 +350,23 @@ module FourEyesDocs
     end
 
     def section(content, start_heading, end_heading = nil)
-      starts = heading_positions(content, start_heading)
+      headings = level_two_headings(content)
+      start_identity = level_two_heading_identity(start_heading)
+      starts = headings.select { |_position, identity| identity == start_identity }.map(&:first)
       fail_check("section missing or duplicated: #{start_heading}") unless starts.length == 1
       start = starts.first
+      next_heading = headings.find { |position, _identity| position > start }
 
       if end_heading
-        finishes = heading_positions(content, end_heading)
+        end_identity = level_two_heading_identity(end_heading)
+        finishes = headings.select { |_position, identity| identity == end_identity }.map(&:first)
         fail_check("section missing or duplicated: #{end_heading}") unless finishes.length == 1
         finish = finishes.first
-        fail_check("section order mismatch: #{start_heading}") unless start < finish
+        unless start < finish && next_heading && next_heading.first == finish
+          fail_check("section order mismatch: #{start_heading}")
+        end
       else
-        finish = content.length
+        finish = next_heading ? next_heading.first : content.length
       end
       content[start...finish]
     end
@@ -356,10 +379,10 @@ module FourEyesDocs
       sync_rule = section(linear_setup, "## Sync Rule", "## Standing Review Issue")
 
       expected_entries = self.class.source_map_lines(@sync_sources)
-      require_unique_line_in_section!(linear_setup, source_map, CANONICAL_BODY_RULE, "canonical source-body rule missing")
-      require_unique_line_in_section!(linear_setup, source_map, MARKER_RULE, "sync marker rule missing")
-      intro_positions = exact_line_positions(source_map, SOURCE_MAP_INTRO)
-      body_rule_positions = exact_line_positions(source_map, CANONICAL_BODY_RULE)
+      require_unique_operative_line_in_section!(linear_setup, source_map, CANONICAL_BODY_RULE, "canonical source-body rule missing")
+      require_unique_operative_line_in_section!(linear_setup, source_map, MARKER_RULE, "sync marker rule missing")
+      intro_positions = operative_line_positions(source_map, SOURCE_MAP_INTRO)
+      body_rule_positions = operative_line_positions(source_map, CANONICAL_BODY_RULE)
       fail_check("canonical sync source map entries mismatch") unless intro_positions.length == 1 && body_rule_positions.length == 1
 
       map_block = source_map[(intro_positions.first + SOURCE_MAP_INTRO.length)...body_rule_positions.first]
@@ -370,11 +393,15 @@ module FourEyesDocs
       fail_check("sync source map order mismatch") unless actual_entries == expected_entries
       expected_block = "\n\n#{expected_entries.join("\n")}\n\n"
       fail_check("canonical sync source map entries mismatch") unless map_block == expected_block
-      section_list_entries = source_map.lines.map(&:chomp).select { |line| line.match?(/\A {0,3}- /) }
+      source_map_lines = markdown_lines(source_map).select { |entry| entry[:context] == :prose }
+      section_list_entries = source_map_lines.map { |entry| entry[:line] }.select { |line| markdown_list_line?(line) }
       fail_check("canonical sync source map entries mismatch") unless section_list_entries == expected_entries
+      map_arrow_count = source_map_lines.sum { |entry| entry[:line].scan("<-").length }
+      fail_check("canonical sync source map entries mismatch") unless map_arrow_count == expected_entries.length
 
-      require_unique_line_in_section!(linear_setup, agent_prompt, RUNTIME_DOCUMENT_RULE, "five runtime document rule missing")
-      require_unique_line_in_section!(linear_setup, sync_rule, READBACK_RULE, "sync readback procedure missing")
+      agent_prompt_body = unique_text_prompt(agent_prompt, "five runtime document rule missing")
+      require_unique_line_in_section!(linear_setup, agent_prompt_body, RUNTIME_DOCUMENT_RULE, "five runtime document rule missing")
+      require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_RULE, "sync readback procedure missing")
     end
 
     def exact_line_positions(content, expected)
@@ -391,6 +418,47 @@ module FourEyesDocs
       fail_check(message) unless scoped_count == 1 && total_count == 1
     end
 
+    def require_unique_operative_line_in_section!(content, bounded_section, expected, message)
+      scoped_count = operative_line_positions(bounded_section, expected).length
+      total_count = exact_line_positions(content, expected).length
+      fail_check(message) unless scoped_count == 1 && total_count == 1
+    end
+
+    def operative_line_positions(content, expected)
+      markdown_lines(content).each_with_object([]) do |entry, positions|
+        positions << entry[:offset] if entry[:context] == :prose && entry[:line] == expected
+      end
+    end
+
+    def unique_text_prompt(content, message)
+      prompts = fenced_code_blocks(content).select { |block| block[:info] == "text" }
+      fail_check(message) unless prompts.length == 1
+      prompts.first[:body]
+    end
+
+    def fenced_code_blocks(content)
+      blocks = []
+      current = nil
+      markdown_lines(content).each do |entry|
+        case entry[:context]
+        when :fence_open
+          current = {
+            body_start: entry[:finish],
+            info: entry.fetch(:fence).fetch(:info)
+          }
+        when :fence_close
+          next unless current
+
+          blocks << {
+            body: content[current.fetch(:body_start)...entry[:offset]],
+            info: current.fetch(:info)
+          }
+          current = nil
+        end
+      end
+      blocks
+    end
+
     def heading_positions(content, expected_heading)
       expected_identity = level_two_heading_identity(expected_heading)
       fail_check("invalid level-two heading: #{expected_heading}") unless expected_identity
@@ -401,32 +469,19 @@ module FourEyesDocs
     end
 
     def level_two_headings(content)
-      headings = []
-      offset = 0
-      fence_character = nil
-      fence_length = nil
+      entries = markdown_lines(content)
+      entries.each_with_index.each_with_object([]) do |(entry, index), headings|
+        next unless entry[:context] == :prose
 
-      content.each_line do |line|
-        value = line.delete_suffix("\n")
-        if fence_character
-          closing = /\A {0,3}#{Regexp.escape(fence_character)}{#{fence_length},}[ \t]*\z/
-          if value.match?(closing)
-            fence_character = nil
-            fence_length = nil
-          end
-        else
-          opening = /\A {0,3}(`{3,}|~{3,})/.match(value)
-          if opening
-            fence_character = opening[1][0]
-            fence_length = opening[1].length
-          elsif (identity = level_two_heading_identity(value))
-            headings << [offset, identity]
-          end
+        identity = level_two_heading_identity(entry[:line])
+        if identity
+          headings << [entry[:offset], identity]
+          next
         end
-        offset += line.length
-      end
 
-      headings
+        setext_identity = setext_level_two_heading_identity(entries, index)
+        headings << [entries[index - 1][:offset], setext_identity] if setext_identity
+      end
     end
 
     def level_two_heading_identity(line)
@@ -435,6 +490,107 @@ module FourEyesDocs
 
       identity = match[1].rstrip.sub(/[ \t]+#+\z/, "").rstrip
       identity unless identity.empty?
+    end
+
+    def setext_level_two_heading_identity(entries, index)
+      return unless index.positive?
+      return unless entries[index][:line].match?(/\A {0,3}-+[ \t]*\z/)
+
+      previous = entries[index - 1]
+      return unless previous[:context] == :prose
+
+      identity = previous[:line].strip
+      return if identity.empty? || level_two_heading_identity(previous[:line])
+      return if identity.match?(/\A(?:\#{1,6}[ \t]|>|[-+*][ \t]|\d{1,9}[.)][ \t])/)
+
+      identity
+    end
+
+    def markdown_lines(content)
+      entries = []
+      offset = 0
+      fence = nil
+      in_comment = false
+
+      content.each_line do |raw_line|
+        line = raw_line.delete_suffix("\n")
+        entry = {
+          offset: offset,
+          finish: offset + raw_line.length,
+          line: line
+        }
+
+        if fence
+          if fence_closing?(line, fence)
+            entry[:context] = :fence_close
+            entry[:fence] = fence
+            fence = nil
+          else
+            entry[:context] = :fence_body
+          end
+        elsif in_comment
+          entry[:context] = :comment
+          in_comment = comment_open_after_line?(line, in_comment)
+        elsif (opening = fence_opening(line))
+          entry[:context] = :fence_open
+          entry[:fence] = opening
+          fence = opening
+        elsif line.include?("<!--")
+          entry[:context] = :comment
+          in_comment = comment_open_after_line?(line, false)
+        elsif raw_html_block_start?(line)
+          fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
+        else
+          entry[:context] = :prose
+        end
+
+        entries << entry
+        offset = entry[:finish]
+      end
+
+      entries
+    end
+
+    def comment_open_after_line?(line, initially_open)
+      open = initially_open
+      offset = 0
+      loop do
+        marker = open ? line.index("-->", offset) : line.index("<!--", offset)
+        break unless marker
+
+        open = !open
+        offset = marker + (open ? 4 : 3)
+      end
+      open
+    end
+
+    def raw_html_block_start?(line)
+      line.match?(/\A {0,3}(?:<\?|<![A-Z]|<!\[CDATA\[|<\/?[A-Za-z][A-Za-z0-9-]*(?:[ \t]|\/?>|\z))/i)
+    end
+
+    def fence_opening(line)
+      match = /\A {0,3}(`{3,}|~{3,})(.*)\z/.match(line)
+      return unless match
+
+      marker = match[1]
+      info = match[2]
+      return if marker.start_with?("`") && info.include?("`")
+
+      {
+        character: marker[0],
+        info: info.strip,
+        length: marker.length
+      }
+    end
+
+    def fence_closing?(line, fence)
+      character = Regexp.escape(fence.fetch(:character))
+      length = fence.fetch(:length)
+      line.match?(/\A {0,3}#{character}{#{length},}[ \t]*\z/)
+    end
+
+    def markdown_list_line?(line)
+      line.match?(/\A {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+/)
     end
 
     def verify_sync_revision!(revision)
@@ -598,6 +754,44 @@ module FourEyesDocs
         Checker.new(root).write_derived!
       end
 
+      expect_failure("bullet in intervening role-contract group", "empty role-contract rule group: Authority") do |root|
+        content = read(root, "docs/playbook.md")
+        replacement = "\n## Authority\n\n## Unrelated\n\n- Borrowed bullet.\n"
+        content.sub!(/\n## Authority\n.*?(?=\n## Orchestrator\n)/m, replacement) || raise("Authority fixture missing")
+        write(root, "docs/playbook.md", content)
+        Checker.new(root).write_derived!
+      end
+
+      expect_failure("commented role-contract rule group", "missing role-contract rule group: Authority") do |root|
+        replace(root, "docs/playbook.md", "\n## Authority\n", "\n<!--\n## Authority\n-->\n")
+        Checker.new(root).write_derived!
+      end
+
+      expect_failure("reopened comment hides role-contract rule group", "missing role-contract rule group: Authority") do |root|
+        content = read(root, "docs/playbook.md")
+        match = /\n## Authority\n.*?(?=\n## Orchestrator\n)/m.match(content) || raise("Authority fixture missing")
+        content.sub!(match[0], "\n<!-- first\n--> <!-- second#{match[0]}-->\n")
+        write(root, "docs/playbook.md", content)
+        Checker.new(root).write_derived!
+      end
+
+      expect_failure("raw HTML hides role-contract rule group", "raw HTML blocks are not allowed") do |root|
+        content = read(root, "docs/playbook.md")
+        match = /\n## Authority\n.*?(?=\n## Orchestrator\n)/m.match(content) || raise("Authority fixture missing")
+        content.sub!(match[0], "\n<script>#{match[0]}</script>\n")
+        write(root, "docs/playbook.md", content)
+        Checker.new(root).write_derived!
+      end
+
+      expect_failure("fenced role-contract rule group body", "empty role-contract rule group: Authority") do |root|
+        content = read(root, "docs/playbook.md")
+        match = /\n## Authority\n(.*?)(?=\n## Orchestrator\n)/m.match(content) || raise("Authority fixture missing")
+        replacement = "\n## Authority\n```text\n#{match[1]}```\n"
+        content.sub!(match[0], replacement)
+        write(root, "docs/playbook.md", content)
+        Checker.new(root).write_derived!
+      end
+
       with_fixture do |root|
         checker = Checker.new(root, bootstrap_members: ["README.md#Default Workflow"])
         assert_failure("wrong bootstrap membership", "bootstrap membership mismatch") { checker.check! }
@@ -606,6 +800,14 @@ module FourEyesDocs
       expect_failure("bootstrap budget overflow", "bootstrap byte budget exceeded") do |root|
         insert_before_role_end(root, "x" * Checker::POST_BOOTSTRAP_BUDGET)
         Checker.new(root).write_derived!
+      end
+
+      expect_failure("commented bootstrap total record", "pre-change bootstrap total record missing") do |root|
+        replace(root, "docs/linear-setup.md", Checker::PRE_BOOTSTRAP_RECORD_RULE, "<!--\n#{Checker::PRE_BOOTSTRAP_RECORD_RULE}\n-->")
+      end
+
+      expect_failure("extended live readback record", "live Linear readback record missing") do |root|
+        replace(root, "docs/linear-setup.md", Checker::LIVE_LINEAR_READBACK_RULE, "#{Checker::LIVE_LINEAR_READBACK_RULE} Approximate values are acceptable.")
       end
 
       expect_failure("orchestrator prompt mismatch", "orchestrator loading prompt mismatch") do |root|
@@ -622,6 +824,16 @@ module FourEyesDocs
         append(root, "docs/templates.md", "\n#{Checker::LOADING_SENTENCE}\n")
       end
 
+      expect_failure("README loading prompt moved outside fence", "orchestrator loading prompt mismatch in README.md") do |root|
+        replace(root, "README.md", Checker::LOADING_SENTENCE, "Load the supplied task context first.")
+        replace(root, "README.md", "\n```\n\n## Example Agent Mix", "\n```\n\n#{Checker::LOADING_SENTENCE}\n\n## Example Agent Mix")
+      end
+
+      expect_failure("template loading prompt moved outside fence", "orchestrator loading prompt mismatch in docs/templates.md") do |root|
+        replace(root, "docs/templates.md", Checker::LOADING_SENTENCE, "Load the supplied task context first.")
+        replace(root, "docs/templates.md", "\n```\n\n## Local Plan Template", "\n```\n\n#{Checker::LOADING_SENTENCE}\n\n## Local Plan Template")
+      end
+
       expect_failure("extended template loading prompt", "orchestrator loading prompt mismatch in docs/templates.md") do |root|
         replace(root, "docs/templates.md", Checker::LOADING_SENTENCE, "#{Checker::LOADING_SENTENCE} Also load every workflow document.")
       end
@@ -629,6 +841,11 @@ module FourEyesDocs
       expect_failure("operative loading expansion", "default loading instructions mismatch") do |root|
         block = Checker::DEFAULT_LOADING_BLOCK
         replace(root, "docs/linear-setup.md", block, "#{block.chomp}\n- Four Eyes Playbook\n\n")
+      end
+
+      expect_failure("commented default loading block", "default loading instructions mismatch") do |root|
+        block = "#{Checker::DEFAULT_LOADING_BLOCK}#{Checker::LOAD_ON_DEMAND_RULE}"
+        replace(root, "docs/linear-setup.md", block, "<!--\n#{block}\n-->")
       end
 
       expect_failure("field-order drift", "workflow field order mismatch") do |root|
@@ -656,6 +873,22 @@ module FourEyesDocs
           "Autonomy mode: review-approved-auto-execute | manual\n",
           "Autonomy mode: review-approved-auto-execute | manual\nAutonomy mode: manual\n"
         )
+      end
+
+      expect_failure("workflow field moved outside orchestrator prompt", "workflow field missing: Autonomy mode:") do |root|
+        replace(root, "docs/templates.md", "Autonomy mode: review-approved-auto-execute | manual\n", "")
+        replace(root, "docs/templates.md", "\n```\n\n## Local Plan Template", "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Local Plan Template")
+      end
+
+      expect_failure("workflow field moved outside task-issue prompt", "workflow field missing: Autonomy mode:") do |root|
+        path = "docs/templates.md"
+        content = read(root, path)
+        section_start = content.index("## Task Issue Template") || raise("Task Issue fixture missing")
+        field_start = content.index("Autonomy mode: review-approved-auto-execute | manual\n", section_start) || raise("Task Issue Autonomy fixture missing")
+        content.slice!(field_start, "Autonomy mode: review-approved-auto-execute | manual\n".length)
+        anchor = "\n```\n\n## Reviewer Prompt"
+        content.sub!(anchor, "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Reviewer Prompt") || raise("Task Issue close fixture missing")
+        write(root, path, content)
       end
 
       with_fixture do |root|
@@ -694,6 +927,21 @@ module FourEyesDocs
         replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "#{Checker::MARKER_RULE}\n\n#{extra}")
       end
 
+      {
+        "asterisk" => "* Four Eyes Runtime <- complete docs/runtime.md",
+        "plus" => "+ Four Eyes Runtime <- complete docs/runtime.md",
+        "ordered" => "1. Four Eyes Runtime <- complete docs/runtime.md"
+      }.each do |name, extra|
+        expect_failure("#{name} source-map expansion", "canonical sync source map entries mismatch") do |root|
+          replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "#{Checker::MARKER_RULE}\n\n#{extra}")
+        end
+      end
+
+      expect_failure("commented source-map block", "canonical") do |root|
+        block = "#{Checker::SOURCE_MAP_INTRO}\n\n#{Checker.source_map_lines.join("\n")}\n\n#{Checker::CANONICAL_BODY_RULE}"
+        replace(root, "docs/linear-setup.md", block, "<!--\n#{block}\n-->")
+      end
+
       expect_failure("canonical-body rule omission", "canonical source-body rule missing") do |root|
         replace(root, "docs/linear-setup.md", Checker::CANONICAL_BODY_RULE, "")
       end
@@ -720,6 +968,10 @@ module FourEyesDocs
         replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "Optional: #{Checker::MARKER_RULE}")
       end
 
+      expect_failure("commented marker rule", "sync marker rule missing") do |root|
+        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "<!--\n#{Checker::MARKER_RULE}\n-->")
+      end
+
       expect_failure("readback procedure omission", "sync readback procedure missing") do |root|
         replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "5. Read all six documents back.")
       end
@@ -733,6 +985,10 @@ module FourEyesDocs
         replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "#{Checker::READBACK_RULE} A summary comparison is sufficient.")
       end
 
+      expect_failure("fenced readback procedure", "sync readback procedure missing") do |root|
+        replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "```text\n#{Checker::READBACK_RULE}\n```")
+      end
+
       expect_failure("duplicate Default Workflow heading", "README Default Workflow section missing or duplicated") do |root|
         append(root, "README.md", "\n## Default Workflow\n\nDuplicate workflow.\n")
       end
@@ -741,11 +997,60 @@ module FourEyesDocs
         append(root, "docs/templates.md", "\n## New Orchestrator Prompt \n\nDuplicate prompt.\n")
       end
 
+      expect_failure("Setext duplicate section heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
+        append(root, "docs/templates.md", "\nNew Orchestrator Prompt\n-----------------------\n\nDuplicate prompt.\n")
+      end
+
+      expect_failure("intervening peer section", "section order mismatch: ## New Orchestrator Prompt") do |root|
+        replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n## Unrelated Peer Section\n\n## Local Plan Template\n")
+      end
+
+      expect_failure("invalid backtick fence hides duplicate section heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
+        append(root, "docs/templates.md", "\n```invalid`info\n## New Orchestrator Prompt\n```\n")
+      end
+
+      expect_failure("invalid backtick fence hides duplicate Default Workflow", "README Default Workflow section missing or duplicated") do |root|
+        append(root, "README.md", "\n```invalid`info\n## Default Workflow\n```\n")
+      end
+
+      expect_failure("commented required section heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
+        replace(root, "docs/templates.md", "## New Orchestrator Prompt\n", "<!--\n## New Orchestrator Prompt\n-->\n")
+      end
+
+      expect_failure("commented Default Workflow heading", "README Default Workflow section missing or duplicated") do |root|
+        replace(root, "README.md", "## Default Workflow\n", "<!--\n## Default Workflow\n-->\n")
+      end
+
       with_fixture do |root|
         append(root, "docs/templates.md", "\n```text\n## New Orchestrator Prompt ##\n```\n")
         Checker.new(root).check!
       end
       pass("fenced heading lookalike ignored")
+
+      with_fixture do |root|
+        append(root, "docs/templates.md", "\n<!--\n## New Orchestrator Prompt\n-->\n")
+        Checker.new(root).check!
+      end
+      pass("commented heading lookalike ignored")
+
+      with_fixture do |root|
+        append(root, "docs/templates.md", "\n~~~valid`tilde-info\n## New Orchestrator Prompt\n~~~\n")
+        Checker.new(root).check!
+      end
+      pass("tilde fence with backtick info hides heading")
+
+      with_fixture do |root|
+        append(root, "docs/templates.md", "\n~~~text <!-- valid fence info\n## New Orchestrator Prompt\n~~~\n")
+        Checker.new(root).check!
+      end
+      pass("comment-like fence info hides heading")
+
+      with_fixture do |root|
+        replace(root, "README.md", "\n## Use It For\n", "\nUnexpected Peer Section\n-----------------------\n\nNot part of Default Workflow.\n\n## Use It For\n")
+        source = Checker.new(root).send(:default_workflow_source)
+        raise "Setext heading did not bound Default Workflow" if source.include?("Unexpected Peer Section")
+      end
+      pass("Setext heading bounds Default Workflow")
 
       with_fixture do |root|
         write(root, "README.md", read(root, "README.md").gsub("\n", "\r\n"))
