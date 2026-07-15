@@ -133,10 +133,19 @@ module FourEyesDocs
       verify_sync_revision!(revision)
       check!
 
-      destination = safe_outside_repo_path(directory)
-      fail_check("sync directory must not be a symlink") if File.symlink?(destination)
-      FileUtils.mkdir_p(destination, mode: 0o700)
+      expanded = File.expand_path(directory)
+      fail_check("sync directory must not already exist") if path_entry_exists?(expanded)
+      destination = safe_outside_repo_path(expanded)
+      fail_check("sync directory parent must exist") unless File.directory?(File.dirname(destination))
+      begin
+        Dir.mkdir(destination, 0o700)
+      rescue Errno::EEXIST
+        fail_check("sync directory must not already exist")
+      rescue SystemCallError => error
+        fail_check("cannot create sync directory: #{error.message}")
+      end
       File.chmod(0o700, destination)
+      fail_check("sync directory mode must be 0700") unless (File.stat(destination).mode & 0o777) == 0o700
 
       entries = @sync_sources.map do |entry|
         title = entry.fetch(:title)
@@ -197,11 +206,14 @@ module FourEyesDocs
 
     def role_contracts_source
       playbook = normalized_read("docs/playbook.md")
+      unless playbook.scan(ROLE_BEGIN).length == 1 && playbook.scan(ROLE_END).length == 1
+        fail_check("marked Role Contracts source missing or malformed")
+      end
       start = playbook.index(ROLE_BEGIN)
-      finish = start && playbook.index(ROLE_END, start + ROLE_BEGIN.bytesize)
+      finish = start && playbook.index(ROLE_END, start + ROLE_BEGIN.length)
       fail_check("marked Role Contracts source missing or malformed") unless start && finish
 
-      body = playbook.byteslice((start + ROLE_BEGIN.bytesize)...finish)
+      body = playbook[(start + ROLE_BEGIN.length)...finish]
       fail_check("marked Role Contracts source is not canonical") unless canonical_body(body, "Role Contracts source") == body
       body
     end
@@ -215,8 +227,8 @@ module FourEyesDocs
       start_match = /^## Default Workflow\n/.match(readme)
       fail_check("README Default Workflow section missing") unless start_match
       finish_match = /^## /m.match(readme, start_match.end(0))
-      finish = finish_match ? finish_match.begin(0) : readme.bytesize
-      readme.byteslice(start_match.begin(0)...finish)
+      finish = finish_match ? finish_match.begin(0) : readme.length
+      readme[start_match.begin(0)...finish]
     end
 
     def source_bytes(source)
@@ -234,9 +246,9 @@ module FourEyesDocs
       RULE_GROUPS.each do |group|
         heading = "## #{group}\n"
         fail_check("missing role-contract rule group: #{group}") unless contract.scan(heading).length == 1
-        body_start = contract.index(heading) + heading.bytesize
+        body_start = contract.index(heading) + heading.length
         next_heading = contract.index("\n## ", body_start)
-        body = contract.byteslice(body_start...(next_heading || contract.bytesize))
+        body = contract[body_start...(next_heading || contract.length)]
         fail_check("empty role-contract rule group: #{group}") unless body.lines.any? { |line| line.start_with?("- ") }
       end
     end
@@ -273,7 +285,7 @@ module FourEyesDocs
       load_rule_start = linear_loading.index("Default orchestrator bootstrap is:")
       load_rule_finish = linear_loading.index(LOAD_ON_DEMAND_RULE)
       fail_check("default loading instructions mismatch") unless load_rule_start && load_rule_finish
-      bootstrap_region = linear_loading.byteslice(load_rule_start...load_rule_finish)
+      bootstrap_region = linear_loading[load_rule_start...load_rule_finish]
       loading_bullets = bootstrap_region.lines.map(&:chomp).select { |line| line.start_with?("- ") }
       fail_check("default loading instructions mismatch") unless bootstrap_region == DEFAULT_LOADING_BLOCK && loading_bullets == DEFAULT_LOADING_BULLETS
       fail_check("role-contract loading instructions mismatch") unless normalized_read("docs/role-contracts.md").scan(ROLE_LOADING_RULE).length == 1
@@ -301,9 +313,9 @@ module FourEyesDocs
 
     def section(content, start_heading, end_heading)
       start = content.index(start_heading)
-      finish = start && content.index(end_heading, start + start_heading.bytesize)
+      finish = start && content.index(end_heading, start + start_heading.length)
       fail_check("section missing: #{start_heading}") unless start && finish
-      content.byteslice(start...finish)
+      content[start...finish]
     end
 
     def check_sync_contract!
@@ -415,9 +427,25 @@ module FourEyesDocs
       File.join(File.realpath(current), *suffix)
     end
 
+    def path_entry_exists?(target)
+      File.lstat(target)
+      true
+    rescue Errno::ENOENT
+      false
+    end
+
     def write_private(destination, bytes)
-      File.open(destination, File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |file| file.write(bytes) }
-      File.chmod(0o600, destination)
+      flags = File::WRONLY | File::CREAT | File::EXCL
+      flags |= File::NOFOLLOW if defined?(File::NOFOLLOW)
+      File.open(destination, flags, 0o600) do |file|
+        file.chmod(0o600)
+        file.write(bytes)
+        file.flush
+      end
+    rescue Errno::EEXIST, Errno::ELOOP
+      fail_check("sync output path already exists")
+    rescue SystemCallError => error
+      fail_check("cannot create sync output: #{error.message}")
     end
 
     def fail_check(message)
@@ -448,6 +476,14 @@ module FourEyesDocs
           replace(root, "docs/playbook.md", "\n## #{group}\n", "\n## Removed #{group}\n")
           Checker.new(root).write_derived!
         end
+      end
+
+      expect_failure("duplicate Role Contracts marker pair", "marked Role Contracts source missing or malformed") do |root|
+        append(root, "docs/playbook.md", "\n#{Checker::ROLE_BEGIN}# Competing Role Contracts source\n#{Checker::ROLE_END}\n")
+      end
+
+      expect_failure("stray Role Contracts marker", "marked Role Contracts source missing or malformed") do |root|
+        append(root, "docs/playbook.md", "\n#{Checker::ROLE_BEGIN}")
       end
 
       expect_failure("empty role-contract rule group", "empty role-contract rule group: Authority") do |root|
@@ -545,10 +581,67 @@ module FourEyesDocs
       raise "canonical UTF-8/CRLF normalization failed" unless canonical == expected_canonical
       pass("canonical UTF-8 and CRLF")
 
+      with_git_fixture do |root, _revision|
+        readme = read(root, "README.md")
+        readme.sub!("## Default Workflow\n", "## Default Workflow\n\nUTF-8 fixture: \xF0\x9F\x98\x80\n") || raise("Default Workflow fixture missing")
+        write(root, "README.md", readme)
+
+        playbook = read(root, "docs/playbook.md")
+        playbook.sub!("# Four Eyes Role Contracts\n", "# Four Eyes Role Contracts\n\nUTF-8 fixture: caf\xC3\xA9 \xF0\x9F\x98\x80\n") || raise("Role Contracts fixture missing")
+        write(root, "docs/playbook.md", playbook)
+        Checker.new(root).write_derived!
+
+        git!(root, "add", "README.md", "docs/playbook.md", "docs/role-contracts.md")
+        git!(root, "commit", "-q", "-m", "multibyte fixture")
+        revision = git!(root, "rev-parse", "HEAD")
+        git!(root, "push", "-q", "origin", "HEAD:refs/heads/main")
+
+        checker = Checker.new(root)
+        checker.check!
+        destination = File.join(File.dirname(root), "multibyte-sync")
+        checker.write_sync_dir!(destination, revision)
+
+        expected_default = expected_default_workflow(checker.normalize_text(read(root, "README.md"), "README.md"))
+        default_payload = read(root, File.join("..", "multibyte-sync", "01-default-workflow.md"))
+        actual_default = default_payload.split("\n\n", 2).fetch(1)
+        expected_default = checker.canonical_body(expected_default)
+        unless actual_default.b == expected_default.b
+          raise "multibyte Default Workflow payload mismatch: expected #{expected_default.bytesize}/#{Digest::SHA256.hexdigest(expected_default)}, actual #{actual_default.bytesize}/#{Digest::SHA256.hexdigest(actual_default)}"
+        end
+
+        normalized_playbook = checker.normalize_text(read(root, "docs/playbook.md"), "docs/playbook.md")
+        role_start = normalized_playbook.index(Checker::ROLE_BEGIN) + Checker::ROLE_BEGIN.length
+        role_finish = normalized_playbook.index(Checker::ROLE_END, role_start)
+        expected_role = normalized_playbook[role_start...role_finish]
+        actual_role = checker.normalize_text(read(root, "docs/role-contracts.md"), "docs/role-contracts.md")
+        raise "multibyte Role Contracts mismatch" unless actual_role == expected_role
+      end
+      pass("multibyte source extraction and payload")
+
       with_git_fixture do |root, revision|
         checker = Checker.new(root)
-        checker.write_sync_dir!(File.join(File.dirname(root), "valid-sync"), revision)
+        destination = File.join(File.dirname(root), "valid-sync")
+        checker.write_sync_dir!(destination, revision)
         pass("revision-bound sync")
+
+        assert_failure("existing sync directory", "sync directory must not already exist") do
+          checker.write_sync_dir!(destination, revision)
+        end
+
+        attack_dir = File.join(File.dirname(root), "symlink-attack")
+        Dir.mkdir(attack_dir, 0o700)
+        target = File.join(root, "README.md")
+        target_before = File.binread(target)
+        target_mode = File.stat(target).mode & 0o777
+        payload_link = File.join(attack_dir, "01-default-workflow.md")
+        File.symlink(target, payload_link)
+        assert_failure("symlinked sync payload", "sync output path already exists") do
+          checker.send(:write_private, payload_link, "mutated\n")
+        end
+        raise "symlink target bytes changed" unless File.binread(target) == target_before
+        raise "symlink target mode changed" unless (File.stat(target).mode & 0o777) == target_mode
+        raise "repository changed during symlink test" unless git!(root, "status", "--porcelain=v1", "--untracked-files=all").empty?
+        pass("symlink target and repository unchanged")
 
         assert_failure("nonexistent workflow revision", "workflow revision does not identify a commit") do
           checker.write_sync_dir!(File.join(File.dirname(root), "nonexistent-sync"), "a" * 40)
@@ -660,6 +753,13 @@ module FourEyesDocs
       raise "git fixture failed: #{error}" unless status.success?
 
       output.strip
+    end
+
+    def expected_default_workflow(readme)
+      start_match = /^## Default Workflow\n/.match(readme) || raise("Default Workflow heading missing")
+      finish_match = /^## /m.match(readme, start_match.end(0))
+      finish = finish_match ? finish_match.begin(0) : readme.length
+      readme[start_match.begin(0)...finish]
     end
 
     def expect_failure(name, message)
