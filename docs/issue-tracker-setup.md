@@ -63,6 +63,19 @@ Every non-trivial task issue should include:
 - execution log
 - closeout
 
+Record Reviewer 2 transport and any direct-mode limits in this exact order:
+
+```text
+Reviewer 2 handoff: manual external reviewer | direct Claude adapter
+Claude adapter status: unavailable | verified | stale
+Claude model ID: <full immutable model ID or none>
+Claude maximum calls: <positive integer or none>
+Claude maximum dollars: <positive decimal or none>
+Claude contract manifest SHA-256: <bare digest or none>
+```
+
+Manual external Reviewer 2 is the default. Select the direct adapter only when status is `verified`, every immutable identity matches, and the human has authorized the exact task or phase plus model, calls, and dollars. The adapter returns a verdict or terminal record to the orchestrator and never writes the tracker. A new phase, stale contract, model change, budget increase, or manual fallback requires a new human decision.
+
 Local executable plans are temporary coordination artifacts. Do not commit them. Keep the issue tracker to sanitized summaries and remove the local plan after closeout.
 
 Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, Issue Tracker Setup, or Linear Setup only when their exact policy, template, tracker behavior, or sync procedure is needed. Reviewers receive filled immutable packets and do not need the workflow-document set.

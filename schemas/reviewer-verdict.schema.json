@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Four Eyes Reviewer 2 Verdict",
+  "oneOf": [
+    {
+      "title": "Completed review",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Review status",
+        "Verdict",
+        "Blocking findings",
+        "Non-blocking findings",
+        "Questions",
+        "Required changes",
+        "Artifact identity"
+      ],
+      "properties": {
+        "Review status": {
+          "const": "completed"
+        },
+        "Verdict": {
+          "enum": [
+            "Approve",
+            "Approve with nits",
+            "Block"
+          ]
+        },
+        "Blocking findings": {
+          "$ref": "#/$defs/reviewTextList"
+        },
+        "Non-blocking findings": {
+          "$ref": "#/$defs/reviewTextList"
+        },
+        "Questions": {
+          "$ref": "#/$defs/reviewTextList"
+        },
+        "Required changes": {
+          "$ref": "#/$defs/reviewTextList"
+        },
+        "Artifact identity": {
+          "$ref": "#/$defs/artifactIdentity"
+        }
+      }
+    },
+    {
+      "title": "Terminal review",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Review status",
+        "Verdict",
+        "Reason",
+        "Artifact identity"
+      ],
+      "properties": {
+        "Review status": {
+          "enum": [
+            "error",
+            "timeout",
+            "could-not-review"
+          ]
+        },
+        "Verdict": {
+          "const": "not issued"
+        },
+        "Reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^[^\\u0000\\r\\n]+$"
+        },
+        "Artifact identity": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/artifactIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "gitShaOrNone": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/gitSha"
+        },
+        {
+          "const": "none"
+        }
+      ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reviewStage": {
+      "enum": [
+        "plan",
+        "plan delta",
+        "implementation",
+        "implementation delta",
+        "post-execution"
+      ]
+    },
+    "reviewText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32768,
+      "pattern": "^[^\\u0000]*$"
+    },
+    "reviewTextList": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/reviewText"
+      }
+    },
+    "planIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_bytes",
+        "artifact_kind",
+        "artifact_sha256",
+        "base",
+        "prior_reviewed_head",
+        "review_round",
+        "review_stage",
+        "reviewed_head",
+        "workflow_revision"
+      ],
+      "properties": {
+        "artifact_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 307200
+        },
+        "artifact_kind": {
+          "const": "plan"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base": {
+          "const": "none"
+        },
+        "prior_reviewed_head": {
+          "$ref": "#/$defs/gitShaOrNone"
+        },
+        "review_round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_stage": {
+          "$ref": "#/$defs/reviewStage"
+        },
+        "reviewed_head": {
+          "type": "string",
+          "pattern": "^uncommitted at HEAD [0-9a-f]{40}$"
+        },
+        "workflow_revision": {
+          "$ref": "#/$defs/gitSha"
+        }
+      }
+    },
+    "manualUncommittedIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_bytes",
+        "artifact_kind",
+        "artifact_sha256",
+        "base",
+        "prior_reviewed_head",
+        "review_round",
+        "review_stage",
+        "reviewed_head",
+        "staged_sha256",
+        "unstaged_sha256",
+        "untracked_sha256",
+        "workflow_revision"
+      ],
+      "properties": {
+        "artifact_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 307200
+        },
+        "artifact_kind": {
+          "const": "manual-uncommitted"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base": {
+          "const": "none"
+        },
+        "prior_reviewed_head": {
+          "$ref": "#/$defs/gitShaOrNone"
+        },
+        "review_round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_stage": {
+          "$ref": "#/$defs/reviewStage"
+        },
+        "reviewed_head": {
+          "type": "string",
+          "pattern": "^uncommitted at HEAD [0-9a-f]{40}$"
+        },
+        "staged_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "unstaged_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "untracked_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "workflow_revision": {
+          "$ref": "#/$defs/gitSha"
+        }
+      }
+    },
+    "manualCommittedIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_bytes",
+        "artifact_kind",
+        "artifact_sha256",
+        "base",
+        "merge_base",
+        "prior_reviewed_head",
+        "review_round",
+        "review_stage",
+        "reviewed_head",
+        "workflow_revision"
+      ],
+      "properties": {
+        "artifact_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 307200
+        },
+        "artifact_kind": {
+          "const": "manual-committed"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "merge_base": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "prior_reviewed_head": {
+          "$ref": "#/$defs/gitShaOrNone"
+        },
+        "review_round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_stage": {
+          "$ref": "#/$defs/reviewStage"
+        },
+        "reviewed_head": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "workflow_revision": {
+          "$ref": "#/$defs/gitSha"
+        }
+      }
+    },
+    "prIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_bytes",
+        "artifact_kind",
+        "artifact_sha256",
+        "base",
+        "merge_base",
+        "prior_reviewed_head",
+        "review_round",
+        "review_stage",
+        "reviewed_head",
+        "workflow_revision"
+      ],
+      "properties": {
+        "artifact_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 307200
+        },
+        "artifact_kind": {
+          "const": "pr"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "merge_base": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "prior_reviewed_head": {
+          "$ref": "#/$defs/gitShaOrNone"
+        },
+        "review_round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_stage": {
+          "$ref": "#/$defs/reviewStage"
+        },
+        "reviewed_head": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "workflow_revision": {
+          "$ref": "#/$defs/gitSha"
+        }
+      }
+    },
+    "artifactIdentity": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/planIdentity"
+        },
+        {
+          "$ref": "#/$defs/manualUncommittedIdentity"
+        },
+        {
+          "$ref": "#/$defs/manualCommittedIdentity"
+        },
+        {
+          "$ref": "#/$defs/prIdentity"
+        }
+      ]
+    }
+  }
+}

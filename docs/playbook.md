@@ -28,7 +28,8 @@ The supported workflow is manual-first:
 
 - a Codex App orchestrator or another primary agent owns the plan, execution, synthesis, and tracker updates
 - when available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow
-- the orchestrator launches only internal Reviewer 1; the human relays every external reviewer prompt, including every Reviewer 2 prompt
+- the orchestrator launches internal Reviewer 1; the human relays manual external Reviewer 2 by default
+- an optional verified direct Claude adapter may return Reviewer 2 to the orchestrator only under an exact human-approved phase/model/call/dollar contract
 - reviewers return verdicts to the orchestrator or human
 - the human pastes the expected reviews back to the orchestrator after they are complete
 
@@ -56,7 +57,9 @@ Default Codex-led handoff:
 - Reviewer 1: named Codex subagent `reviewer1`, created by the orchestrator and reused across review rounds for the phase or parent workflow
 - Reviewer 2: external opposite-family reviewer, usually Claude Code, prompted by the human
 
-The orchestrator does not launch any external reviewer. The human relays every external prompt and verdict, including every Reviewer 2 prompt and verdict.
+Record `Reviewer 2 handoff: manual external reviewer | direct Claude adapter`. Manual external Reviewer 2 is first/default. The human relays its prompt and verdict.
+
+The optional `direct Claude adapter` is valid only when status is `verified`, its full immutable model and contract-manifest identities match, and the human has authorized the exact task or phase plus maximum calls and maximum dollars. It receives only the sealed packet, returns one verdict or terminal record to the orchestrator, never writes the tracker, and never retries or falls back automatically. A stale/unavailable contract, budget increase, model change, manual fallback, or new task/phase requires a new human decision. See [Claude Reviewer 2 Adapter](claude-reviewer2-adapter.md).
 
 A reviewer subagent must receive only the review packet and its own prior review history:
 
@@ -74,7 +77,7 @@ Hold every internal or relayed verdict until all expected slots for the round ha
 
 Before trusting a subagent handoff in a new tool or runtime, run a one-time isolation check: spawn a test reviewer subagent and confirm it cannot describe the parent orchestrator's current task unless that task is passed in the review packet. If the check fails or cannot be verified, use manual external reviewer handoff for that slot.
 
-External Reviewer 2 should start as a fresh session for the parent workflow and may keep that session across phases and review rounds. Do not reuse a reviewer session for unrelated workflows unless the human explicitly chooses a long-lived reviewer conversation. If prior workflow context is needed, pass it as a neutral prior phase summary in the review packet.
+Manual external Reviewer 2 should start as a fresh session for the parent workflow and may keep that session across phases and review rounds. The direct adapter binds one private provider session to one phase and immutable model. Do not reuse either reviewer session for unrelated workflows. If prior workflow context is needed, pass it as a neutral prior phase summary in the review packet.
 
 A same-family subagent gives isolated reviewer continuity, not model-family independence. For non-skip work, at least one expected reviewer should be from a different model family than the agent that authored or orchestrated the change, unless the human explicitly overrides the review panel.
 
@@ -477,10 +480,10 @@ Automation ladder:
 
 1. Current baseline: PR transport with human-invoked external reviewers.
 2. Current Codex-led default: reused named internal Reviewer 1, human-relayed external Reviewer 2.
-3. Future: orchestrator invokes all reviewers against the PR or branch.
+3. Optional when contract status is `verified` and the human authorizes the phase limits: orchestrator invokes only Reviewer 2 through the narrow Claude adapter.
 4. Future: CI-triggered reviewers.
 
-Rungs 3 and 4 are not implemented or pre-authorized by this playbook.
+Rung 3 is never globally pre-authorized; each task or phase requires the recorded human decision and fixed budgets. Rung 4 is not implemented or pre-authorized.
 
 ## Review Tier
 
@@ -662,7 +665,7 @@ Use this flow when phase branch mode is enabled:
 3. Orchestrator implements the whole phase on that branch.
 4. Orchestrator commits and pushes only the named phase branch when remote push is allowed.
 5. Orchestrator runs verification and updates the tracker with the current round, workflow revision, transport-specific artifact identity, phase branch, diff summary, and reviewer prompts.
-6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the exact identified PR artifact. If Reviewer 1 can run as a named isolated internal subagent, the orchestrator creates or reuses it. The human sends every external reviewer prompt, including every Reviewer 2 prompt and any Reviewer 1 prompt needed when no internal Reviewer 1 is available.
+6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the exact identified PR artifact. If Reviewer 1 can run as a named isolated internal subagent, the orchestrator creates or reuses it. The human sends every manual external reviewer prompt. A verified, explicitly authorized direct Reviewer 2 instead receives its sealed packet from the orchestrator.
 7. Reviewers inspect the exact artifact and verification evidence independently, then return verdicts through the selected transport. The orchestrator holds internal and relayed verdicts under the embargo until every expected slot has returned or has a terminal record.
 8. After the embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, synthesizes feedback, fixes blockers on the same phase branch, commits and pushes updates when authorized, and requests the required delta review.
 9. When all expected reviewers approve the unchanged current artifact, the orchestrator recomputes its identity and asks the human for the merge approval phrase.
@@ -884,7 +887,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Orchestrator
 
 - Own the temporary plan when needed, tracker state, phase boundaries, implementation, verification, reviewer handoff, verdict embargo, synthesis, and closeout.
-- In the Codex-led default, launch only the isolated internal Reviewer 1 subagent. Return every external reviewer prompt to the human for relay.
+- In the Codex-led default, launch the isolated internal Reviewer 1 subagent. Return manual external reviewer prompts to the human; invoke direct Reviewer 2 only under its verified phase-bounded authorization.
 - Give each reviewer only the immutable packet and that reviewer's own prior findings. Never provide peer verdicts, synthesis, hidden reasoning, or the parent transcript before independent judgment.
 - Wait for every expected slot to return a verdict or terminal record. Then post carried verdicts verbatim before synthesis.
 - Treat Block, error, timeout, could-not-review, identity mismatch, repository drift, or unknown workflow revision as gate-holding outcomes. Never re-roll a reviewer for a better result.
@@ -896,7 +899,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Reproduce or confirm the transport-specific identity. If the artifact is inaccessible, incomplete, malformed, or mismatched, return `could-not-review` with `Verdict: not issued`.
 - Return one completed verdict: `Approve`, `Approve with nits`, or `Block`, with blocking findings, non-blocking findings, questions, and required changes before the next gated action.
 - Reviewer 1 may be a named same-family subagent reused within the parent workflow. That gives context isolation and continuity, not model-family independence.
-- External Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds.
+- Manual external Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds. A direct Reviewer 2 session is private and phase-bound.
 - For non-skip work, at least one expected reviewer must be from a different model family than the authoring or orchestrating agent unless the human explicitly overrides the panel.
 
 ## Tier

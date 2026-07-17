@@ -27,7 +27,7 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 4. For each phase, the orchestrator creates a phase branch from the base branch.
 5. The orchestrator implements the whole phase, commits to the phase branch, pushes only that branch, runs verification, and moves the phase issue to Review.
 6. The orchestrator prepares the review transport and reviewer handoff.
-7. When available, the orchestrator runs Reviewer 1 as a named isolated internal subagent and reuses it for the phase or parent workflow. The orchestrator does not launch external reviewers; the human relays every external prompt, including every Reviewer 2 prompt.
+7. When available, the orchestrator runs Reviewer 1 as a named isolated internal subagent and reuses it for the phase or parent workflow. Reviewer 2 stays human-relayed by default; a separately verified and human-authorized direct Claude adapter may return that slot directly to the orchestrator.
 8. Reviewers inspect the exact revision-bound PR or packet independently and return verdicts outside the tracker.
 9. After every expected slot returns or has a terminal record, the orchestrator posts carried verdicts verbatim, verifies the repository and artifact are unchanged, then synthesizes.
 10. If blocked or an accepted nit changes the artifact, the orchestrator fixes the phase branch and requests the required delta review.
@@ -70,16 +70,18 @@ Skip it for one-line fixes, tiny docs, and simple queue/admin work.
 
 ## Manual Operating Mode
 
-Manual mode is the supported workflow:
+Manual mode is the supported default and fallback:
 
 1. Codex App or another primary agent acts as orchestrator.
 2. If available, the orchestrator creates or reuses a named isolated Reviewer 1 subagent for the phase or parent workflow.
-3. The orchestrator launches only internal Reviewer 1. The human sends every external reviewer prompt, including every Reviewer 2 prompt.
+3. The orchestrator launches only internal Reviewer 1. The human sends every manual external reviewer prompt, including Reviewer 2 by default.
 4. External reviewers reply to the human with independent verdicts.
 5. The human pastes the external review replies back to the orchestrator.
 6. The orchestrator synthesizes, updates Linear when useful, fixes blockers, and asks for human approval at real gates.
 
 Manual mode preserves independent judgment and keeps the workflow simple. It relies on the orchestrator to isolate any internal reviewer subagent and on the human to relay only external reviewer messages.
+
+An optional [Claude Reviewer 2 adapter](docs/claude-reviewer2-adapter.md) can remove the Reviewer 2 copy/paste step after its exact contract is verified and the human authorizes the phase, immutable model, call limit, and dollar limit. It is a transport implementation, not the Four Eyes definition; it never writes Linear or replaces the opposite-family rule.
 
 For a Codex-led workflow, Reviewer 1 may be a reusable named Codex subagent. That gives isolated reviewer context and continuity, not model-family independence. Reviewer 2 should be the opposite-family reviewer when the tier requires independent judgment across model families.
 
@@ -126,6 +128,7 @@ If a big local executable plan has no phases yet, the orchestrator should infer 
 - [Templates](docs/templates.md)
 - [Linear setup](docs/linear-setup.md)
 - [Issue tracker setup](docs/issue-tracker-setup.md)
+- [Optional Claude Reviewer 2 adapter](docs/claude-reviewer2-adapter.md)
 - [Examples](examples/)
 
 ## Linear Quick Setup
@@ -150,7 +153,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/role-contracts.md
 - scripts/check-docs.rb
 
-Create or update five runtime documents for Default Workflow, Playbook, Templates, Issue Tracker Setup, and Role Contracts, plus one Linear Setup maintainer document. Generate Role Contracts and all six revision-marked sync payloads with `scripts/check-docs.rb`; do not hand-edit the derived document or marker values. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. Require a fresh external Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and the full workflow revision from matching loaded document markers. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update five runtime documents for Default Workflow, Playbook, Templates, Issue Tracker Setup, and Role Contracts, plus one Linear Setup maintainer document. Generate Role Contracts and all six revision-marked sync payloads with `scripts/check-docs.rb`; do not hand-edit the derived document or marker values. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. Keep manual external Reviewer 2 first/default. Permit the optional direct Claude Reviewer 2 adapter only when its contract status is verified and the human has authorized the exact phase, immutable model, call limit, and dollar limit. Require a fresh manual Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and the full workflow revision from matching loaded document markers. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -165,13 +168,19 @@ Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts fi
 Repo path: <repo path>
 Plan path: <local plan path>
 Linear team/workspace or routing source: <team, workspace, or mapping doc>
+Reviewer 2 handoff: manual external reviewer | direct Claude adapter
+Claude adapter status: unavailable | verified | stale
+Claude model ID: <full immutable model ID or none>
+Claude maximum calls: <positive integer or none>
+Claude maximum dollars: <positive decimal or none>
+Claude contract manifest SHA-256: <bare digest or none>
 
 Act as orchestrator.
 
 Use phase branch mode with implementation-first flow unless the plan says otherwise.
 Use `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask` unless the plan says otherwise.
 Use review transport `pr` when the repo has a remote and CI or branch protection; otherwise use `manual-relay`.
-If you can create or reuse a named isolated Reviewer 1 subagent, run Reviewer 1 internally and return the external Reviewer 2 prompt for human relay. If you cannot create an isolated subagent, return prompts for all expected reviewer slots for human relay. Never launch an external reviewer.
+If you can create or reuse a named isolated Reviewer 1 subagent, run Reviewer 1 internally. Keep Reviewer 2 human-relayed unless `direct Claude adapter` is selected, status is `verified`, every contract identity matches, and I have authorized this phase plus the exact model/call/dollar limits. Otherwise return prompts for every external slot. The adapter returns only a verdict or terminal record to the orchestrator and never writes Linear.
 
 If the plan is large and has no phases, infer practical phases from scope, files, verification, risk, branch target, and rollback. Create a Linear parent issue plus phase child issues.
 
@@ -184,7 +193,7 @@ For the first ready phase:
 4. Run verification.
 5. If review transport is `pr`, open or update the PR from phase branch to merge target under the bounded PR-write authorization. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 6. Update Linear to Review.
-7. Run or reuse internal Reviewer 1 if available, then return filled Reviewer Prompt templates only for external reviewer slots, including the issue ID or safe link, current round, workflow revision, exact artifact identity, review transport, PR link or phase branch, verification evidence, and reviewer slot number.
+7. Run or reuse internal Reviewer 1 if available. For manual Reviewer 2, return its filled Reviewer Prompt for human relay. For an authorized verified direct adapter, invoke it once for the numbered round and treat its verdict or terminal record as final for that round.
 
 Do not merge to main or another protected branch. End with the current gate plus my exact next action.
 ```
@@ -195,7 +204,7 @@ Current default:
 
 - Orchestrator: Codex App
 - Reviewer 1: named Codex subagent `reviewer1`, reused by the orchestrator for the phase or parent workflow
-- Reviewer 2: Claude Code, prompted by the human
+- Reviewer 2: Claude Code, prompted by the human by default; optionally returned through the verified direct adapter for an explicitly authorized phase
 
 These roles are not fixed. Use the strongest current agent for orchestration. For non-skip work, require at least one reviewer from a different model family than the agent that wrote or orchestrated the change unless the human explicitly overrides the review panel.
 

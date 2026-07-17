@@ -19,6 +19,12 @@ Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
 Review transport: pr
+Reviewer 2 handoff: manual external reviewer
+Claude adapter status: unavailable
+Claude model ID: none
+Claude maximum calls: none
+Claude maximum dollars: none
+Claude contract manifest SHA-256: none
 Base branch: main
 Phase branch: phase/EXAMPLE-retry-behavior
 Remote push: allowed
@@ -69,13 +75,13 @@ Implement retry classification in the existing worker helper. Add focused tests 
 
 ## Current Gate
 
-Review. Phase branch is ready for Reviewer 1 and Reviewer 2 verdicts. The orchestrator runs or reuses Reviewer 1 internally and the human relays Reviewer 2.
+Review. Phase branch is ready for Reviewer 1 and Reviewer 2 verdicts. The orchestrator runs or reuses Reviewer 1 internally. Reviewer 2 follows the recorded handoff; this example uses the manual default.
 
 Next gated action: merge
 
 ## Next Human Action
 
-Send the Reviewer 2 prompt, issue context, PR link, exact artifact identity, and verification evidence to Claude Code. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent. Reviewers inspect the exact PR artifact and return verdicts through the selected transport.
+Send the Reviewer 2 prompt, issue context, PR link, exact artifact identity, and verification evidence to Claude Code because this example uses manual handoff. With an authorized verified direct adapter, the orchestrator instead dispatches the sealed packet once for the numbered round. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent.
 
 The orchestrator holds carried verdicts until both slots return or have terminal records, posts them verbatim, recomputes the live forge head and PR diff SHA-256, then synthesizes. If both reviewers approve with no blockers and identity still matches, the orchestrator asks for human merge approval. If either reviewer blocks or the artifact changes, the orchestrator fixes the phase branch and requests the required delta review.
 

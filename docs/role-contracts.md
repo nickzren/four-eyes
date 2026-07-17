@@ -12,7 +12,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Orchestrator
 
 - Own the temporary plan when needed, tracker state, phase boundaries, implementation, verification, reviewer handoff, verdict embargo, synthesis, and closeout.
-- In the Codex-led default, launch only the isolated internal Reviewer 1 subagent. Return every external reviewer prompt to the human for relay.
+- In the Codex-led default, launch the isolated internal Reviewer 1 subagent. Return manual external reviewer prompts to the human; invoke direct Reviewer 2 only under its verified phase-bounded authorization.
 - Give each reviewer only the immutable packet and that reviewer's own prior findings. Never provide peer verdicts, synthesis, hidden reasoning, or the parent transcript before independent judgment.
 - Wait for every expected slot to return a verdict or terminal record. Then post carried verdicts verbatim before synthesis.
 - Treat Block, error, timeout, could-not-review, identity mismatch, repository drift, or unknown workflow revision as gate-holding outcomes. Never re-roll a reviewer for a better result.
@@ -24,7 +24,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Reproduce or confirm the transport-specific identity. If the artifact is inaccessible, incomplete, malformed, or mismatched, return `could-not-review` with `Verdict: not issued`.
 - Return one completed verdict: `Approve`, `Approve with nits`, or `Block`, with blocking findings, non-blocking findings, questions, and required changes before the next gated action.
 - Reviewer 1 may be a named same-family subagent reused within the parent workflow. That gives context isolation and continuity, not model-family independence.
-- External Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds.
+- Manual external Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds. A direct Reviewer 2 session is private and phase-bound.
 - For non-skip work, at least one expected reviewer must be from a different model family than the authoring or orchestrating agent unless the human explicitly overrides the panel.
 
 ## Tier

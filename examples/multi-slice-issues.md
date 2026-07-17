@@ -12,6 +12,12 @@ Phase branch mode: on
 Phase branch flow: implementation-first
 Review transport: pr
 Handoff mode: reviewer1-subagent + manual reviewer2
+Reviewer 2 handoff: manual external reviewer
+Claude adapter status: unavailable
+Claude model ID: none
+Claude maximum calls: none
+Claude maximum dollars: none
+Claude contract manifest SHA-256: none
 Merge target: main
 
 Active child: EXAMPLE-201
@@ -47,6 +53,12 @@ Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
 Review transport: pr
+Reviewer 2 handoff: manual external reviewer
+Claude adapter status: unavailable
+Claude model ID: none
+Claude maximum calls: none
+Claude maximum dollars: none
+Claude contract manifest SHA-256: none
 Base branch: main
 Phase branch: phase/EXAMPLE-201-retry-classification
 Remote push: allowed
@@ -62,7 +74,7 @@ Commitment: committed
 Depends on: none
 
 Next human action:
-- Send this ready slice context, PR link, exact artifact identity, and verification evidence to Reviewer 2 with the filled Reviewer Prompt template. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent. Reviewers inspect the exact PR artifact.
+- This example uses manual Reviewer 2: send the ready slice context, PR link, exact artifact identity, and verification evidence with the filled Reviewer Prompt. If an authorized verified direct adapter is recorded instead, the orchestrator dispatches its sealed packet. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent.
 - After both slots return or have terminal records, the orchestrator posts carried verdicts verbatim, recomputes identity, and synthesizes. If reviewers approve with no blockers and identity still matches, the orchestrator asks for human merge approval. If either reviewer blocks or the artifact changes, the orchestrator fixes the phase branch and requests the required delta review.
 ```
 
