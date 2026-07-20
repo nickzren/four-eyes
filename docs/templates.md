@@ -28,12 +28,8 @@ Review transport: pr | manual-relay
 Current review round: <positive integer>
 Workflow revision: <full commit SHA from matching loaded workflow document markers>
 Reviewer 1 handoff: internal named subagent | manual external reviewer
-Reviewer 2 handoff: manual external reviewer | direct Claude adapter
-Claude adapter status: unavailable | verified | stale
-Claude model ID: <full immutable model ID or none>
-Claude maximum calls: <positive integer or none>
-Claude maximum dollars: <positive decimal or none>
-Claude contract manifest SHA-256: <bare digest or none>
+Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
+Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
@@ -51,9 +47,9 @@ Before requesting review, use the canonical artifact and repository commands in 
 
 Give reviewers the filled immutable packet and exact task evidence. Reviewers do not need to load the workflow-document set unless a disputed workflow rule is itself under review.
 
-If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. The orchestrator launches only internal Reviewer 1 unless the human selected the optional verified direct Claude adapter for Reviewer 2. Manual external Reviewer 2 remains the default and the human relays that prompt and verdict. In `light` tier, do not run a same-family internal Reviewer 1; use exactly one opposite-family reviewer through the selected Reviewer 2 handoff. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; the reviewer already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per round; a returned verdict or adapter terminal record stands. Record a Block, error, timeout, or could-not-review result; do not argue, re-prompt, discard, replace, retry automatically, or sample for a better verdict. Hold orchestrator-carried verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for every manual external reviewer. For manual Reviewer 2, ask the human to use a fresh session for the parent workflow, reusable across phases and rounds, unless they explicitly choose otherwise.
+If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. Manual external Reviewer 2 remains the default and the human relays that prompt and verdict. In `light` tier, do not run a same-family internal Reviewer 1; use exactly one opposite-family reviewer through the selected Reviewer 2 handoff. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; a reused reviewer already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per reviewer per round; a returned verdict or terminal outcome stands. Do not argue, re-prompt, retry, resample, or switch transport in the same round. Hold orchestrator-carried verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for every manual external reviewer. For manual Reviewer 2, ask the human to use a fresh session for the parent workflow, reusable across phases and rounds, unless they explicitly choose otherwise.
 
-Select `direct Claude adapter` only when its status is `verified`, its contract manifest and immutable model identity match, and the human has authorized the exact task or phase, maximum calls, and maximum dollars. The adapter is optional provider-specific transport, not the Four Eyes definition. It returns the verdict or terminal record to the orchestrator and never writes the tracker. A Claude-family author or orchestrator still needs another-family review or a recorded human panel override. Budget increases, model or contract changes, manual fallback, and new tasks or phases require a new human decision. See [Claude Reviewer 2 Adapter](claude-reviewer2-adapter.md).
+Select `direct Claude reviewer` only when the orchestrator platform provides native isolated fresh-context invocation and the human has authorized the exact task or phase, full model identity, maximum calls, and maximum cost amount and currency. If the platform cannot honor every bound, use manual relay. Send only the sealed packet and that reviewer's own prior findings. The direct reviewer returns privately to the orchestrator and never writes the tracker. A Claude-family author or orchestrator still needs another-family review or a recorded human panel override. A later attempt after any verdict, error, timeout, or could-not-review outcome requires a new numbered round; do not replace it by switching transport inside the same round.
 
 Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
@@ -197,12 +193,8 @@ Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
 Review transport: pr | manual-relay
 Reviewer 1 handoff: internal named subagent | manual external reviewer
-Reviewer 2 handoff: manual external reviewer | direct Claude adapter
-Claude adapter status: unavailable | verified | stale
-Claude model ID: <full immutable model ID or none>
-Claude maximum calls: <positive integer or none>
-Claude maximum dollars: <positive decimal or none>
-Claude contract manifest SHA-256: <bare digest or none>
+Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
+Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
@@ -225,7 +217,7 @@ Prior reviewed head: <full commit SHA or none>
 Review artifact SHA-256: <bare lowercase 64-character digest>
 Workflow revision: <full commit SHA>
 
-Reviewers should return verdicts to the orchestrator or human relay. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it. The human relays every manual external reviewer prompt. A verified, explicitly authorized direct Reviewer 2 returns its outcome privately to the orchestrator. Hold internal and relayed verdicts until all expected slots return or have terminal records, then post carried verdicts verbatim before synthesis. Do not create child reviewer issues unless asked.
+Reviewers should return verdicts to the orchestrator or human relay and never write the tracker. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it. The human relays every manual external reviewer prompt. An exactly authorized direct Reviewer 2 returns its outcome privately through the platform's native isolated invocation tool. Hold internal and relayed verdicts until all expected slots return or have terminal records, then post carried verdicts verbatim before synthesis. Do not create child reviewer issues unless asked.
 
 ## Agent Team Boundary
 

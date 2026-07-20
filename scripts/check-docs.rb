@@ -24,34 +24,22 @@ module FourEyesDocs
     ROLE_LOADING_RULE = "- Default orchestrator bootstrap is the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts."
     TRACKER_LOADING_RULE = "Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, Issue Tracker Setup, or Linear Setup only when their exact policy, template, tracker behavior, or sync procedure is needed. Reviewers receive filled immutable packets and do not need the workflow-document set."
     HANDOFF_MODE_LINE = "Handoff mode: reviewer1-subagent + manual reviewer2 | reviewer1-subagent + direct reviewer2 | manual reviewer1 + manual reviewer2 | manual reviewer1 + direct reviewer2 | manual reviewer2 only | direct reviewer2 only | manual human relay"
-    REVIEWER2_HANDOFF_LINE = "Reviewer 2 handoff: manual external reviewer | direct Claude adapter"
+    REVIEWER2_HANDOFF_LINE = "Reviewer 2 handoff: manual external reviewer | direct Claude reviewer"
+    REVIEWER2_AUTHORIZATION_LINE = "Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost"
     REVIEWER2_FIELD_PREFIXES = [
       "Reviewer 2 handoff:",
-      "Claude adapter status:",
-      "Claude model ID:",
-      "Claude maximum calls:",
-      "Claude maximum dollars:",
-      "Claude contract manifest SHA-256:"
+      "Direct Reviewer 2 authorization:"
     ].freeze
     REVIEWER2_OPTION_LINES = [
       REVIEWER2_HANDOFF_LINE,
-      "Claude adapter status: unavailable | verified | stale",
-      "Claude model ID: <full immutable model ID or none>",
-      "Claude maximum calls: <positive integer or none>",
-      "Claude maximum dollars: <positive decimal or none>",
-      "Claude contract manifest SHA-256: <bare digest or none>"
+      REVIEWER2_AUTHORIZATION_LINE
     ].freeze
-    ADAPTER_LINKS = {
-      "README.md" => "[Claude Reviewer 2 adapter](docs/claude-reviewer2-adapter.md)",
-      "docs/playbook.md" => "[Claude Reviewer 2 Adapter](claude-reviewer2-adapter.md)",
-      "docs/templates.md" => "[Claude Reviewer 2 Adapter](claude-reviewer2-adapter.md)"
-    }.freeze
     AUTOMATION_LADDER_LINES = [
       "1. Current baseline: PR transport with human-invoked external reviewers.",
       "2. Current Codex-led default: reused named internal Reviewer 1, human-relayed external Reviewer 2.",
-      "3. Optional when contract status is `verified` and the human authorizes the phase limits: orchestrator invokes only Reviewer 2 through the narrow Claude adapter.",
+      "3. Optional where the orchestrator platform provides native isolated invocation and the human records the exact phase, full model identity, maximum calls, and maximum cost amount and currency: orchestrator invokes only Reviewer 2 directly.",
       "4. Future: CI-triggered reviewers.",
-      "Rung 3 is never globally pre-authorized; each task or phase requires the recorded human decision and fixed budgets. Rung 4 is not implemented or pre-authorized."
+      "Rung 3 is never globally or orchestrator-authorized; each task or phase requires the recorded human decision and enforceable bounds. Rung 4 is not implemented or pre-authorized."
     ].freeze
     SOURCE_MAP_INTRO = "Use this fixed title order:"
     CANONICAL_BODY_RULE = "Canonical source-body bytes are defined once here: require valid UTF-8; convert CRLF to LF; reject any remaining bare CR or NUL; remove every trailing LF; append exactly one LF. `Source body SHA-256` hashes those canonical body bytes, including the one final LF."
@@ -85,11 +73,7 @@ module FourEyesDocs
       "Review transport:",
       "Reviewer 1 handoff:",
       "Reviewer 2 handoff:",
-      "Claude adapter status:",
-      "Claude model ID:",
-      "Claude maximum calls:",
-      "Claude maximum dollars:",
-      "Claude contract manifest SHA-256:",
+      "Direct Reviewer 2 authorization:",
       "Base branch:",
       "Phase branch:",
       "Remote push:",
@@ -150,7 +134,15 @@ module FourEyesDocs
       "compare every byte with the generated expected payload",
       "This proves stable Linear serialization, not source-body byte preservation.",
       "launch only the isolated internal Reviewer 1 subagent. Return every external reviewer prompt to the human for relay.",
-      "External Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise"
+      "External Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise",
+      "direct Claude adapter",
+      "Claude adapter status:",
+      "Claude contract manifest SHA-256:",
+      "Claude Reviewer 2 Adapter",
+      "scripts/claude-reviewer2.rb",
+      "scripts/check-claude-reviewer2.rb",
+      "schemas/reviewer-verdict.schema.json",
+      "adapter terminal record"
     ].freeze
 
     attr_reader :root
@@ -171,7 +163,7 @@ module FourEyesDocs
       report = check_bootstrap!
       check_loading_prompts!
       check_field_order!
-      check_reviewer2_contract!
+      check_reviewer2_handoff!
       check_sync_contract!
       check_links!
       check_stale_phrases!
@@ -398,7 +390,7 @@ module FourEyesDocs
       positions.map(&:last)
     end
 
-    def check_reviewer2_contract!
+    def check_reviewer2_handoff!
       markdown_paths.each do |relative|
         lines = normalized_read(relative).lines.map(&:chomp)
         lines.each_with_index do |line, index|
@@ -417,12 +409,6 @@ module FourEyesDocs
           end
         end
       end
-
-      ADAPTER_LINKS.each do |relative, link|
-        fail_check("adapter document link missing in #{relative}") unless normalized_read(relative).include?(link)
-      end
-      adapter_sources = @sync_sources.select { |entry| entry.fetch(:source) == "docs/claude-reviewer2-adapter.md" }
-      fail_check("adapter document must not be a synced workflow document") unless adapter_sources.empty?
 
       playbook = normalized_read("docs/playbook.md")
       ladder = section(playbook, "## Review Transport", "## Review Tier")
@@ -1125,12 +1111,12 @@ module FourEyesDocs
       end
 
       expect_failure("Reviewer 2 field omission", "Reviewer 2 field block mismatch") do |root|
-        replace(root, "examples/task-issue.md", "Claude maximum calls: none\n", "")
+        replace(root, "examples/task-issue.md", "Direct Reviewer 2 authorization: none\n", "")
       end
 
       expect_failure("Reviewer 2 option drift", "Reviewer 2 option block mismatch") do |root|
         content = read(root, "docs/templates.md")
-        content.gsub!(Checker::REVIEWER2_HANDOFF_LINE, "Reviewer 2 handoff: direct Claude adapter | manual external reviewer")
+        content.gsub!(Checker::REVIEWER2_HANDOFF_LINE, "Reviewer 2 handoff: direct Claude reviewer | manual external reviewer")
         write(root, "docs/templates.md", content)
       end
 
@@ -1183,19 +1169,6 @@ module FourEyesDocs
         checker = Checker.new(root, sync_sources: reduced)
         assert_failure("canonical source-map shrinkage", "canonical sync source map mismatch") { checker.check! }
       end
-
-
-      with_fixture do |root|
-        expanded = Checker::SYNC_SOURCES + [{
-          title: "Claude Reviewer 2 Adapter",
-          source: "docs/claude-reviewer2-adapter.md",
-          filename: "07-claude-reviewer2-adapter.md",
-          map_line: "- `Claude Reviewer 2 Adapter` <- complete `docs/claude-reviewer2-adapter.md`"
-        }]
-        checker = Checker.new(root, sync_sources: expanded)
-        assert_failure("provider adapter added to sync set", "adapter document must not be a synced workflow document") { checker.check! }
-      end
-
       expect_failure("incomplete source map", "sync source map incomplete") do |root|
         replace(root, "docs/linear-setup.md", "#{Checker.source_map_lines[4]}\n", "")
       end

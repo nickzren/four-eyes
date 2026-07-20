@@ -2,7 +2,7 @@
 
 Reviewer output can be returned to the human relay or orchestrator. It does not need to be posted directly to the tracker. The orchestrator holds carried verdicts until all expected slots return or have terminal records, then posts them verbatim before synthesis.
 
-The optional direct Claude adapter returns the same structured outcome privately to the orchestrator. An adapter `error`, `timeout`, or `could-not-review` has `Verdict: not issued`, stands for that round, and holds the gate; it is never silently retried or replaced by manual relay.
+An exactly authorized direct Claude reviewer returns the same structured outcome privately to the orchestrator. A direct invocation `error`, `timeout`, or `could-not-review` has `Verdict: not issued`, stands for that round, and holds the gate; it is never silently retried or replaced by manual relay inside the same round.
 
 ```text
 Reviewer slot: 2

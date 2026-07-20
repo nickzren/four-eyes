@@ -66,15 +66,11 @@ Every non-trivial task issue should include:
 Record Reviewer 2 transport and any direct-mode limits in this exact order:
 
 ```text
-Reviewer 2 handoff: manual external reviewer | direct Claude adapter
-Claude adapter status: unavailable | verified | stale
-Claude model ID: <full immutable model ID or none>
-Claude maximum calls: <positive integer or none>
-Claude maximum dollars: <positive decimal or none>
-Claude contract manifest SHA-256: <bare digest or none>
+Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
+Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 ```
 
-Manual external Reviewer 2 is the default. Select the direct adapter only when status is `verified`, every immutable identity matches, and the human has authorized the exact task or phase plus model, calls, and dollars. The adapter returns a verdict or terminal record to the orchestrator and never writes the tracker. A new phase, stale contract, model change, budget increase, or manual fallback requires a new human decision.
+Manual external Reviewer 2 is the default. Select direct Claude review only when the platform provides native isolated fresh-context invocation and the human has authorized the exact task or phase, full model identity, maximum calls, and maximum cost amount and currency. If the platform cannot honor every bound, use manual relay. Reviewers never write the tracker. A new phase, changed model or budget, or later attempt after any verdict or terminal outcome requires a new human decision or numbered round as defined by the gate.
 
 Local executable plans are temporary coordination artifacts. Do not commit them. Keep the issue tracker to sanitized summaries and remove the local plan after closeout.
 
