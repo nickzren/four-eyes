@@ -12,10 +12,10 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Orchestrator
 
 - Own the temporary plan when needed, tracker state, phase boundaries, implementation, verification, reviewer handoff, verdict embargo, synthesis, and closeout.
-- In the Codex-led default, launch only the isolated internal Reviewer 1 subagent. Return every external reviewer prompt to the human for relay.
+- In the Codex-led default, launch the isolated internal Reviewer 1 subagent. Return manual external reviewer prompts to the human; invoke direct Reviewer 2 only through a native isolated tool under exact human-approved phase, full model, maximum-call, and maximum-cost bounds. Direct mode has no standing or orchestrator-selected opt-in.
 - Give each reviewer only the immutable packet and that reviewer's own prior findings. Never provide peer verdicts, synthesis, hidden reasoning, or the parent transcript before independent judgment.
 - Wait for every expected slot to return a verdict or terminal record. Then post carried verdicts verbatim before synthesis.
-- Treat Block, error, timeout, could-not-review, identity mismatch, repository drift, or unknown workflow revision as gate-holding outcomes. Never re-roll a reviewer for a better result.
+- Completed reviews return `Approve`, `Approve with nits`, or `Block`. Error, timeout, and could-not-review records use `Verdict: not issued`. Every such outcome holds the gate and stands for its numbered round; never retry, resample, or switch transport in that round.
 - Implementation-first phase work may execute on its recorded branch before review when phase branch mode authorizes it, but it must pass review before merge. Review-first local work auto-executes only after the selected tier approves with no blockers, required changes before execution, unresolved execution-affecting questions, scope change, dirty conflict, or unapproved command.
 
 ## Reviewer
@@ -24,7 +24,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Reproduce or confirm the transport-specific identity. If the artifact is inaccessible, incomplete, malformed, or mismatched, return `could-not-review` with `Verdict: not issued`.
 - Return one completed verdict: `Approve`, `Approve with nits`, or `Block`, with blocking findings, non-blocking findings, questions, and required changes before the next gated action.
 - Reviewer 1 may be a named same-family subagent reused within the parent workflow. That gives context isolation and continuity, not model-family independence.
-- External Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds.
+- Manual external Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds. Native direct Reviewer 2 starts in isolated fresh context for each request and receives only its own prior findings for continuity. The repository cannot verify that platform isolation; the platform and human own the trust boundary.
 - For non-skip work, at least one expected reviewer must be from a different model family than the authoring or orchestrating agent unless the human explicitly overrides the panel.
 
 ## Tier
@@ -52,7 +52,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Tracker
 
-- The tracker is the status, gate, and audit record, not the reviewer message bus. The orchestrator decides when to post progress, verdicts, synthesis, approvals, and closeout.
+- The tracker is the status, gate, and audit record, not the reviewer message bus. Reviewers never write it; the orchestrator decides when to post progress, verdicts, synthesis, approvals, and closeout.
 - Record the current gate, next gated action, positive review round, workflow revision, exact artifact identity, branch/PR, verification, reviewer outcomes, nit disposition, and branch resolution.
 - Keep tracker and public PR content brief, sanitized, and public-safe. Never post secrets, raw credentials, private links on public surfaces, raw sensitive logs, or unrelated task history.
 - Every loaded synced workflow document must carry the same full revision marker as the task issue. Unknown or mixed revisions hold the gate.

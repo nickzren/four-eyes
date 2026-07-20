@@ -63,6 +63,15 @@ Every non-trivial task issue should include:
 - execution log
 - closeout
 
+Record Reviewer 2 transport and any direct-mode limits in this exact order:
+
+```text
+Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
+Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
+```
+
+Manual external Reviewer 2 is the default. Select direct Claude review only when the platform provides native isolated fresh-context invocation and the human has authorized the exact task or phase, full model identity, maximum calls, and maximum cost amount and currency. If the platform cannot honor every bound, use manual relay. Reviewers never write the tracker. A new phase, changed model or budget, or later attempt after any verdict or terminal outcome requires a new human decision or numbered round as defined by the gate.
+
 Local executable plans are temporary coordination artifacts. Do not commit them. Keep the issue tracker to sanitized summaries and remove the local plan after closeout.
 
 Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, Issue Tracker Setup, or Linear Setup only when their exact policy, template, tracker behavior, or sync procedure is needed. Reviewers receive filled immutable packets and do not need the workflow-document set.
@@ -141,7 +150,7 @@ Selecting PR review transport pre-authorizes creating or updating the PR for the
 
 When available, protect the merge target with required approvals, status checks, and dismissal of stale approvals after new commits. Before merge, compare the current forge head and canonical PR diff SHA-256 with every approval. Any changed head or artifact invalidates prior approvals.
 
-Prefer squash merge for phase branches unless the repo has a different established convention.
+Prefer squash merge for phase branches unless the repo has a different convention or the reviewed plan names commits that must remain reachable. When commit preservation is required, prohibit squash, use a commit-preserving merge, and verify every named commit is an ancestor of the merge target before deleting the branch.
 
 Even with automatic links, keep the issue closeout explicit:
 

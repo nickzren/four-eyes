@@ -19,7 +19,7 @@ Writing rule: be brief, simple, and necessary. Include enough exact information 
 Repo path: <absolute repo path>
 Local executable plan path: <absolute plan path or "none">
 Linear team/workspace or routing source: <team, workspace, or mapping doc>
-Handoff mode: reviewer1-subagent + manual reviewer2 | manual human relay
+Handoff mode: reviewer1-subagent + manual reviewer2 | reviewer1-subagent + direct reviewer2 | manual reviewer1 + manual reviewer2 | manual reviewer1 + direct reviewer2 | manual reviewer2 only | direct reviewer2 only | manual human relay
 Review tier: skip | light | full
 Autonomy mode: review-approved-auto-execute | manual
 Phase branch mode: on | off
@@ -28,7 +28,8 @@ Review transport: pr | manual-relay
 Current review round: <positive integer>
 Workflow revision: <full commit SHA from matching loaded workflow document markers>
 Reviewer 1 handoff: internal named subagent | manual external reviewer
-Reviewer 2 handoff: manual external reviewer
+Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
+Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
@@ -46,7 +47,9 @@ Before requesting review, use the canonical artifact and repository commands in 
 
 Give reviewers the filled immutable packet and exact task evidence. Reviewers do not need to load the workflow-document set unless a disputed workflow rule is itself under review.
 
-If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. The orchestrator launches only internal Reviewer 1 and never launches an external reviewer. The human relays every external prompt, including every Reviewer 2 prompt. In `light` tier, do not run a same-family internal Reviewer 1; the single reviewer must provide the cross-family check and is human-relayed. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; the subagent already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per round; a returned verdict stands. Record a Block, error, timeout, or could-not-review result; do not argue, re-prompt, discard, replace, or re-run with a new subagent to sample for a better verdict. Hold internal and relayed verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for the human to relay to every external reviewer. Ask the human to use a fresh external Reviewer 2 session for the parent workflow, reusable across phases and review rounds, unless they explicitly choose otherwise.
+If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. Manual external Reviewer 2 remains the default and the human relays that prompt and verdict. In `light` tier, do not run a same-family internal Reviewer 1; use exactly one opposite-family reviewer through the selected Reviewer 2 handoff. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; a reused reviewer already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per reviewer per round; a returned verdict or terminal outcome stands. Do not argue, re-prompt, retry, resample, or switch transport in the same round. Hold orchestrator-carried verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for every manual external reviewer. For manual Reviewer 2, ask the human to use a fresh session for the parent workflow, reusable across phases and rounds, unless they explicitly choose otherwise.
+
+Select `direct Claude reviewer` only when the orchestrator platform provides native isolated fresh-context invocation and the human has authorized the exact task or phase, full model identity, maximum calls, and maximum cost amount and currency. If the platform cannot honor every bound, use manual relay. Send only the sealed packet and that reviewer's own prior findings. The direct reviewer returns privately to the orchestrator and never writes the tracker. A Claude-family author or orchestrator still needs another-family review or a recorded human panel override. A later attempt after any verdict, error, timeout, or could-not-review outcome requires a new numbered round; do not replace it by switching transport inside the same round.
 
 Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
 
@@ -68,7 +71,7 @@ When phase branch flow is `implementation-first`, reviewers review the completed
 
 After a child slice reaches Done or Waiting External Eval, update parent and child gates in the tracker. If the next committed child slice is ready and uses implementation-first phase branch flow, move it to In Progress and implement it; otherwise move it to Review and post or prepare filled Reviewer Prompt templates for external reviewer slots only. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve tracker preparation or implementation-first promotion.
 
-Linear is the audit and status record, not the reviewer message bus. Reviewers return verdicts to you or to the human relay unless explicitly instructed to comment in the tracker. You decide what synthesis, progress, gate, and required-action updates belong in Linear.
+Linear is the audit and status record, not the reviewer message bus. Reviewers return verdicts to you or to the human relay and never write the tracker. You decide what synthesis, progress, gate, and required-action updates belong in Linear.
 
 Do not paste secrets, raw identifiers, raw plans, raw logs, or sensitive evidence into the issue.
 
@@ -182,7 +185,7 @@ Writing rule: brief, simple, necessary, with no missing gate/evidence details.
 Orchestrator: <agent/session>
 Reviewer 1: <agent/session>
 Reviewer 2: <agent/session>
-Handoff mode: reviewer1-subagent + manual reviewer2 | manual human relay
+Handoff mode: reviewer1-subagent + manual reviewer2 | reviewer1-subagent + direct reviewer2 | manual reviewer1 + manual reviewer2 | manual reviewer1 + direct reviewer2 | manual reviewer2 only | direct reviewer2 only | manual human relay
 Review tier: skip | light | full
 Autonomy mode: review-approved-auto-execute | manual
 Phase: <phase name or "single slice">
@@ -190,7 +193,8 @@ Phase branch mode: on | off
 Phase branch flow: implementation-first | pre-review
 Review transport: pr | manual-relay
 Reviewer 1 handoff: internal named subagent | manual external reviewer
-Reviewer 2 handoff: manual external reviewer
+Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
+Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 Base branch: <branch>
 Phase branch: <branch or "none">
 Remote push: disallowed | allowed
@@ -213,7 +217,7 @@ Prior reviewed head: <full commit SHA or none>
 Review artifact SHA-256: <bare lowercase 64-character digest>
 Workflow revision: <full commit SHA>
 
-Reviewers should return verdicts to the orchestrator or human relay. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it. The human relays every external reviewer prompt, including every Reviewer 2 prompt. Hold internal and relayed verdicts until all expected slots return or have terminal records, then post carried verdicts verbatim before synthesis. Do not create child reviewer issues unless asked.
+Reviewers should return verdicts to the orchestrator or human relay and never write the tracker. If Reviewer 1 is an internal named subagent, the orchestrator runs or reuses it. The human relays every manual external reviewer prompt. An exactly authorized direct Reviewer 2 returns its outcome privately through the platform's native isolated invocation tool. Hold internal and relayed verdicts until all expected slots return or have terminal records, then post carried verdicts verbatim before synthesis. Do not create child reviewer issues unless asked.
 
 ## Agent Team Boundary
 
@@ -276,7 +280,7 @@ Review against:
 - issue body and orchestrator-provided plan/update content
 
 Do not read prior reviewer output or orchestrator synthesis before writing your own review.
-Return your review to the orchestrator or human relay. Do not post to the tracker unless explicitly instructed.
+Return your review to the orchestrator or human relay. Never post to the tracker.
 
 Check:
 - acceptance criteria gaps
@@ -327,13 +331,13 @@ Workflow revision: <full commit SHA>
 
 Do not read other reviewer output or orchestrator synthesis before writing your own review.
 Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into the issue.
-Do not edit, comment on, or close any issue outside this issue and its parent or child slice set unless the human explicitly expands scope.
-If the user sends changes tied to a tracker issue, review the exact transport-identified artifact and verification evidence for that issue, then return the review to the orchestrator or human relay. Reply in chat with the verdict unless explicitly instructed to post to the tracker.
+Do not edit, comment on, or close any tracker issue. The orchestrator owns all tracker writes.
+If the user sends changes tied to a tracker issue, review the exact transport-identified artifact and verification evidence for that issue, then return the review to the orchestrator or human relay in chat.
 Review only against the linked issue, plan, current implementation diff if present, and verification evidence. Do not suggest unrelated improvements unless severe.
 If the local plan file is not accessible, require its full public-safe contents in the manual-relay artifact. A summary or hash-only inaccessible artifact is could-not-review.
 If execution already created a material diff, inspect the exact transport-identified artifact before protected-branch push, apply, deploy, merge, or closeout.
 Echo the provided identity exactly. Missing, malformed, mismatched, or inaccessible identity is `Review status: could-not-review` and no approval.
-Do not post to Linear or another tracker unless explicitly instructed.
+Never post to Linear or another tracker.
 
 Return exactly one outcome form.
 
