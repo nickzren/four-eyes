@@ -43,6 +43,13 @@ module FourEyesDocs
       "examples/task-issue.md" => 1,
       "examples/multi-slice-issues.md" => 2
     }.freeze
+    REVIEWER2_OPTION_OCCURRENCES = {
+      "README.md" => 1,
+      "docs/playbook.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/issue-tracker-setup.md" => 1,
+      "docs/linear-setup.md" => 1
+    }.freeze
     AUTOMATION_LADDER_LINES = [
       "1. Current baseline: PR transport with human-invoked external reviewers.",
       "2. Current Codex-led default: reused named internal Reviewer 1, human-relayed external Reviewer 2.",
@@ -406,6 +413,7 @@ module FourEyesDocs
 
     def check_reviewer2_handoff!
       occurrences = Hash.new(0)
+      option_occurrences = Hash.new(0)
       markdown_paths.each do |relative|
         lines = normalized_read(relative).lines.map(&:chomp)
         lines.each_with_index do |line, index|
@@ -420,6 +428,7 @@ module FourEyesDocs
               REVIEWER2_FIELD_PREFIXES.zip(block).all? { |prefix, value| value.start_with?(prefix) }
             fail_check("Reviewer 2 field block mismatch in #{relative}")
           end
+          option_occurrences[relative] += 1 if block == REVIEWER2_OPTION_LINES
           if line.include?("|") && block != REVIEWER2_OPTION_LINES
             fail_check("Reviewer 2 option block mismatch in #{relative}")
           end
@@ -429,6 +438,10 @@ module FourEyesDocs
       REVIEWER2_FIELD_OCCURRENCES.each do |relative, expected|
         actual = occurrences.fetch(relative, 0)
         fail_check("Reviewer 2 field occurrence mismatch in #{relative}") unless actual == expected
+      end
+      REVIEWER2_OPTION_OCCURRENCES.each do |relative, expected|
+        actual = option_occurrences.fetch(relative, 0)
+        fail_check("Reviewer 2 option occurrence mismatch in #{relative}") unless actual == expected
       end
 
       playbook = normalized_read("docs/playbook.md")
@@ -1143,6 +1156,15 @@ module FourEyesDocs
         content = read(root, "docs/templates.md")
         content.gsub!(Checker::REVIEWER2_HANDOFF_LINE, "Reviewer 2 handoff: direct Claude reviewer | manual external reviewer")
         write(root, "docs/templates.md", content)
+      end
+
+      expect_failure("Reviewer 2 options replaced by concrete values", "Reviewer 2 option occurrence mismatch in README.md") do |root|
+        replace(
+          root,
+          "README.md",
+          "#{Checker::REVIEWER2_OPTION_LINES.join("\n")}\n",
+          "Reviewer 2 handoff: manual external reviewer\nDirect Reviewer 2 authorization: none\n"
+        )
       end
 
       expect_failure("combined handoff option drift", "handoff mode options mismatch") do |root|
