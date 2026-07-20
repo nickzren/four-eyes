@@ -34,6 +34,15 @@ module FourEyesDocs
       REVIEWER2_HANDOFF_LINE,
       REVIEWER2_AUTHORIZATION_LINE
     ].freeze
+    REVIEWER2_FIELD_OCCURRENCES = {
+      "README.md" => 1,
+      "docs/playbook.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/issue-tracker-setup.md" => 1,
+      "docs/linear-setup.md" => 1,
+      "examples/task-issue.md" => 1,
+      "examples/multi-slice-issues.md" => 2
+    }.freeze
     AUTOMATION_LADDER_LINES = [
       "1. Current baseline: PR transport with human-invoked external reviewers.",
       "2. Current Codex-led default: reused named internal Reviewer 1, human-relayed external Reviewer 2.",
@@ -142,7 +151,12 @@ module FourEyesDocs
       "scripts/claude-reviewer2.rb",
       "scripts/check-claude-reviewer2.rb",
       "schemas/reviewer-verdict.schema.json",
-      "adapter terminal record"
+      "adapter terminal record",
+      "unless explicitly instructed to comment in the tracker",
+      "Do not post to the tracker unless explicitly instructed.",
+      "unless explicitly instructed to post to the tracker",
+      "Do not post to Linear or another tracker unless explicitly instructed.",
+      "Do not post directly to the tracker unless explicitly instructed."
     ].freeze
 
     attr_reader :root
@@ -391,6 +405,7 @@ module FourEyesDocs
     end
 
     def check_reviewer2_handoff!
+      occurrences = Hash.new(0)
       markdown_paths.each do |relative|
         lines = normalized_read(relative).lines.map(&:chomp)
         lines.each_with_index do |line, index|
@@ -399,6 +414,7 @@ module FourEyesDocs
           end
           next unless line.start_with?(REVIEWER2_FIELD_PREFIXES.first)
 
+          occurrences[relative] += 1
           block = lines[index, REVIEWER2_FIELD_PREFIXES.length]
           unless block&.length == REVIEWER2_FIELD_PREFIXES.length &&
               REVIEWER2_FIELD_PREFIXES.zip(block).all? { |prefix, value| value.start_with?(prefix) }
@@ -408,6 +424,11 @@ module FourEyesDocs
             fail_check("Reviewer 2 option block mismatch in #{relative}")
           end
         end
+      end
+
+      REVIEWER2_FIELD_OCCURRENCES.each do |relative, expected|
+        actual = occurrences.fetch(relative, 0)
+        fail_check("Reviewer 2 field occurrence mismatch in #{relative}") unless actual == expected
       end
 
       playbook = normalized_read("docs/playbook.md")
@@ -1112,6 +1133,10 @@ module FourEyesDocs
 
       expect_failure("Reviewer 2 field omission", "Reviewer 2 field block mismatch") do |root|
         replace(root, "examples/task-issue.md", "Direct Reviewer 2 authorization: none\n", "")
+      end
+
+      expect_failure("Linear Setup Reviewer 2 fields omission", "Reviewer 2 field occurrence mismatch in docs/linear-setup.md") do |root|
+        replace(root, "docs/linear-setup.md", "#{Checker::REVIEWER2_OPTION_LINES.join("\n")}\n", "")
       end
 
       expect_failure("Reviewer 2 option drift", "Reviewer 2 option block mismatch") do |root|

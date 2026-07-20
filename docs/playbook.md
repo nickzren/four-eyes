@@ -858,7 +858,7 @@ When a branch or PR exists, link it from the issue. Do not duplicate sensitive o
 
 When available, use branch protection on the merge target with required approvals, required status checks, and dismissal of stale approvals after new commits.
 
-Prefer squash merge for phase branches unless the repo has a different established convention.
+Prefer squash merge for phase branches unless the repo has a different convention or the reviewed plan names commits that must remain reachable. When commit preservation is required, prohibit squash, use a commit-preserving merge, and verify every named commit is an ancestor of the merge target before deleting the branch.
 
 If a PR is opened, its description should briefly include:
 

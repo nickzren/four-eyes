@@ -89,4 +89,4 @@ Review the exact identified PR artifact and verification evidence before merge o
 
 Check acceptance criteria, scope, safety, tests, and whether this is ready for the next gate.
 
-Return your verdict to the human relay or orchestrator. Do not post directly to the tracker unless explicitly instructed.
+Return your verdict to the human relay or orchestrator. Never post directly to the tracker.

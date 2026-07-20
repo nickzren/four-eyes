@@ -71,7 +71,7 @@ When phase branch flow is `implementation-first`, reviewers review the completed
 
 After a child slice reaches Done or Waiting External Eval, update parent and child gates in the tracker. If the next committed child slice is ready and uses implementation-first phase branch flow, move it to In Progress and implement it; otherwise move it to Review and post or prepare filled Reviewer Prompt templates for external reviewer slots only. If it is not ready, leave its current gate and post a brief blocker note in the parent issue. Do not ask the human to approve tracker preparation or implementation-first promotion.
 
-Linear is the audit and status record, not the reviewer message bus. Reviewers return verdicts to you or to the human relay unless explicitly instructed to comment in the tracker. You decide what synthesis, progress, gate, and required-action updates belong in Linear.
+Linear is the audit and status record, not the reviewer message bus. Reviewers return verdicts to you or to the human relay and never write the tracker. You decide what synthesis, progress, gate, and required-action updates belong in Linear.
 
 Do not paste secrets, raw identifiers, raw plans, raw logs, or sensitive evidence into the issue.
 
@@ -280,7 +280,7 @@ Review against:
 - issue body and orchestrator-provided plan/update content
 
 Do not read prior reviewer output or orchestrator synthesis before writing your own review.
-Return your review to the orchestrator or human relay. Do not post to the tracker unless explicitly instructed.
+Return your review to the orchestrator or human relay. Never post to the tracker.
 
 Check:
 - acceptance criteria gaps
@@ -331,13 +331,13 @@ Workflow revision: <full commit SHA>
 
 Do not read other reviewer output or orchestrator synthesis before writing your own review.
 Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into the issue.
-Do not edit, comment on, or close any issue outside this issue and its parent or child slice set unless the human explicitly expands scope.
-If the user sends changes tied to a tracker issue, review the exact transport-identified artifact and verification evidence for that issue, then return the review to the orchestrator or human relay. Reply in chat with the verdict unless explicitly instructed to post to the tracker.
+Do not edit, comment on, or close any tracker issue. The orchestrator owns all tracker writes.
+If the user sends changes tied to a tracker issue, review the exact transport-identified artifact and verification evidence for that issue, then return the review to the orchestrator or human relay in chat.
 Review only against the linked issue, plan, current implementation diff if present, and verification evidence. Do not suggest unrelated improvements unless severe.
 If the local plan file is not accessible, require its full public-safe contents in the manual-relay artifact. A summary or hash-only inaccessible artifact is could-not-review.
 If execution already created a material diff, inspect the exact transport-identified artifact before protected-branch push, apply, deploy, merge, or closeout.
 Echo the provided identity exactly. Missing, malformed, mismatched, or inaccessible identity is `Review status: could-not-review` and no approval.
-Do not post to Linear or another tracker unless explicitly instructed.
+Never post to Linear or another tracker.
 
 Return exactly one outcome form.
 

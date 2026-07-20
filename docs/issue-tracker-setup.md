@@ -150,7 +150,7 @@ Selecting PR review transport pre-authorizes creating or updating the PR for the
 
 When available, protect the merge target with required approvals, status checks, and dismissal of stale approvals after new commits. Before merge, compare the current forge head and canonical PR diff SHA-256 with every approval. Any changed head or artifact invalidates prior approvals.
 
-Prefer squash merge for phase branches unless the repo has a different established convention.
+Prefer squash merge for phase branches unless the repo has a different convention or the reviewed plan names commits that must remain reachable. When commit preservation is required, prohibit squash, use a commit-preserving merge, and verify every named commit is an ancestor of the merge target before deleting the branch.
 
 Even with automatic links, keep the issue closeout explicit:
 
