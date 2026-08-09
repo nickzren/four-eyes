@@ -50,12 +50,6 @@ Worktree resolution:
 - Checkout kind: named branch
 - Remote subject: bound
 - Expected/live remote comparison: match
-- Previous/new local expected state: abc1234/absent
-- Local ref pre-delete check: exact match
-- Local ref post-delete check: absent
-- Clean status: clean
-- Removal: removed normally
-- Retained-checkout absence check: passed
 - Resolution path: merged
 - Blocker: none
 ```
@@ -69,12 +63,6 @@ Worktree resolution:
 - Checkout kind: named branch
 - Remote subject: bound
 - Expected/live remote comparison: match
-- Previous/new local expected state: def5678/absent
-- Local ref pre-delete check: exact match
-- Local ref post-delete check: absent
-- Clean status: clean
-- Removal: removed normally
-- Retained-checkout absence check: passed
 - Resolution path: abandoned
 - Blocker: none
 ```
@@ -98,12 +86,6 @@ Worktree resolution:
 - Checkout kind: named branch
 - Remote subject: bound
 - Expected/live remote comparison: match
-- Previous/new local expected state: abc1234/abc1234
-- Local ref pre-delete check: not applicable
-- Local ref post-delete check: not applicable
-- Clean status: clean
-- Removal: removed normally
-- Retained-checkout absence check: passed
 - Resolution path: intentionally kept branch
 - Blocker: none
 ```
@@ -117,12 +99,8 @@ Worktree resolution:
 - Checkout kind: detached
 - Remote subject: none
 - Expected/live remote comparison: none
-- Previous/new local expected state: none
-- Local ref pre-delete check: not applicable
-- Local ref post-delete check: not applicable
-- Clean status: clean
-- Removal: removed normally
-- Retained-checkout absence check: passed
 - Resolution path: reviewer detached
 - Blocker: none
 ```
+
+Complete paths, Git identities, local expected-state transitions, ref pre/post checks, clean diagnostics, removal results, and retained-checkout absence verification stay in private local evidence.

@@ -563,12 +563,6 @@ Worktree resolution records (zero or more, one per created opaque reference):
 - Checkout kind: named branch | detached
 - Remote subject: bound | none
 - Expected/live remote comparison: <match | mismatch | none>
-- Previous/new local expected state: <sha/sha | sha/absent | none>
-- Local ref pre-delete check: <exact match | not applicable | failed>
-- Local ref post-delete check: <absent | not applicable | failed>
-- Clean status: <clean | dirty>
-- Removal: <removed normally | intentionally kept checkout | handed off>
-- Retained-checkout absence check: <passed | not applicable | failed>
 - Resolution path: <merged | abandoned | intentionally kept branch | reviewer detached | human handoff>
 - Blocker: <none | exact blocker>
 
@@ -581,3 +575,5 @@ Branch resolution:
 - Reason: <merge cleanup | abandoned because... | kept because... | handoff blocker...>
 - Revisit trigger if kept: <follow-up issue or date>
 ```
+
+Keep canonical paths, Git identities, local expected-state transitions, exact ref pre/post checks, clean diagnostics, removal results, and retained-checkout absence verification in private local evidence. Post only the sanitized worktree resolution fields in the Closeout block.
