@@ -19,6 +19,7 @@ Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
 Review transport: pr
+Coordination record: pr
 Reviewer 2 handoff: manual external reviewer
 Direct Reviewer 2 authorization: none
 Base branch: main
@@ -91,4 +92,4 @@ Review the exact identified PR artifact and verification evidence before merge o
 
 Check acceptance criteria, scope, safety, tests, and whether this is ready for the next gate.
 
-Return your verdict to the human relay or orchestrator. Never post directly to the tracker.
+Return your verdict to the human relay or orchestrator. Never edit coordination metadata.

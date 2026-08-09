@@ -2,11 +2,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "digest"
-require "json"
-require "open3"
-require "optparse"
-require "pathname"
 require "tmpdir"
 require "uri"
 
@@ -16,13 +11,13 @@ module FourEyesDocs
   class Checker
     ROLE_BEGIN = "<!-- BEGIN FOUR EYES ROLE CONTRACTS SOURCE -->\n"
     ROLE_END = "<!-- END FOUR EYES ROLE CONTRACTS SOURCE -->"
-    RULE_GROUPS = ["Authority", "Orchestrator", "Reviewer", "Tier", "Human Gate", "Artifact", "Tracker", "Branch", "Loading"].freeze
-    LOADING_SENTENCE = "Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts first. Load Four Eyes Playbook, Templates, Issue Tracker Setup, or Linear Setup only when the task needs their exact rule, template, tracker behavior, or sync procedure."
-    DEFAULT_LOADING_BLOCK = "Default orchestrator bootstrap is:\n\n- the task issue\n- Four Eyes Default Workflow\n- Four Eyes Role Contracts\n\n"
-    DEFAULT_LOADING_BULLETS = ["- the task issue", "- Four Eyes Default Workflow", "- Four Eyes Role Contracts"].freeze
-    LOAD_ON_DEMAND_RULE = "Load Four Eyes Playbook only for exact policy detail or canonical commands, Templates only to fill an artifact, Issue Tracker Setup only for tracker-neutral behavior, and Linear Setup only for creation or sync. Reviewers receive a filled immutable packet and exact task evidence; they do not need the workflow-document set unless a disputed rule itself is under review."
-    ROLE_LOADING_RULE = "- Default orchestrator bootstrap is the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts."
-    TRACKER_LOADING_RULE = "Load the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, Issue Tracker Setup, or Linear Setup only when their exact policy, template, tracker behavior, or sync procedure is needed. Reviewers receive filled immutable packets and do not need the workflow-document set."
+    RULE_GROUPS = ["Authority", "Orchestrator", "Reviewer", "Tier", "Human Gate", "Artifact", "Coordination", "Branch", "Loading"].freeze
+    LOADING_SENTENCE = "Load the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts first. Load Four Eyes Playbook, Templates, or Coordination Records only when the task needs their exact rule, template, or coordination behavior."
+    DEFAULT_LOADING_BLOCK = "Default orchestrator bootstrap is:\n\n- the task context\n- Four Eyes Default Workflow\n- Four Eyes Role Contracts\n\n"
+    DEFAULT_LOADING_BULLETS = ["- the task context", "- Four Eyes Default Workflow", "- Four Eyes Role Contracts"].freeze
+    LOAD_ON_DEMAND_RULE = "Load Four Eyes Playbook only for exact policy detail or canonical commands, Templates only to fill an artifact, and Coordination Records only for coordination behavior. Reviewers receive a filled immutable packet and exact task evidence; they do not need the workflow-document set unless a disputed rule itself is under review."
+    ROLE_LOADING_RULE = "- Default orchestrator bootstrap is the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts."
+    COORDINATION_LOADING_RULE = "Load the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, or Coordination Records only when their exact policy, template, or coordination behavior is needed. Reviewers receive filled immutable packets and do not need the workflow-document set."
     HANDOFF_MODE_LINE = "Handoff mode: reviewer1-subagent + manual reviewer2 | reviewer1-subagent + direct reviewer2 | manual reviewer1 + manual reviewer2 | manual reviewer1 + direct reviewer2 | manual reviewer2 only | direct reviewer2 only | manual human relay"
     REVIEWER2_HANDOFF_LINE = "Reviewer 2 handoff: manual external reviewer | direct Claude reviewer"
     REVIEWER2_AUTHORIZATION_LINE = "Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost"
@@ -38,17 +33,15 @@ module FourEyesDocs
       "README.md" => 1,
       "docs/playbook.md" => 1,
       "docs/templates.md" => 2,
-      "docs/issue-tracker-setup.md" => 1,
-      "docs/linear-setup.md" => 1,
+      "docs/coordination-records.md" => 2,
       "examples/task-issue.md" => 1,
-      "examples/multi-slice-issues.md" => 3
+      "examples/multi-slice-issues.md" => 2
     }.freeze
     REVIEWER2_OPTION_OCCURRENCES = {
       "README.md" => 1,
       "docs/playbook.md" => 1,
       "docs/templates.md" => 2,
-      "docs/issue-tracker-setup.md" => 1,
-      "docs/linear-setup.md" => 1
+      "docs/coordination-records.md" => 2
     }.freeze
     AUTOMATION_LADDER_LINES = [
       "1. Current baseline: PR transport with human-invoked external reviewers.",
@@ -57,18 +50,6 @@ module FourEyesDocs
       "4. Future: CI-triggered reviewers.",
       "Rung 3 is never globally or orchestrator-authorized; each task or phase requires the recorded human decision and enforceable bounds. Rung 4 is not implemented or pre-authorized."
     ].freeze
-    SOURCE_MAP_INTRO = "Use this fixed title order:"
-    CANONICAL_BODY_RULE = "Canonical source-body bytes are defined once here: require valid UTF-8; convert CRLF to LF; reject any remaining bare CR or NUL; remove every trailing LF; append exactly one LF. `Source body SHA-256` hashes those canonical body bytes, including the one final LF."
-    MARKER_RULE = "Each synced document starts with exactly `Workflow revision: <full-sha>`, then `Source body SHA-256: <digest>`, then one blank line, followed by the canonical source body."
-    LINEAR_SERIALIZATION_RULE = "Linear may reserialize Markdown because documents are stored as rich text. The source-body digest attests to canonical committed source bytes; it is not a digest of Linear's serialized body. The repo remains the byte-exact source of truth."
-    RUNTIME_DOCUMENT_RULE = "- five runtime documents named Four Eyes Default Workflow, Four Eyes Playbook, Four Eyes Templates, Four Eyes Issue Tracker Setup, and Four Eyes Role Contracts"
-    READBACK_RULE = "5. Read all six documents back once. For each document, require the exact expected title, exact workflow revision and source-body digest marker block, the expected first Markdown heading, and non-empty content after that heading."
-    READBACK_STABILITY_RULE = "6. Write each first readback content back unchanged, read the document a second time, and require the exact title again plus byte-identical first and second content. This confirms stable Linear serialization for that write/read cycle; it does not prove source-body byte preservation."
-    READBACK_FAILURE_RULE = "7. Any missing document, title mismatch, abbreviated or mixed revision, wrong source-body digest, malformed marker block, missing expected heading, empty content after the heading, or unstable second readback leaves the sync gate open."
-    READBACK_RECORD_RULE = "8. Record the full pushed revision, generated manifest digest, each stable readback content SHA-256, and six successful marker, heading/content, and stability checks in the standing workflow-doc review issue."
-    STANDING_READBACK_RULE = "- Readback: all six marker and heading/content checks passed; titles exact and first/second content byte-identical"
-    STANDING_READBACK_DIGEST_RULE = "- Stable readback content SHA-256: <one bare digest per title>"
-    STANDING_DESCRIPTION_INTRO = "Use this issue for reviews and sync evidence for the Four Eyes workflow documents."
     PRE_BOOTSTRAP_COMPONENTS = {
       "README.md#Default Workflow" => 2_630,
       "docs/playbook.md" => 54_802,
@@ -77,9 +58,10 @@ module FourEyesDocs
     }.freeze
     PRE_BOOTSTRAP_TOTAL = 92_036
     PRE_BOOTSTRAP_RECORD_RULE = "The reproducible pre-change source bootstrap at revision `225430672fad342d693137254c256ca44f2bd8ef` was 92,036 UTF-8 bytes:"
-    LIVE_LINEAR_READBACK_RULE = "The separate live Linear readback was 92,059 bytes. Do not use that readback or maintainer-document bytes in the source-savings denominator. `ruby scripts/check-docs.rb` reports the current source bootstrap, bytes saved, and percentage reduction; the post-change source bootstrap must not exceed 12,000 bytes."
     POST_BOOTSTRAP_MEMBERS = ["README.md#Default Workflow", "docs/role-contracts.md"].freeze
-    POST_BOOTSTRAP_BUDGET = 12_000
+    POST_BOOTSTRAP_BUDGET = 13_000
+    POST_BOOTSTRAP_RECORD_RULE = "The current bootstrap is the README Default Workflow section plus generated Role Contracts. `ruby scripts/check-docs.rb` reports its bytes, savings, and reduction; the current bootstrap must not exceed #{POST_BOOTSTRAP_BUDGET.to_s.reverse.scan(/.{1,3}/).join(",").reverse} bytes."
+    COORDINATION_RECORD_LINE = "Coordination record: pr | github-issue | local"
     WORKTREE_MODE_LINE = "Worktree mode: on | off"
     WORKTREE_REFERENCE_LINE = "Worktree reference: none | <ownership-category>/<opaque worktree reference>"
     WORKTREE_FIELD_PREFIXES = ["Worktree mode:", "Worktree reference:"].freeze
@@ -87,14 +69,14 @@ module FourEyesDocs
     WORKTREE_FIELD_OCCURRENCES = {
       "docs/playbook.md" => 1,
       "docs/templates.md" => 2,
-      "docs/issue-tracker-setup.md" => 1,
+      "docs/coordination-records.md" => 1,
       "examples/task-issue.md" => 1,
-      "examples/multi-slice-issues.md" => 3
+      "examples/multi-slice-issues.md" => 2
     }.freeze
     WORKTREE_OPTION_OCCURRENCES = {
       "docs/playbook.md" => 1,
       "docs/templates.md" => 2,
-      "docs/issue-tracker-setup.md" => 1
+      "docs/coordination-records.md" => 1
     }.freeze
     WORKTREE_DEFAULT_LINES = [
       "Worktree mode default: on | off",
@@ -204,8 +186,8 @@ module FourEyesDocs
         "- Blocker: none"
       ]
     ].freeze
-    PUBLIC_WORKTREE_RECORD_RULE = "Public tracker records never include worktree paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, or cleanup diagnostics. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence."
-    DEFAULT_WORKTREE_RULE = "4. For each phase, the orchestrator creates a phase branch and dedicated worktree from the base while the primary checkout stays coordination-only."
+    PUBLIC_WORKTREE_RECORD_RULE = "Public coordination records never include worktree paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, or cleanup diagnostics. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence."
+    DEFAULT_WORKTREE_RULE = "5. For each implementation phase, the orchestrator creates a phase branch and dedicated worktree while the primary checkout stays fixed and coordination-only."
     ROLE_WORKTREE_RULE = "- With phase branch mode on, default to one owned phase worktree, keep the primary checkout fixed, verify baseline, and remove it before branch deletion; the packet remains the review artifact, only a repo-backed reviewer that creates a detached worktree must remove it before verdict, and the contract has no named integration dependency."
     WORKTREE_REQUIRED_RULES = [
       "The worktree lifecycle requires no named plugin, skill, marketplace product, or vendor-specific integration.",
@@ -267,6 +249,64 @@ module FourEyesDocs
       "- Cleanup failure keeps the issue open and records the opaque reference, branch, owner/category, path privately, observed state, and blocker.",
       "- Worktree mode on with phase branch mode on pre-authorizes compliant named-branch creation and normal worktree removal. Phase branch mode separately authorizes branch creation, commits, allowed pushes, and approved merged-branch cleanup. Every existing human gate remains."
     ].freeze
+    COORDINATION_FIELD_OCCURRENCES = {
+      "README.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/coordination-records.md" => 1,
+      "examples/task-issue.md" => 1,
+      "examples/multi-slice-issues.md" => 2,
+      "examples/closeout.md" => 1
+    }.freeze
+    COORDINATION_OPTION_OCCURRENCES = {
+      "README.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/coordination-records.md" => 1
+    }.freeze
+    COORDINATION_REQUIRED_RULES = [
+      "1. Every non-trivial task records `Coordination record: pr | github-issue | local`.",
+      "2. `pr` is the default for single-phase remote work; the pull request is the coordination record once it exists.",
+      "3. `github-issue` uses exactly one parent issue carrying a compact phase ledger for multi-phase work or durable blockers.",
+      "4. `local` is the no-forge fallback; it provides resumability, not permanent audit. Work needing durable history uses `pr` or `github-issue`.",
+      "5. Before the pull request exists, `pr` mode keeps a temporary local execution-state record at the recorded canonical path.",
+      "6. When the pull request opens, copy the execution-state content into it, verify the copy landed and matches, and only then treat the pull request as authoritative. Until that verification passes, the local record remains authoritative.",
+      "7. Reviewers may submit verdicts through the selected review transport, including pull request reviews. A direct pull request verdict may change forge review status; it never changes the Four Eyes gate, ledger status, or closeout metadata. Reviewers never edit coordination metadata, status, the phase ledger, or closeout. The orchestrator owns every coordination update.",
+      "8. Promote `pr` to `github-issue` when a second phase becomes committed, when a dependency or blocker exists outside the current pull request, or when deferred work must survive the current pull request's closeout. Continuing a single-phase pull request across sessions is not a promotion trigger.",
+      "9. Promotion is check-act-verify-record: create the parent issue carrying the plan digest, phase ledger, current pull request, dependencies, and current gate; verify the issue content matches what was written; backlink the pull request to the issue; and switch authority to the parent issue only after both records agree. Any mismatch stops and hands off.",
+      "10. Multi-phase work uses one parent ledger. Do not create a child issue for each committed execution slice.",
+      "11. Create child issues only for independently owned, externally blocked, or durable follow-up work.",
+      "12. Selecting `Coordination record: github-issue` pre-authorizes creating, updating, and closing exactly one parent coordination issue plus explicitly accepted durable follow-ups. It authorizes no unrelated issue operations.",
+      "13. The parent ledger uses the fixed columns `Phase | Depends on | Status | Branch/PR | Gate | Next action`.",
+      "14. Ledger status values are `todo`, `ready`, `in progress`, `review`, `waiting external eval`, `blocked`, and one terminal value.",
+      "15. `waiting external eval` is not terminal. A phase whose dependencies are all terminal may proceed regardless of any unrelated phase waiting on external evaluation; a phase that depends on a waiting phase stays unready.",
+      "16. A phase becomes `ready` only when every phase it depends on is terminal.",
+      "17. Terminal values are `merged`, `completed`, `abandoned`, `retained`, and `handed off`. `blocked` is never terminal, and any failed cleanup remains `blocked`.",
+      "18. `merged` requires the pull request merged and the reviewed head ancestral to the target.",
+      "19. `completed` is the successful terminal value for work producing no merge, such as `local` mode. It requires the recorded verification evidence present and the working tree clean.",
+      "20. `abandoned` requires authoritative local and remote tip equality, closure of any applicable pull request, clean worktree removal, resolved branches, and a recorded reason and tip SHA.",
+      "21. `retained` requires resolved branch and worktree state plus recorded tip SHA, owner, and revisit trigger.",
+      "22. `handed off` requires a recorded blocker, owner, next action, and recorded human acceptance of ownership. Without recorded acceptance the phase stays `blocked`.",
+      "23. Record closeout evidence in the coordination record and verify it landed before removing any temporary plan or local state record.",
+      "24. In `pr` mode, post the final closeout record to the pull request before removing the temporary plan and execution-state record.",
+      "25. Parent completion requires every phase terminal, with each claimed resolution verified against real Git or forge state rather than the ledger's own claim."
+    ].freeze
+    LOCAL_RECORD_REQUIRED_RULES = [
+      "1. The execution-state record lives at one canonical gitignored path recorded in the task's bound state, rooted in the primary coordination checkout.",
+      "2. It belongs to the primary checkout and therefore survives phase-worktree removal; never place it inside a phase worktree.",
+      "3. Before use, require it to be a regular file and not a symlink.",
+      "4. It records the workflow revision, the plan digest it is bound to, the phase ledger, the current gate, and the next action.",
+      "5. Its content is public-safe from creation, because `pr` mode copies it into the pull request. Never write absolute paths, usernames, host directory layout, credentials, or private identifiers into it.",
+      "6. A workflow-revision or plan-digest mismatch holds the gate; it is never silently rebound.",
+      "7. Write it atomically, then read it back and require the readback to match what was written.",
+      "8. It survives the entire parent workflow and is removed only after every phase is terminal and closeout is verified.",
+      "9. Verify its absence after removal, from a checkout that still exists."
+    ].freeze
+    REVISION_LOADING_REQUIRED_RULES = [
+      "1. Workflow policy loads from this repository at one recorded full commit SHA.",
+      "2. Resolve the recorded SHA to an exact commit before loading, and load policy surfaces from that commit rather than from mutable working-tree files.",
+      "3. A missing, abbreviated, mixed, or unresolvable revision holds the gate.",
+      "4. The workflow revision is the full repository commit SHA carried by coordination records, packets, and verdicts.",
+      "5. External document synchronization, source-body markers, readback checks, and a standing synchronization issue are not required."
+    ].freeze
     FIELD_PREFIXES = [
       "Handoff mode:",
       "Review tier:",
@@ -274,6 +314,7 @@ module FourEyesDocs
       "Phase branch mode:",
       "Phase branch flow:",
       "Review transport:",
+      "Coordination record:",
       "Reviewer 1 handoff:",
       "Reviewer 2 handoff:",
       "Direct Reviewer 2 authorization:",
@@ -286,44 +327,6 @@ module FourEyesDocs
       "Post-merge branch cleanup:",
       "Abandoned branch cleanup:"
     ].freeze
-    SYNC_SOURCES = [
-      {
-        title: "Four Eyes Default Workflow",
-        source: "README.md#Default Workflow",
-        filename: "01-default-workflow.md",
-        map_line: "- `Four Eyes Default Workflow` <- `README.md` from the `## Default Workflow` heading through the byte before the next level-two heading"
-      },
-      {
-        title: "Four Eyes Playbook",
-        source: "docs/playbook.md",
-        filename: "02-playbook.md",
-        map_line: "- `Four Eyes Playbook` <- complete `docs/playbook.md`"
-      },
-      {
-        title: "Four Eyes Templates",
-        source: "docs/templates.md",
-        filename: "03-templates.md",
-        map_line: "- `Four Eyes Templates` <- complete `docs/templates.md`"
-      },
-      {
-        title: "Four Eyes Issue Tracker Setup",
-        source: "docs/issue-tracker-setup.md",
-        filename: "04-issue-tracker-setup.md",
-        map_line: "- `Four Eyes Issue Tracker Setup` <- complete `docs/issue-tracker-setup.md`"
-      },
-      {
-        title: "Four Eyes Role Contracts",
-        source: "docs/role-contracts.md",
-        filename: "05-role-contracts.md",
-        map_line: "- `Four Eyes Role Contracts` <- complete generated `docs/role-contracts.md`"
-      },
-      {
-        title: "Four Eyes Linear Setup",
-        source: "docs/linear-setup.md",
-        filename: "06-linear-setup.md",
-        map_line: "- `Four Eyes Linear Setup` <- complete `docs/linear-setup.md`"
-      }
-    ].map(&:freeze).freeze
     STALE_PHRASES = [
       "Read the existing Four Eyes Default Workflow, Playbook, Templates, and Issue Tracker Setup in Linear first.",
       "Until document markers exist",
@@ -354,17 +357,20 @@ module FourEyesDocs
       "Do not post to Linear or another tracker unless explicitly instructed.",
       "Do not post directly to the tracker unless explicitly instructed."
     ].freeze
+    RETIRED_POLICY_PATTERNS = [
+      /\bLinear\b/i,
+      /synced workflow document/i,
+      /sync payload/i,
+      /standing workflow-doc/i,
+      /one child issue for every/i,
+      /phase child issue/i
+    ].freeze
 
     attr_reader :root
 
-    def self.source_map_lines(sync_sources = SYNC_SOURCES)
-      sync_sources.map { |entry| entry.fetch(:map_line) }
-    end
-
-    def initialize(root, bootstrap_members: POST_BOOTSTRAP_MEMBERS, sync_sources: SYNC_SOURCES)
+    def initialize(root, bootstrap_members: POST_BOOTSTRAP_MEMBERS)
       @root = File.expand_path(root)
       @bootstrap_members = bootstrap_members
-      @sync_sources = sync_sources
     end
 
     def check!
@@ -374,60 +380,16 @@ module FourEyesDocs
       check_loading_prompts!
       check_field_order!
       check_reviewer2_handoff!
+      check_coordination_contract!
       check_worktree_contract!
-      check_sync_contract!
       check_links!
       check_stale_phrases!
+      check_retired_policy!
       report
     end
 
     def write_derived!
       File.binwrite(path("docs/role-contracts.md"), role_contracts_source)
-    end
-
-    def write_sync_dir!(directory, revision)
-      verify_sync_revision!(revision)
-      check!
-
-      expanded = File.expand_path(directory)
-      fail_check("sync directory must not already exist") if path_entry_exists?(expanded)
-      destination = safe_outside_repo_path(expanded)
-      fail_check("sync directory parent must exist") unless File.directory?(File.dirname(destination))
-      begin
-        Dir.mkdir(destination, 0o700)
-      rescue Errno::EEXIST
-        fail_check("sync directory must not already exist")
-      rescue SystemCallError => error
-        fail_check("cannot create sync directory: #{error.message}")
-      end
-      File.chmod(0o700, destination)
-      fail_check("sync directory mode must be 0700") unless (File.stat(destination).mode & 0o777) == 0o700
-
-      entries = @sync_sources.map do |entry|
-        title = entry.fetch(:title)
-        source = entry.fetch(:source)
-        filename = entry.fetch(:filename)
-        body = canonical_body(committed_source_bytes(revision, source), "#{source} at revision")
-        body_digest = Digest::SHA256.hexdigest(body)
-        payload = "Workflow revision: #{revision}\nSource body SHA-256: #{body_digest}\n\n#{body}"
-        write_private(File.join(destination, filename), payload)
-        {
-          "title" => title,
-          "source" => source,
-          "filename" => filename,
-          "source_body_sha256" => body_digest,
-          "payload_sha256" => Digest::SHA256.hexdigest(payload),
-          "payload_bytes" => payload.bytesize
-        }
-      end
-
-      manifest = {
-        "workflow_revision" => revision,
-        "documents" => entries
-      }
-      manifest_bytes = JSON.pretty_generate(manifest) + "\n"
-      write_private(File.join(destination, "manifest.json"), manifest_bytes)
-      Digest::SHA256.hexdigest(manifest_bytes)
     end
 
     def canonical_body(bytes, label = "source body")
@@ -489,10 +451,6 @@ module FourEyesDocs
       readme[start...finish]
     end
 
-    def source_bytes(source)
-      source == "README.md#Default Workflow" ? default_workflow_source : read(source)
-    end
-
     def check_derived!
       expected = role_contracts_source
       actual = normalized_read("docs/role-contracts.md")
@@ -524,15 +482,15 @@ module FourEyesDocs
       fail_check("bootstrap membership mismatch") unless @bootstrap_members == POST_BOOTSTRAP_MEMBERS
       fail_check("pre-change bootstrap total mismatch") unless PRE_BOOTSTRAP_COMPONENTS.values.sum == PRE_BOOTSTRAP_TOTAL
 
-      linear_setup = normalized_read("docs/linear-setup.md")
-      loading_rule = section(linear_setup, "## Loading Rule", "## Canonical Sync Source Map")
+      readme = normalized_read("README.md")
+      context_budget = section(readme, "## Context Budget", "## Source Of Truth")
       PRE_BOOTSTRAP_COMPONENTS.each do |name, bytes|
         display_name = name == "README.md#Default Workflow" ? "README Default Workflow section" : "complete #{File.basename(name, ".md").split("-").map(&:capitalize).join(" ")}"
         expected = "- #{display_name}: #{bytes.to_s.reverse.scan(/.{1,3}/).join(",").reverse} bytes"
-        require_unique_operative_line_in_section!(linear_setup, loading_rule, expected, "pre-change bootstrap record missing: #{name}")
+        require_unique_operative_line_in_section!(readme, context_budget, expected, "pre-change bootstrap record missing: #{name}")
       end
-      require_unique_operative_line_in_section!(linear_setup, loading_rule, PRE_BOOTSTRAP_RECORD_RULE, "pre-change bootstrap total record missing")
-      require_unique_operative_line_in_section!(linear_setup, loading_rule, LIVE_LINEAR_READBACK_RULE, "live Linear readback record missing")
+      require_unique_operative_line_in_section!(readme, context_budget, PRE_BOOTSTRAP_RECORD_RULE, "pre-change bootstrap total record missing")
+      require_unique_operative_line_in_section!(readme, context_budget, POST_BOOTSTRAP_RECORD_RULE, "current bootstrap budget record missing")
 
       post_bytes = default_workflow_source.bytesize + normalized_read("docs/role-contracts.md").bytesize
       fail_check("bootstrap byte budget exceeded: #{post_bytes} > #{POST_BOOTSTRAP_BUDGET}") if post_bytes > POST_BOOTSTRAP_BUDGET
@@ -556,23 +514,22 @@ module FourEyesDocs
       orchestrator_prompt = unique_text_prompt(orchestrator_section, "orchestrator loading prompt mismatch in docs/templates.md")
       require_unique_line_in_section!(templates, orchestrator_prompt, LOADING_SENTENCE, "orchestrator loading prompt mismatch in docs/templates.md")
 
-      linear_setup = normalized_read("docs/linear-setup.md")
-      linear_loading = section(linear_setup, "## Loading Rule", "## Canonical Sync Source Map")
-      load_rule_starts = operative_line_positions(linear_loading, "Default orchestrator bootstrap is:")
-      load_rule_finishes = operative_line_positions(linear_loading, LOAD_ON_DEMAND_RULE)
+      loading = section(readme, "## Loading", "## Context Budget")
+      load_rule_starts = operative_line_positions(loading, "Default orchestrator bootstrap is:")
+      load_rule_finishes = operative_line_positions(loading, LOAD_ON_DEMAND_RULE)
       fail_check("default loading instructions mismatch") unless load_rule_starts.length == 1 && load_rule_finishes.length == 1
-      bootstrap_region = linear_loading[load_rule_starts.first...load_rule_finishes.first]
+      bootstrap_region = loading[load_rule_starts.first...load_rule_finishes.first]
       loading_bullets = bootstrap_region.lines.map(&:chomp).select { |line| line.start_with?("- ") }
       fail_check("default loading instructions mismatch") unless bootstrap_region == DEFAULT_LOADING_BLOCK && loading_bullets == DEFAULT_LOADING_BULLETS
-      require_unique_operative_line_in_section!(linear_setup, linear_loading, LOAD_ON_DEMAND_RULE, "default loading instructions mismatch")
+      require_unique_operative_line_in_section!(readme, loading, LOAD_ON_DEMAND_RULE, "default loading instructions mismatch")
 
       role_contracts = normalized_read("docs/role-contracts.md")
       role_loading = section(role_contracts, "## Loading")
       require_unique_operative_line_in_section!(role_contracts, role_loading, ROLE_LOADING_RULE, "role-contract loading instructions mismatch")
 
-      tracker_setup = normalized_read("docs/issue-tracker-setup.md")
-      tracker_loading = section(tracker_setup, "## Recommended Issue Shape", "## Autonomy Mode")
-      require_unique_operative_line_in_section!(tracker_setup, tracker_loading, TRACKER_LOADING_RULE, "tracker loading instructions mismatch")
+      coordination = normalized_read("docs/coordination-records.md")
+      coordination_loading = section(coordination, "## Recommended Record Shape", "## Autonomy Mode")
+      require_unique_operative_line_in_section!(coordination, coordination_loading, COORDINATION_LOADING_RULE, "coordination loading instructions mismatch")
     end
 
     def check_field_order!
@@ -639,6 +596,46 @@ module FourEyesDocs
       AUTOMATION_LADDER_LINES.each do |line|
         require_unique_operative_line_in_section!(playbook, ladder, line, "automation ladder mismatch")
       end
+    end
+
+    def check_coordination_contract!
+      occurrences = Hash.new(0)
+      option_occurrences = Hash.new(0)
+      markdown_paths.each do |relative|
+        normalized_read(relative).lines.each do |line|
+          value = line.chomp
+          next unless value.start_with?("Coordination record:")
+
+          fail_check("unexpected coordination field occurrence in #{relative}") unless COORDINATION_FIELD_OCCURRENCES.key?(relative)
+          occurrences[relative] += 1
+          option_occurrences[relative] += 1 if value == COORDINATION_RECORD_LINE
+          next if value == COORDINATION_RECORD_LINE
+
+          selected = value.delete_prefix("Coordination record: ")
+          fail_check("invalid selected coordination record in #{relative}") unless %w[pr github-issue local].include?(selected)
+        end
+      end
+
+      COORDINATION_FIELD_OCCURRENCES.each do |relative, expected|
+        fail_check("coordination field occurrence mismatch in #{relative}") unless occurrences.fetch(relative, 0) == expected
+      end
+      COORDINATION_OPTION_OCCURRENCES.each do |relative, expected|
+        fail_check("coordination option occurrence mismatch in #{relative}") unless option_occurrences.fetch(relative, 0) == expected
+      end
+
+      playbook = normalized_read("docs/playbook.md")
+      check_exact_rule_section!(playbook, "## Coordination Record Contract", "## Local Coordination Record", COORDINATION_REQUIRED_RULES, "coordination record")
+      check_exact_rule_section!(playbook, "## Local Coordination Record", "## Repository Revision Loading", LOCAL_RECORD_REQUIRED_RULES, "local coordination record")
+      check_exact_rule_section!(playbook, "## Repository Revision Loading", "## Right-Sizing Slices", REVISION_LOADING_REQUIRED_RULES, "repository revision loading")
+    end
+
+    def check_exact_rule_section!(content, start_heading, end_heading, expected, label)
+      bounded = section(content, start_heading, end_heading)
+      actual = markdown_lines(bounded).each_with_object([]) do |entry, rules|
+        line = entry[:line]
+        rules << line if entry[:context] == :prose && line.match?(/\A\d+\. /)
+      end
+      fail_check("#{label} rules mismatch") unless actual == expected
     end
 
     def check_worktree_contract!
@@ -766,9 +763,9 @@ module FourEyesDocs
       private_example = section(closeout, "## Private Lifecycle Evidence Example")
       check_private_worktree_evidence_examples!(private_example)
 
-      tracker = normalized_read("docs/issue-tracker-setup.md")
-      phase_mode = section(tracker, "## Phase Branch Mode", "## Parent And Child Issues")
-      require_unique_operative_line_in_section!(tracker, phase_mode, PUBLIC_WORKTREE_RECORD_RULE, "public worktree record rule missing")
+      coordination = normalized_read("docs/coordination-records.md")
+      phase_mode = section(coordination, "## Phase Branch Mode", "## Parent And Child Issues")
+      require_unique_operative_line_in_section!(coordination, phase_mode, PUBLIC_WORKTREE_RECORD_RULE, "public worktree record rule missing")
 
       reviewer = normalized_read("examples/reviewer-comment.md")
       fail_check("reviewer worktree cleanup rule missing") unless reviewer.include?("Dirty state or failed cleanup returns `could-not-review` with `Verdict: not issued`.")
@@ -845,51 +842,6 @@ module FourEyesDocs
         finish = next_heading ? next_heading.first : content.length
       end
       content[start...finish]
-    end
-
-    def check_sync_contract!
-      linear_setup = normalized_read("docs/linear-setup.md")
-      fail_check("canonical sync source map mismatch") unless @sync_sources == SYNC_SOURCES
-      agent_prompt = section(linear_setup, "## Agent Prompt", "## Loading Rule")
-      source_map = section(linear_setup, "## Canonical Sync Source Map", "## Sync Rule")
-      sync_rule = section(linear_setup, "## Sync Rule", "## Standing Review Issue")
-      standing_review = section(linear_setup, "## Standing Review Issue")
-      standing_descriptions = fenced_code_blocks(standing_review).select do |block|
-        block[:info] == "text" && block[:body].start_with?("#{STANDING_DESCRIPTION_INTRO}\n")
-      end
-      fail_check("standing review issue Description missing") unless standing_descriptions.length == 1
-      standing_description = standing_descriptions.first[:body]
-
-      expected_entries = self.class.source_map_lines(@sync_sources)
-      require_unique_operative_line_in_section!(linear_setup, source_map, CANONICAL_BODY_RULE, "canonical source-body rule missing")
-      require_unique_operative_line_in_section!(linear_setup, source_map, MARKER_RULE, "sync marker rule missing")
-      require_unique_operative_line_in_section!(linear_setup, source_map, LINEAR_SERIALIZATION_RULE, "Linear serialization trust boundary missing")
-      intro_positions = operative_line_positions(source_map, SOURCE_MAP_INTRO)
-      body_rule_positions = operative_line_positions(source_map, CANONICAL_BODY_RULE)
-      fail_check("canonical sync source map entries mismatch") unless intro_positions.length == 1 && body_rule_positions.length == 1
-
-      map_block = source_map[(intro_positions.first + SOURCE_MAP_INTRO.length)...body_rule_positions.first]
-      actual_entries = map_block.lines.map(&:chomp).reject(&:empty?)
-      missing_entry = expected_entries.find { |line| actual_entries.count(line) != 1 }
-      fail_check("sync source map incomplete: #{missing_entry}") if missing_entry
-      fail_check("canonical sync source map entries mismatch") unless actual_entries.length == expected_entries.length
-      fail_check("sync source map order mismatch") unless actual_entries == expected_entries
-      expected_block = "\n\n#{expected_entries.join("\n")}\n\n"
-      fail_check("canonical sync source map entries mismatch") unless map_block == expected_block
-      source_map_lines = markdown_lines(source_map).select { |entry| entry[:context] == :prose }
-      section_list_entries = source_map_lines.map { |entry| entry[:line] }.select { |line| markdown_list_line?(line) }
-      fail_check("canonical sync source map entries mismatch") unless section_list_entries == expected_entries
-      map_arrow_count = source_map_lines.sum { |entry| entry[:line].scan("<-").length }
-      fail_check("canonical sync source map entries mismatch") unless map_arrow_count == expected_entries.length
-
-      agent_prompt_body = unique_text_prompt(agent_prompt, "five runtime document rule missing")
-      require_unique_line_in_section!(linear_setup, agent_prompt_body, RUNTIME_DOCUMENT_RULE, "five runtime document rule missing")
-      require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_RULE, "sync readback procedure missing")
-      require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_STABILITY_RULE, "sync readback stability procedure missing")
-      require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_FAILURE_RULE, "sync readback failure rule missing")
-      require_unique_operative_line_in_section!(linear_setup, sync_rule, READBACK_RECORD_RULE, "sync readback record rule missing")
-      require_unique_line_in_section!(linear_setup, standing_description, STANDING_READBACK_RULE, "standing readback record missing")
-      require_unique_line_in_section!(linear_setup, standing_description, STANDING_READBACK_DIGEST_RULE, "standing readback digest record missing")
     end
 
     def exact_line_positions(content, expected)
@@ -1254,54 +1206,6 @@ module FourEyesDocs
       line.match?(/\A {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+/)
     end
 
-    def verify_sync_revision!(revision)
-      fail_check("workflow revision must be a full lowercase commit SHA") unless revision.match?(/\A[0-9a-f]{40}\z/)
-
-      resolved, _error, status = git_capture("rev-parse", "--verify", "#{revision}^{commit}")
-      fail_check("workflow revision does not identify a commit") unless status.success?
-      fail_check("workflow revision does not identify the exact commit") unless resolved.strip == revision
-
-      head = git_text("rev-parse", "HEAD")
-      fail_check("workflow revision must equal HEAD") unless head == revision
-      fail_check("repository must be clean before sync generation") unless git_text("status", "--porcelain=v1", "--untracked-files=all").empty?
-
-      remote_refs = git_text("for-each-ref", "--format=%(refname)", "--contains=#{revision}", "refs/remotes")
-      fail_check("workflow revision must be pushed before sync generation") if remote_refs.empty?
-
-      @sync_sources.each do |entry|
-        source = entry.fetch(:source)
-        committed = committed_source_bytes(revision, source)
-        working = source_bytes(source)
-        unless canonical_body(committed, "#{source} at revision") == canonical_body(working, source)
-          fail_check("workflow source does not match revision: #{source}")
-        end
-      end
-    end
-
-    def committed_source_bytes(revision, source)
-      if source == "README.md#Default Workflow"
-        default_workflow_source_from(git_bytes("show", "#{revision}:README.md"), "README.md at revision")
-      else
-        git_bytes("show", "#{revision}:#{source}")
-      end
-    end
-
-    def git_capture(*arguments)
-      Open3.capture3("git", "-C", root, *arguments)
-    end
-
-    def git_text(*arguments)
-      output, error, status = git_capture(*arguments)
-      fail_check("git command failed: #{error.strip}") unless status.success?
-      output.strip
-    end
-
-    def git_bytes(*arguments)
-      output, error, status = git_capture(*arguments)
-      fail_check("git command failed: #{error.strip}") unless status.success?
-      output.b
-    end
-
     def check_links!
       markdown_paths.each do |relative|
         content = normalized_read(relative)
@@ -1323,51 +1227,15 @@ module FourEyesDocs
       end
     end
 
+    def check_retired_policy!
+      corpus = markdown_paths.map { |relative| normalized_read(relative) }.join("\n")
+      RETIRED_POLICY_PATTERNS.each do |pattern|
+        fail_check("retired coordination policy present: #{pattern.source}") if corpus.match?(pattern)
+      end
+    end
+
     def markdown_paths
-      ["README.md"] + Dir.chdir(root) { Dir.glob("{docs,examples}/**/*.md").sort }
-    end
-
-    def safe_outside_repo_path(directory)
-      expanded = File.expand_path(directory)
-      resolved = resolve_with_existing_parent(expanded)
-      root_real = File.realpath(root)
-      if resolved == root_real || resolved.start_with?(root_real + File::SEPARATOR)
-        fail_check("sync directory must resolve outside the repository")
-      end
-      expanded
-    end
-
-    def resolve_with_existing_parent(target)
-      suffix = []
-      current = target
-      until File.exist?(current) || File.symlink?(current)
-        suffix.unshift(File.basename(current))
-        parent = File.dirname(current)
-        fail_check("cannot resolve sync directory") if parent == current
-        current = parent
-      end
-      File.join(File.realpath(current), *suffix)
-    end
-
-    def path_entry_exists?(target)
-      File.lstat(target)
-      true
-    rescue Errno::ENOENT
-      false
-    end
-
-    def write_private(destination, bytes)
-      flags = File::WRONLY | File::CREAT | File::EXCL
-      flags |= File::NOFOLLOW if defined?(File::NOFOLLOW)
-      File.open(destination, flags, 0o600) do |file|
-        file.chmod(0o600)
-        file.write(bytes)
-        file.flush
-      end
-    rescue Errno::EEXIST, Errno::ELOOP
-      fail_check("sync output path already exists")
-    rescue SystemCallError => error
-      fail_check("cannot create sync output: #{error.message}")
+      ["AGENTS.md", "README.md"] + Dir.chdir(root) { Dir.glob("{docs,examples}/**/*.md").sort }
     end
 
     def fail_check(message)
@@ -1464,11 +1332,11 @@ module FourEyesDocs
       end
 
       expect_failure("commented bootstrap total record", "pre-change bootstrap total record missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::PRE_BOOTSTRAP_RECORD_RULE, "<!--\n#{Checker::PRE_BOOTSTRAP_RECORD_RULE}\n-->")
+        replace(root, "README.md", Checker::PRE_BOOTSTRAP_RECORD_RULE, "<!--\n#{Checker::PRE_BOOTSTRAP_RECORD_RULE}\n-->")
       end
 
-      expect_failure("extended live readback record", "live Linear readback record missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::LIVE_LINEAR_READBACK_RULE, "#{Checker::LIVE_LINEAR_READBACK_RULE} Approximate values are acceptable.")
+      expect_failure("mismatched current bootstrap budget", "current bootstrap budget record missing") do |root|
+        replace(root, "README.md", Checker::POST_BOOTSTRAP_RECORD_RULE, Checker::POST_BOOTSTRAP_RECORD_RULE.sub("13,000", "14,000"))
       end
 
       expect_failure("orchestrator prompt mismatch", "orchestrator loading prompt mismatch") do |root|
@@ -1501,12 +1369,12 @@ module FourEyesDocs
 
       expect_failure("operative loading expansion", "default loading instructions mismatch") do |root|
         block = Checker::DEFAULT_LOADING_BLOCK
-        replace(root, "docs/linear-setup.md", block, "#{block.chomp}\n- Four Eyes Playbook\n\n")
+        replace(root, "README.md", block, "#{block.chomp}\n- Four Eyes Playbook\n\n")
       end
 
       expect_failure("commented default loading block", "default loading instructions mismatch") do |root|
         block = "#{Checker::DEFAULT_LOADING_BLOCK}#{Checker::LOAD_ON_DEMAND_RULE}"
-        replace(root, "docs/linear-setup.md", block, "<!--\n#{block}\n-->")
+        replace(root, "README.md", block, "<!--\n#{block}\n-->")
       end
 
       expect_failure("field-order drift", "workflow field order mismatch") do |root|
@@ -1522,10 +1390,6 @@ module FourEyesDocs
         replace(root, "examples/task-issue.md", "Direct Reviewer 2 authorization: none\n", "")
       end
 
-      expect_failure("Linear Setup Reviewer 2 fields omission", "Reviewer 2 field occurrence mismatch in docs/linear-setup.md") do |root|
-        replace(root, "docs/linear-setup.md", "#{Checker::REVIEWER2_OPTION_LINES.join("\n")}\n", "")
-      end
-
       expect_failure("Reviewer 2 option drift", "Reviewer 2 option block mismatch") do |root|
         content = read(root, "docs/templates.md")
         content.gsub!(Checker::REVIEWER2_HANDOFF_LINE, "Reviewer 2 handoff: direct Claude reviewer | manual external reviewer")
@@ -1539,6 +1403,34 @@ module FourEyesDocs
           "#{Checker::REVIEWER2_OPTION_LINES.join("\n")}\n",
           "Reviewer 2 handoff: manual external reviewer\nDirect Reviewer 2 authorization: none\n"
         )
+      end
+
+      expect_failure("coordination field omission", "workflow field missing: Coordination record:") do |root|
+        replace(root, "docs/templates.md", "#{Checker::COORDINATION_RECORD_LINE}\n", "")
+      end
+
+      expect_failure("coordination option drift", "invalid selected coordination record in README.md") do |root|
+        replace(root, "README.md", "\n#{Checker::COORDINATION_RECORD_LINE}\n", "\nCoordination record: pr | local | github-issue\n")
+      end
+
+      expect_failure("coordination rule omission", "coordination record rules mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::COORDINATION_REQUIRED_RULES[7]}\n", "")
+      end
+
+      expect_failure("coordination rule extension", "coordination record rules mismatch") do |root|
+        replace(root, "docs/playbook.md", Checker::COORDINATION_REQUIRED_RULES[0], "#{Checker::COORDINATION_REQUIRED_RULES[0]} Extra text.")
+      end
+
+      expect_failure("local record rule relocation", "local coordination record rules mismatch") do |root|
+        rule = Checker::LOCAL_RECORD_REQUIRED_RULES[1]
+        replace(root, "docs/playbook.md", "#{rule}\n", "")
+        append(root, "docs/playbook.md", "\n#{rule}\n")
+      end
+
+      expect_failure("repository revision rule order", "repository revision loading rules mismatch") do |root|
+        first = "#{Checker::REVISION_LOADING_REQUIRED_RULES[0]}\n"
+        second = "#{Checker::REVISION_LOADING_REQUIRED_RULES[1]}\n"
+        replace(root, "docs/playbook.md", first + second, second + first)
       end
 
       expect_failure("combined handoff option drift", "handoff mode options mismatch") do |root|
@@ -1597,11 +1489,11 @@ module FourEyesDocs
 
       expect_failure("worktree field anchor drift", "worktree field anchor mismatch") do |root|
         block = "#{Checker::WORKTREE_OPTION_LINES.join("\n")}\n"
-        replace(root, "docs/issue-tracker-setup.md", block, "Remote note: local only\n#{block}")
+        replace(root, "docs/coordination-records.md", block, "Remote note: local only\n#{block}")
       end
 
       expect_failure("worktree option drift", "worktree option block mismatch") do |root|
-        replace(root, "docs/issue-tracker-setup.md", Checker::WORKTREE_MODE_LINE, "Worktree mode: off | on")
+        replace(root, "docs/coordination-records.md", Checker::WORKTREE_MODE_LINE, "Worktree mode: off | on")
       end
 
       expect_failure("invalid selected worktree mode", "invalid selected worktree mode") do |root|
@@ -1793,152 +1685,11 @@ module FourEyesDocs
       end
 
       expect_failure("public worktree record rule omission", "public worktree record rule missing") do |root|
-        replace(root, "docs/issue-tracker-setup.md", "#{Checker::PUBLIC_WORKTREE_RECORD_RULE}\n", "")
+        replace(root, "docs/coordination-records.md", "#{Checker::PUBLIC_WORKTREE_RECORD_RULE}\n", "")
       end
 
       expect_failure("reviewer worktree cleanup omission", "reviewer worktree cleanup rule missing") do |root|
         replace(root, "examples/reviewer-comment.md", "Dirty state or failed cleanup returns `could-not-review` with `Verdict: not issued`.", "Cleanup failure is recorded.")
-      end
-
-      with_fixture do |root|
-        reduced = Checker::SYNC_SOURCES.reject { |entry| entry.fetch(:title) == "Four Eyes Role Contracts" }
-        checker = Checker.new(root, sync_sources: reduced)
-        assert_failure("canonical source-map shrinkage", "canonical sync source map mismatch") { checker.check! }
-      end
-      expect_failure("incomplete source map", "sync source map incomplete") do |root|
-        replace(root, "docs/linear-setup.md", "#{Checker.source_map_lines[4]}\n", "")
-      end
-
-      expect_failure("source-map order drift", "sync source map order mismatch") do |root|
-        first = "#{Checker.source_map_lines[0]}\n"
-        second = "#{Checker.source_map_lines[1]}\n"
-        replace(root, "docs/linear-setup.md", first + second, second + first)
-      end
-
-      expect_failure("source-map expansion", "canonical sync source map entries mismatch") do |root|
-        extra = "- `Four Eyes Runtime` <- complete `docs/runtime.md`\n"
-        replace(root, "docs/linear-setup.md", "#{Checker.source_map_lines.last}\n", "#{Checker.source_map_lines.last}\n#{extra}")
-      end
-
-      expect_failure("malformed source-map expansion", "canonical sync source map entries mismatch") do |root|
-        extra = "- Four Eyes Runtime <- complete docs/runtime.md\n"
-        replace(root, "docs/linear-setup.md", "#{Checker.source_map_lines.last}\n", "#{Checker.source_map_lines.last}\n#{extra}")
-      end
-
-      expect_failure("indented source-map expansion", "canonical sync source map entries mismatch") do |root|
-        extra = "  - `Four Eyes Runtime` <- complete `docs/runtime.md`\n"
-        replace(root, "docs/linear-setup.md", "#{Checker.source_map_lines.last}\n", "#{Checker.source_map_lines.last}\n#{extra}")
-      end
-
-      expect_failure("misplaced source-map expansion", "canonical sync source map entries mismatch") do |root|
-        extra = "- Four Eyes Runtime <- complete docs/runtime.md"
-        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "#{Checker::MARKER_RULE}\n\n#{extra}")
-      end
-
-      {
-        "asterisk" => "* Four Eyes Runtime <- complete docs/runtime.md",
-        "plus" => "+ Four Eyes Runtime <- complete docs/runtime.md",
-        "ordered" => "1. Four Eyes Runtime <- complete docs/runtime.md"
-      }.each do |name, extra|
-        expect_failure("#{name} source-map expansion", "canonical sync source map entries mismatch") do |root|
-          replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "#{Checker::MARKER_RULE}\n\n#{extra}")
-        end
-      end
-
-      expect_failure("inline-code comment markers cannot hide source-map expansion", "canonical sync source map entries mismatch") do |root|
-        extra = "- `<!--` Four Eyes Runtime <- complete docs/runtime.md `-->`\n"
-        replace(root, "docs/linear-setup.md", "#{Checker.source_map_lines.last}\n", "#{Checker.source_map_lines.last}\n#{extra}")
-      end
-
-      expect_failure("mixed raw HTML and comment", "raw HTML blocks are not allowed") do |root|
-        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "#{Checker::MARKER_RULE}\n\n<div><!-- harmless --></div>")
-      end
-
-      expect_failure("commented source-map block", "canonical") do |root|
-        block = "#{Checker::SOURCE_MAP_INTRO}\n\n#{Checker.source_map_lines.join("\n")}\n\n#{Checker::CANONICAL_BODY_RULE}"
-        replace(root, "docs/linear-setup.md", block, "<!--\n#{block}\n-->")
-      end
-
-      expect_failure("canonical-body rule omission", "canonical source-body rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::CANONICAL_BODY_RULE, "")
-      end
-
-      expect_failure("relocated canonical-body rule", "canonical source-body rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::CANONICAL_BODY_RULE, "Canonical source bodies are normalized before sync.")
-        append(root, "docs/linear-setup.md", "\n#{Checker::CANONICAL_BODY_RULE}\n")
-      end
-
-      expect_failure("extended canonical-body rule", "canonical source-body rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::CANONICAL_BODY_RULE, "#{Checker::CANONICAL_BODY_RULE} A summary digest is sufficient.")
-      end
-
-      expect_failure("marker rule omission", "sync marker rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "")
-      end
-
-      expect_failure("relocated marker rule", "sync marker rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "Each synced document starts with revision markers.")
-        append(root, "docs/linear-setup.md", "\n#{Checker::MARKER_RULE}\n")
-      end
-
-      expect_failure("prefixed marker rule", "sync marker rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "Optional: #{Checker::MARKER_RULE}")
-      end
-
-      expect_failure("commented marker rule", "sync marker rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::MARKER_RULE, "<!--\n#{Checker::MARKER_RULE}\n-->")
-      end
-
-      expect_failure("Linear serialization trust boundary omission", "Linear serialization trust boundary missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::LINEAR_SERIALIZATION_RULE, "")
-      end
-
-      expect_failure("relocated Linear serialization trust boundary", "Linear serialization trust boundary missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::LINEAR_SERIALIZATION_RULE, "Linear is a rich-text system.")
-        append(root, "docs/linear-setup.md", "\n#{Checker::LINEAR_SERIALIZATION_RULE}\n")
-      end
-
-      expect_failure("readback procedure omission", "sync readback procedure missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "5. Read all six documents back.")
-      end
-
-      expect_failure("relocated readback procedure", "sync readback procedure missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "5. Read all six documents back.")
-        append(root, "docs/linear-setup.md", "\n#{Checker::READBACK_RULE}\n")
-      end
-
-      expect_failure("extended readback procedure", "sync readback procedure missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "#{Checker::READBACK_RULE} A summary comparison is sufficient.")
-      end
-
-      expect_failure("fenced readback procedure", "sync readback procedure missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::READBACK_RULE, "```text\n#{Checker::READBACK_RULE}\n```")
-      end
-
-      expect_failure("readback stability omission", "sync readback stability procedure missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::READBACK_STABILITY_RULE, "6. Read every document again.")
-      end
-
-      expect_failure("readback failure rule omission", "sync readback failure rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::READBACK_FAILURE_RULE, "7. Fail when verification fails.")
-      end
-
-      expect_failure("readback record rule omission", "sync readback record rule missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::READBACK_RECORD_RULE, "8. Record the sync result.")
-      end
-
-      expect_failure("standing readback record omission", "standing readback record missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::STANDING_READBACK_RULE, "- Readback: passed")
-      end
-
-      expect_failure("standing readback digest omission", "standing readback digest record missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::STANDING_READBACK_DIGEST_RULE, "- Stable readback SHA-256: omitted")
-      end
-
-      expect_failure("standing readback records moved outside Description", "standing readback record missing") do |root|
-        replace(root, "docs/linear-setup.md", Checker::STANDING_READBACK_RULE, "- Readback: omitted")
-        replace(root, "docs/linear-setup.md", Checker::STANDING_READBACK_DIGEST_RULE, "- Stable readback content SHA-256: omitted")
-        append(root, "docs/linear-setup.md", "\n#{Checker::STANDING_READBACK_RULE}\n#{Checker::STANDING_READBACK_DIGEST_RULE}\n")
       end
 
       expect_failure("duplicate Default Workflow heading", "README Default Workflow section missing or duplicated") do |root|
@@ -2213,107 +1964,25 @@ module FourEyesDocs
       raise "canonical UTF-8/CRLF normalization failed" unless canonical == expected_canonical
       pass("canonical UTF-8 and CRLF")
 
-      with_git_fixture do |root, _revision|
-        readme = read(root, "README.md")
-        readme.sub!("## Default Workflow\n", "## Default Workflow\n\nUTF-8 fixture: \xF0\x9F\x98\x80\n") || raise("Default Workflow fixture missing")
-        write(root, "README.md", readme)
-
+      with_fixture do |root|
         playbook = read(root, "docs/playbook.md")
-        playbook.sub!("# Four Eyes Role Contracts\n", "# Four Eyes Role Contracts\n\nUTF-8 fixture: caf\xC3\xA9 \xF0\x9F\x98\x80\n") || raise("Role Contracts fixture missing")
+        playbook.sub!("# Four Eyes Role Contracts\n", "# Four Eyes Role Contracts\n\nUTF-8 fixture: café 😀\n") || raise("Role Contracts fixture missing")
         write(root, "docs/playbook.md", playbook)
         Checker.new(root).write_derived!
-
-        git!(root, "add", "README.md", "docs/playbook.md", "docs/role-contracts.md")
-        git!(root, "commit", "-q", "-m", "multibyte fixture")
-        revision = git!(root, "rev-parse", "HEAD")
-        git!(root, "push", "-q", "origin", "HEAD:refs/heads/main")
-
-        checker = Checker.new(root)
-        checker.check!
-        destination = File.join(File.dirname(root), "multibyte-sync")
-        checker.write_sync_dir!(destination, revision)
-
-        expected_default = expected_default_workflow(checker.normalize_text(read(root, "README.md"), "README.md"))
-        default_payload = read(root, File.join("..", "multibyte-sync", "01-default-workflow.md"))
-        actual_default = default_payload.split("\n\n", 2).fetch(1)
-        expected_default = checker.canonical_body(expected_default)
-        unless actual_default.b == expected_default.b
-          raise "multibyte Default Workflow payload mismatch: expected #{expected_default.bytesize}/#{Digest::SHA256.hexdigest(expected_default)}, actual #{actual_default.bytesize}/#{Digest::SHA256.hexdigest(actual_default)}"
-        end
-
-        normalized_playbook = checker.normalize_text(read(root, "docs/playbook.md"), "docs/playbook.md")
-        role_start = normalized_playbook.index(Checker::ROLE_BEGIN) + Checker::ROLE_BEGIN.length
-        role_finish = normalized_playbook.index(Checker::ROLE_END, role_start)
-        expected_role = normalized_playbook[role_start...role_finish]
-        actual_role = checker.normalize_text(read(root, "docs/role-contracts.md"), "docs/role-contracts.md")
-        raise "multibyte Role Contracts mismatch" unless actual_role == expected_role
+        Checker.new(root).check!
       end
-      pass("multibyte source extraction and payload")
-
-      with_git_fixture do |root, revision|
-        checker = Checker.new(root)
-        destination = File.join(File.dirname(root), "valid-sync")
-        checker.write_sync_dir!(destination, revision)
-        pass("revision-bound sync")
-
-        assert_failure("existing sync directory", "sync directory must not already exist") do
-          checker.write_sync_dir!(destination, revision)
-        end
-
-        attack_dir = File.join(File.dirname(root), "symlink-attack")
-        Dir.mkdir(attack_dir, 0o700)
-        target = File.join(root, "README.md")
-        target_before = File.binread(target)
-        target_mode = File.stat(target).mode & 0o777
-        payload_link = File.join(attack_dir, "01-default-workflow.md")
-        File.symlink(target, payload_link)
-        assert_failure("symlinked sync payload", "sync output path already exists") do
-          checker.send(:write_private, payload_link, "mutated\n")
-        end
-        raise "symlink target bytes changed" unless File.binread(target) == target_before
-        raise "symlink target mode changed" unless (File.stat(target).mode & 0o777) == target_mode
-        raise "repository changed during symlink test" unless git!(root, "status", "--porcelain=v1", "--untracked-files=all").empty?
-        pass("symlink target and repository unchanged")
-
-        assert_failure("nonexistent workflow revision", "workflow revision does not identify a commit") do
-          checker.write_sync_dir!(File.join(File.dirname(root), "nonexistent-sync"), "a" * 40)
-        end
-
-        append(root, "examples/task-issue.md", "\nrevision fixture\n")
-        git!(root, "add", "examples/task-issue.md")
-        git!(root, "commit", "-q", "-m", "fixture second revision")
-        second_revision = git!(root, "rev-parse", "HEAD")
-
-        assert_failure("unpushed workflow revision", "workflow revision must be pushed before sync generation") do
-          checker.write_sync_dir!(File.join(File.dirname(root), "unpushed-sync"), second_revision)
-        end
-
-        git!(root, "push", "-q", "origin", "HEAD:refs/heads/main")
-
-        assert_failure("mismatched workflow revision", "workflow revision must equal HEAD") do
-          checker.write_sync_dir!(File.join(File.dirname(root), "mismatched-sync"), revision)
-        end
-
-        append(root, "README.md", "\ndirty fixture\n")
-        assert_failure("dirty revision source", "repository must be clean before sync generation") do
-          checker.write_sync_dir!(File.join(File.dirname(root), "dirty-sync"), second_revision)
-        end
-      end
-
-      with_crlf_git_fixture do |root, revision|
-        source_paths = ["README.md"] + Checker::SYNC_SOURCES.map { |entry| entry.fetch(:source) }.reject { |source| source == "README.md#Default Workflow" }
-        missing_crlf = source_paths.reject { |source| read(root, source).include?("\r\n") }
-        raise "CRLF fixture did not convert: #{missing_crlf.join(', ')}" unless missing_crlf.empty?
-        raise "CRLF fixture is not clean" unless git!(root, "status", "--porcelain=v1", "--untracked-files=all").empty?
-
-        checker = Checker.new(root)
-        checker.check!
-        checker.write_sync_dir!(File.join(File.dirname(root), "crlf-sync"), revision)
-      end
-      pass("clean CRLF check and revision-bound sync")
+      pass("multibyte Role Contracts extraction")
 
       expect_failure("broken local link", "broken local Markdown link") do |root|
         append(root, "README.md", "\n[broken](docs/does-not-exist.md)\n")
+      end
+
+      expect_failure("retired external coordinator in AGENTS", "retired coordination policy present") do |root|
+        append(root, "AGENTS.md", "\nLinear remains required for workflow coordination.\n")
+      end
+
+      expect_failure("retired synchronized-document instruction", "retired coordination policy present") do |root|
+        append(root, "README.md", "\nLoad a synced workflow document before review.\n")
       end
 
       Checker::STALE_PHRASES.each do |phrase|
@@ -2329,69 +1998,11 @@ module FourEyesDocs
 
     def with_fixture
       Dir.mktmpdir("four-eyes-check-docs-") do |tmp|
-        %w[README.md docs examples].each do |entry|
+        %w[AGENTS.md README.md docs examples].each do |entry|
           FileUtils.cp_r(File.join(@source_root, entry), File.join(tmp, entry))
         end
         yield tmp
       end
-    end
-
-    def with_git_fixture
-      Dir.mktmpdir("four-eyes-check-docs-git-") do |tmp|
-        root = File.join(tmp, "repo")
-        remote = File.join(tmp, "remote.git")
-        FileUtils.mkdir_p(root)
-        %w[README.md docs examples].each do |entry|
-          FileUtils.cp_r(File.join(@source_root, entry), File.join(root, entry))
-        end
-        git!(root, "init", "-q")
-        git!(root, "config", "user.name", "Four Eyes Self Test")
-        git!(root, "config", "user.email", "self-test@example.invalid")
-        git!(root, "add", ".")
-        git!(root, "commit", "-q", "-m", "fixture revision")
-        git!(tmp, "init", "--bare", "-q", remote)
-        git!(root, "remote", "add", "origin", remote)
-        git!(root, "push", "-q", "-u", "origin", "HEAD:refs/heads/main")
-        yield root, git!(root, "rev-parse", "HEAD")
-      end
-    end
-
-    def with_crlf_git_fixture
-      Dir.mktmpdir("four-eyes-check-docs-crlf-") do |tmp|
-        source = File.join(tmp, "source")
-        root = File.join(tmp, "clone")
-        remote = File.join(tmp, "remote.git")
-        FileUtils.mkdir_p(source)
-        %w[README.md docs examples].each do |entry|
-          FileUtils.cp_r(File.join(@source_root, entry), File.join(source, entry))
-        end
-        git!(source, "init", "-q")
-        git!(source, "config", "user.name", "Four Eyes Self Test")
-        git!(source, "config", "user.email", "self-test@example.invalid")
-        git!(source, "add", ".")
-        git!(source, "commit", "-q", "-m", "fixture revision")
-        git!(tmp, "init", "--bare", "-q", remote)
-        git!(source, "remote", "add", "origin", remote)
-        git!(source, "push", "-q", "origin", "HEAD:refs/heads/main")
-        git!(remote, "symbolic-ref", "HEAD", "refs/heads/main")
-        git!(tmp, "-c", "core.autocrlf=true", "clone", "-q", remote, root)
-        git!(root, "config", "core.autocrlf", "true")
-        yield root, git!(root, "rev-parse", "HEAD")
-      end
-    end
-
-    def git!(root, *arguments)
-      output, error, status = Open3.capture3("git", "-C", root, *arguments)
-      raise "git fixture failed: #{error}" unless status.success?
-
-      output.strip
-    end
-
-    def expected_default_workflow(readme)
-      start_match = /^## Default Workflow\n/.match(readme) || raise("Default Workflow heading missing")
-      finish_match = /^## /m.match(readme, start_match.end(0))
-      finish = finish_match ? finish_match.begin(0) : readme.length
-      readme[start_match.begin(0)...finish]
     end
 
     def expect_failure(name, message)
@@ -2456,23 +2067,9 @@ begin
     puts "source_bootstrap_saved=#{report[:saved]}"
     puts format("source_bootstrap_reduction=%.2f%%", report[:reduction])
   else
-    options = {}
-    parser = OptionParser.new do |opts|
-      opts.on("--sync-dir PATH") { |value| options[:sync_dir] = value }
-      opts.on("--revision SHA") { |value| options[:revision] = value }
-    end
-    parser.parse!(ARGV)
-    unless ARGV.empty? && options[:sync_dir] && options[:revision]
-      raise FourEyesDocs::CheckError, "use --sync-dir PATH with --revision FULL_SHA"
-    end
-
-    checker = FourEyesDocs::Checker.new(root)
-    checker.check!
-    digest = checker.write_sync_dir!(options[:sync_dir], options[:revision])
-    puts "wrote six sync payloads and manifest"
-    puts "manifest_sha256=#{digest}"
+    raise FourEyesDocs::CheckError, "use --self-test, --write-derived, or no arguments"
   end
-rescue FourEyesDocs::CheckError, OptionParser::ParseError => error
+rescue FourEyesDocs::CheckError => error
   warn "check-docs: FAIL: #{error.message}"
   exit 1
 end

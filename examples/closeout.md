@@ -3,6 +3,8 @@
 ```text
 Closeout
 
+Coordination record: local
+
 Executed:
 - Implemented retry classification in the existing sync worker helper.
 - Added focused retry tests.
@@ -20,8 +22,8 @@ Verification:
 Committed:
 - `abc1234 fix(sync): Add retry classification`
 
-Resulting issue state will be set to:
-- Done
+Resulting coordination status:
+- completed
 
 Next human action:
 - None.
@@ -107,7 +109,7 @@ Complete paths, Git identities, local expected-state transitions, ref pre/post c
 
 ## Private Lifecycle Evidence Example
 
-This local-only record is not posted to the tracker or public PR.
+This local-only record is not posted to a public coordination record.
 
 ```text
 Private worktree lifecycle evidence

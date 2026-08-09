@@ -1,6 +1,6 @@
 # Agent Instructions
 
-This file is for agents editing the version-controlled Four Eyes repo. Agents using the workflow on other repos should follow the synced Linear workflow docs.
+This file is for agents editing the version-controlled Four Eyes repo. Agents using the workflow on other repos should load policy from one recorded full commit SHA in this repository.
 
 ## Style
 
@@ -20,8 +20,8 @@ This file is for agents editing the version-controlled Four Eyes repo. Agents us
 - Preserve the human-approved framing.
 - Do not make the project sound like a fully autonomous agent framework.
 - Update examples when the playbook or templates change materially.
-- When workflow docs are committed and pushed, sync the matching Linear docs by default unless the human explicitly asks for a repo-only change.
-- Record the pushed repo commit SHA in the Linear review issue or sync note after syncing.
+- Update the selected pull request, GitHub parent issue, or temporary local coordination record when workflow state changes.
+- Record the full workflow commit SHA in coordination records, reviewer packets, and verdicts.
 
 ## Verification
 
