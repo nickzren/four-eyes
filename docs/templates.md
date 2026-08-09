@@ -577,3 +577,31 @@ Branch resolution:
 ```
 
 Keep canonical paths, Git identities, local expected-state transitions, exact ref pre/post checks, clean diagnostics, removal results, and retained-checkout absence verification in private local evidence. Post only the sanitized worktree resolution fields in the Closeout block.
+
+## Private Worktree Lifecycle Evidence
+
+Keep this local-only block out of tracker comments and public PRs.
+
+```text
+Private worktree lifecycle evidence
+
+- Reference: <ownership-category>/<opaque reference>
+- Canonical path: <private absolute path>
+- Owner/category: <owner/category>
+- Checkout kind: named branch | detached
+- Expected branch/ref or reviewed SHA: <full ref and SHA | detached SHA>
+- Git common directory: <private canonical path>
+- Per-worktree Git directory: <private canonical path>
+- Base SHA: <full SHA | not applicable>
+- Stored primary fingerprint: <four-part fingerprint | not applicable>
+- Remote identity/name/full ref: <private values | none/none/none>
+- Expected/live remote state: <sha/sha | absent/absent | none/none | mismatch>
+- Previous/new local expected state: <sha/sha | sha/absent | none>
+- Local ref pre-delete check: <exact match | not applicable | failed>
+- Local ref post-delete check: <absent | not applicable | failed>
+- Clean status: <clean | dirty>
+- Removal result: <removed normally | retained | handed off>
+- Retained-checkout absence check: <passed | not applicable | failed>
+- Resolution path: <merged | abandoned | intentionally kept branch | reviewer detached | human handoff>
+- Blocker: <none | exact blocker>
+```

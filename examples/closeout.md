@@ -104,3 +104,57 @@ Worktree resolution:
 ```
 
 Complete paths, Git identities, local expected-state transitions, ref pre/post checks, clean diagnostics, removal results, and retained-checkout absence verification stay in private local evidence.
+
+## Private Lifecycle Evidence Example
+
+This local-only record is not posted to the tracker or public PR.
+
+```text
+Private worktree lifecycle evidence
+
+- Reference: phase-execution/EXAMPLE-retry-worktree
+- Canonical path: <private canonical phase-worktree path>
+- Owner/category: orchestrator/phase-execution
+- Checkout kind: named branch
+- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at abc1234
+- Git common directory: <private canonical common Git directory>
+- Per-worktree Git directory: <private canonical per-worktree Git directory>
+- Base SHA: 1111111111111111111111111111111111111111
+- Stored primary fingerprint: <HEAD/staged/unstaged/untracked values>
+- Remote identity/name/full ref: <private remote identity/name/full ref>
+- Expected/live remote state: abc1234/abc1234
+- Previous/new local expected state: abc1234/absent
+- Local ref pre-delete check: exact match
+- Local ref post-delete check: absent
+- Clean status: clean
+- Removal result: removed normally
+- Retained-checkout absence check: passed
+- Resolution path: merged
+- Blocker: none
+```
+
+Reviewer-detached evidence uses the same field order with checkout kind `detached`, the exact reviewed SHA, remote tuple `none/none/none`, and non-applicable branch-transition fields.
+
+```text
+Private worktree lifecycle evidence
+
+- Reference: reviewer-verification/EXAMPLE-r2-round-1
+- Canonical path: <private canonical reviewer-worktree path>
+- Owner/category: Reviewer 2/reviewer-verification
+- Checkout kind: detached
+- Expected branch/ref or reviewed SHA: 2222222222222222222222222222222222222222
+- Git common directory: <private canonical common Git directory>
+- Per-worktree Git directory: <private canonical per-worktree Git directory>
+- Base SHA: not applicable
+- Stored primary fingerprint: not applicable
+- Remote identity/name/full ref: none/none/none
+- Expected/live remote state: none/none
+- Previous/new local expected state: none
+- Local ref pre-delete check: not applicable
+- Local ref post-delete check: not applicable
+- Clean status: clean
+- Removal result: removed normally
+- Retained-checkout absence check: passed
+- Resolution path: reviewer detached
+- Blocker: none
+```

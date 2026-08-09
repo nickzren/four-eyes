@@ -113,13 +113,51 @@ module FourEyesDocs
       "- Resolution path:",
       "- Blocker:"
     ].freeze
+    WORKTREE_CLOSEOUT_TEMPLATE_LINES = [
+      "- Reference: <ownership-category>/<opaque reference>",
+      "- Owner/category: <owner/category>",
+      "- Checkout kind: named branch | detached",
+      "- Remote subject: bound | none",
+      "- Expected/live remote comparison: <match | mismatch | none>",
+      "- Resolution path: <merged | abandoned | intentionally kept branch | reviewer detached | human handoff>",
+      "- Blocker: <none | exact blocker>"
+    ].freeze
     PRIVATE_WORKTREE_CLOSEOUT_PREFIXES = [
+      "- Canonical path:",
+      "- Expected branch/ref or reviewed SHA:",
+      "- Git common directory:",
+      "- Per-worktree Git directory:",
+      "- Base SHA:",
+      "- Stored primary fingerprint:",
+      "- Remote identity/name/full ref:",
+      "- Expected/live remote state:",
       "- Previous/new local expected state:",
       "- Local ref pre-delete check:",
       "- Local ref post-delete check:",
       "- Clean status:",
-      "- Removal:",
+      "- Removal result:",
       "- Retained-checkout absence check:"
+    ].freeze
+    PRIVATE_WORKTREE_EVIDENCE_LINES = [
+      "- Reference: <ownership-category>/<opaque reference>",
+      "- Canonical path: <private absolute path>",
+      "- Owner/category: <owner/category>",
+      "- Checkout kind: named branch | detached",
+      "- Expected branch/ref or reviewed SHA: <full ref and SHA | detached SHA>",
+      "- Git common directory: <private canonical path>",
+      "- Per-worktree Git directory: <private canonical path>",
+      "- Base SHA: <full SHA | not applicable>",
+      "- Stored primary fingerprint: <four-part fingerprint | not applicable>",
+      "- Remote identity/name/full ref: <private values | none/none/none>",
+      "- Expected/live remote state: <sha/sha | absent/absent | none/none | mismatch>",
+      "- Previous/new local expected state: <sha/sha | sha/absent | none>",
+      "- Local ref pre-delete check: <exact match | not applicable | failed>",
+      "- Local ref post-delete check: <absent | not applicable | failed>",
+      "- Clean status: <clean | dirty>",
+      "- Removal result: <removed normally | retained | handed off>",
+      "- Retained-checkout absence check: <passed | not applicable | failed>",
+      "- Resolution path: <merged | abandoned | intentionally kept branch | reviewer detached | human handoff>",
+      "- Blocker: <none | exact blocker>"
     ].freeze
     PUBLIC_WORKTREE_RECORD_RULE = "Public tracker records never include worktree paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, or cleanup diagnostics. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence."
     DEFAULT_WORKTREE_RULE = "4. For each phase, the orchestrator creates a phase branch and dedicated worktree from the base while the primary checkout stays coordination-only."
@@ -144,7 +182,7 @@ module FourEyesDocs
       "- After local creation, repeat the authoritative live remote-absence query for a bound remote, or re-require the complete all-`none` tuple when no remote is bound. Only when every primary, phase, local-ref, Git-identity, fingerprint, and remote postcondition matches may the orchestrator seal the immutable creation record and record local `absent -> <base SHA>` plus remote expected state `absent` or `none`.",
       "- A failed creation postcondition creates only a recovery record from observed facts and a human handoff. Never adopt, remove, retry, or advance expected state automatically.",
       "- A phase-worktree immutable record binds opaque reference, canonical path, owner/category, checkout kind `named branch`, expected full local branch ref, initial full HEAD SHA, Git common directory, per-worktree Git directory, base SHA, stored primary pre-creation fingerprint, credential-free canonical remote identity or `none`, remote name or `none`, full remote ref or `none`, and initial expected remote state `absent` or `none`.",
-      "- Resume is not creation. Resume requires owner/category, checkout kind, canonical path, expected branch ref, base SHA, Git common directory, per-worktree Git directory, immutable remote subject tuple, and stored primary fingerprint to equal the immutable record; live local ref and worktree HEAD must equal mutable expected local state and descend from base; authoritative live remote state must equal mutable expected remote state; both checkouts must be clean and match their stored fingerprints. Any mismatch hands off.",
+      "- Resume is not creation. Resume requires owner/category, checkout kind, canonical path, expected branch ref, base SHA, Git common directory, per-worktree Git directory, immutable remote subject tuple, and stored primary fingerprint to equal the immutable record; live local ref and worktree HEAD must equal mutable expected local state and descend from base; authoritative live remote state must equal mutable expected remote state; the primary must be clean at its stored fingerprint; and the phase checkout must be clean and successfully fingerprinted at the exact expected HEAD, with that fresh fingerprint recorded as the resumed execution baseline. Any mismatch hands off.",
       "- Before edits, run only the repository's documented setup and verification commands in the phase worktree and record exact results. Never run a generic dependency installer automatically.",
       "- If the repository documents no verification command, the reviewed plan must define one or explicitly record that no baseline is available.",
       "- A failing baseline proceeds only after the human accepts the exact command, bounded failure signature, and impact. A plan-authored acceptance alone is insufficient.",
@@ -591,9 +629,10 @@ module FourEyesDocs
           phase_mode_line = lines[0...index].reverse.find { |candidate| candidate.start_with?("Phase branch mode:") }
           fail_check("selected worktree mode lacks phase mode in #{relative}") unless phase_mode_line
           phase_mode = phase_mode_line.delete_prefix("Phase branch mode: ")
-          unless %w[on off].include?(phase_mode) && mode == phase_mode
+          unless %w[on off].include?(phase_mode) && !(phase_mode == "off" && mode == "on")
             fail_check("invalid phase/worktree mode combination in #{relative}")
           end
+          fail_check("worktree-off reference mismatch in #{relative}") if mode == "off" && reference != "none"
           if phase_branch == "none"
             fail_check("non-executable worktree reference mismatch in #{relative}") unless reference == "none"
           elsif mode == "on"
@@ -629,15 +668,19 @@ module FourEyesDocs
       fail_check("worktree slice field order mismatch") unless slice_positions == slice_positions.sort
 
       playbook = normalized_read("docs/playbook.md")
-      lifecycle = section(playbook, "## Worktree Lifecycle", "## Authority")
+      lifecycle_starts = heading_positions(playbook, "## Worktree Lifecycle")
+      fail_check("worktree lifecycle section missing or duplicated") unless lifecycle_starts.length == 1
+      lifecycle_start = lifecycle_starts.first
+      lifecycle_finish = playbook.index(ROLE_BEGIN, lifecycle_start)
+      fail_check("worktree lifecycle section boundary missing") unless lifecycle_finish
+      lifecycle = playbook[lifecycle_start...lifecycle_finish]
       WORKTREE_REQUIRED_RULES.each do |line|
         require_unique_operative_line_in_section!(playbook, lifecycle, line, "worktree lifecycle rule missing")
       end
-      actual_rules = markdown_lines(lifecycle).each_with_object([]) do |entry, rules|
-        next unless entry[:context] == :prose
+      actual_rules = lifecycle.lines.map(&:chomp).each_with_object([]) do |line, rules|
+        next if line.empty? || line.match?(/\A\#{1,6}(?:[ \t]|\z)/)
 
-        line = entry[:line]
-        rules << line if line.start_with?("- ") || line == WORKTREE_REQUIRED_RULES.first
+        rules << line
       end
       fail_check("unchecked worktree lifecycle rule") unless actual_rules == WORKTREE_REQUIRED_RULES
 
@@ -650,21 +693,33 @@ module FourEyesDocs
       require_unique_operative_line_in_section!(role_contracts, branch, ROLE_WORKTREE_RULE, "role-contract worktree rule missing")
 
       closeout = normalized_read("examples/closeout.md")
-      check_worktree_closeout_examples!(closeout)
+      private_example_start = closeout.index("## Private Lifecycle Evidence Example")
+      fail_check("private worktree evidence example missing") unless private_example_start
+      public_closeout = closeout[0...private_example_start]
+      check_worktree_closeout_examples!(public_closeout)
 
-      closeout_template = section(templates, "## Closeout")
-      WORKTREE_CLOSEOUT_PREFIXES.each do |prefix|
-        matches = closeout_template.lines.map(&:chomp).select { |line| line.start_with?(prefix) }
-        fail_check("worktree closeout template field mismatch: #{prefix}") unless matches.length == 1
-      end
-      template_positions = WORKTREE_CLOSEOUT_PREFIXES.map { |prefix| closeout_template.index(prefix) }
-      fail_check("worktree closeout template field order mismatch") unless template_positions == template_positions.sort
+      closeout_template = section(templates, "## Closeout", "## Private Worktree Lifecycle Evidence")
+      template_lines = closeout_template.lines.map(&:chomp)
+      template_start = template_lines.index(WORKTREE_CLOSEOUT_TEMPLATE_LINES.first)
+      fail_check("worktree closeout template field mismatch") unless template_start
+      template_block = template_lines[template_start, WORKTREE_CLOSEOUT_TEMPLATE_LINES.length]
+      fail_check("worktree closeout template field mismatch") unless template_block == WORKTREE_CLOSEOUT_TEMPLATE_LINES
+      fail_check("worktree closeout template trailing field") unless template_lines[template_start + WORKTREE_CLOSEOUT_TEMPLATE_LINES.length].to_s.empty?
 
-      [closeout_template, closeout].each do |content|
+      [closeout_template, public_closeout].each do |content|
         PRIVATE_WORKTREE_CLOSEOUT_PREFIXES.each do |prefix|
           fail_check("private worktree evidence exposed in public closeout") if content.lines.any? { |line| line.start_with?(prefix) }
         end
       end
+
+      private_template = section(templates, "## Private Worktree Lifecycle Evidence")
+      private_prompt = unique_text_prompt(private_template, "private worktree evidence template missing")
+      private_lines = private_prompt.lines.map(&:chomp)
+      expected_private_lines = ["Private worktree lifecycle evidence", ""] + PRIVATE_WORKTREE_EVIDENCE_LINES
+      fail_check("private worktree evidence template mismatch") unless private_lines == expected_private_lines
+
+      private_example = section(closeout, "## Private Lifecycle Evidence Example")
+      check_private_worktree_evidence_examples!(private_example)
 
       tracker = normalized_read("docs/issue-tracker-setup.md")
       phase_mode = section(tracker, "## Phase Branch Mode", "## Parent And Child Issues")
@@ -685,6 +740,7 @@ module FourEyesDocs
             WORKTREE_CLOSEOUT_PREFIXES.zip(block).all? { |prefix, value| value.start_with?(prefix) }
           fail_check("worktree closeout example field mismatch")
         end
+        fail_check("worktree closeout example trailing field") unless lines[index + 1 + WORKTREE_CLOSEOUT_PREFIXES.length] == "```"
         records << block.to_h { |value| value.split(": ", 2) }
       end
       fail_check("worktree closeout example count mismatch") unless records.length == 4
@@ -706,6 +762,39 @@ module FourEyesDocs
         fail_check("worktree closeout reference missing: #{path}") if record.fetch("- Reference").empty?
         fail_check("worktree closeout owner missing: #{path}") if record.fetch("- Owner/category").empty?
         fail_check("worktree closeout blocker missing: #{path}") if record.fetch("- Blocker").empty?
+      end
+    end
+
+    def check_private_worktree_evidence_examples!(content)
+      blocks = fenced_code_blocks(content).select do |block|
+        block[:info] == "text" && block[:body].start_with?("Private worktree lifecycle evidence\n")
+      end
+      fail_check("private worktree evidence example count mismatch") unless blocks.length == 2
+
+      prefixes = PRIVATE_WORKTREE_EVIDENCE_LINES.map { |line| "#{line.split(':', 2).first}:" }
+      records = blocks.map do |block|
+        lines = block[:body].lines.map(&:chomp)
+        start = lines.index { |line| line.start_with?(prefixes.first) }
+        fail_check("private worktree evidence example mismatch") unless start
+        fields = lines[start, prefixes.length]
+        unless fields&.length == prefixes.length && prefixes.zip(fields).all? { |prefix, value| value.start_with?(prefix) }
+          fail_check("private worktree evidence example mismatch")
+        end
+        fail_check("private worktree evidence example trailing field") unless start + prefixes.length == lines.length
+        fields.to_h { |value| value.split(": ", 2) }
+      end
+
+      expected = {
+        "merged" => ["named branch", false],
+        "reviewer detached" => ["detached", true]
+      }
+      paths = records.map { |record| record.fetch("- Resolution path") }
+      fail_check("private worktree evidence paths mismatch") unless paths.sort == expected.keys.sort
+      records.each do |record|
+        checkout, remote_none = expected.fetch(record.fetch("- Resolution path"))
+        fail_check("private worktree evidence path state mismatch") unless record.fetch("- Checkout kind") == checkout
+        remote = record.fetch("- Remote identity/name/full ref")
+        fail_check("private worktree evidence path state mismatch") unless (remote == "none/none/none") == remote_none
       end
     end
 
@@ -1496,6 +1585,17 @@ module FourEyesDocs
         replace(root, "examples/task-issue.md", "Phase branch mode: on", "Phase branch mode: off")
       end
 
+      with_fixture do |root|
+        replace(root, "examples/task-issue.md", "Worktree mode: on", "Worktree mode: off")
+        replace(root, "examples/task-issue.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
+        Checker.new(root).check!
+        pass("phase-on worktree-off exception shape")
+      end
+
+      expect_failure("worktree-off reference mismatch", "worktree-off reference mismatch") do |root|
+        replace(root, "examples/task-issue.md", "Worktree mode: on", "Worktree mode: off")
+      end
+
       expect_failure("missing executable worktree reference", "executable worktree reference missing") do |root|
         replace(root, "examples/task-issue.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
       end
@@ -1530,6 +1630,18 @@ module FourEyesDocs
         replace(root, "docs/playbook.md", "\n### Mode And Location\n", "\n### Mode And Location\n\n- Unreviewed lifecycle expansion.\n")
       end
 
+      [
+        ["prose", "Unreviewed operative prose."],
+        ["numbered", "1. Unreviewed numbered rule."],
+        ["asterisk", "* Unreviewed asterisk rule."],
+        ["plus", "+ Unreviewed plus rule."],
+        ["indented", "    - Unreviewed indented rule."]
+      ].each do |name, addition|
+        expect_failure("unchecked #{name} lifecycle addition", "unchecked worktree lifecycle rule") do |root|
+          replace(root, "docs/playbook.md", "\n### Mode And Location\n", "\n### Mode And Location\n\n#{addition}\n")
+        end
+      end
+
       expect_failure("default workflow worktree omission", "default workflow worktree rule missing") do |root|
         replace(root, "README.md", "#{Checker::DEFAULT_WORKTREE_RULE}\n", "")
       end
@@ -1556,12 +1668,58 @@ module FourEyesDocs
         )
       end
 
+      expect_failure("worktree closeout trailing field", "worktree closeout example trailing field") do |root|
+        replace(root, "examples/closeout.md", "- Blocker: none\n```", "- Blocker: none\n- Path: private/path\n```")
+      end
+
       expect_failure("worktree closeout path-state mismatch", "worktree closeout path state mismatch: merged") do |root|
         replace(root, "examples/closeout.md", "- Checkout kind: named branch\n", "- Checkout kind: detached\n")
       end
 
       expect_failure("private worktree evidence in public closeout", "private worktree evidence exposed in public closeout") do |root|
-        replace(root, "examples/closeout.md", "- Blocker: none\n", "- Blocker: none\n- Clean status: clean\n")
+        replace(
+          root,
+          "examples/closeout.md",
+          "## Private Lifecycle Evidence Example\n",
+          "- Clean status: clean\n\n## Private Lifecycle Evidence Example\n"
+        )
+      end
+
+      expect_failure("private worktree path in public closeout", "private worktree evidence exposed in public closeout") do |root|
+        replace(
+          root,
+          "examples/closeout.md",
+          "## Private Lifecycle Evidence Example\n",
+          "- Canonical path: /private/path\n\n## Private Lifecycle Evidence Example\n"
+        )
+      end
+
+      expect_failure("private worktree evidence template omission", "private worktree evidence template mismatch") do |root|
+        full_block = "#{Checker::PRIVATE_WORKTREE_EVIDENCE_LINES.join("\n")}\n"
+        short_block = "#{Checker::PRIVATE_WORKTREE_EVIDENCE_LINES[0...-1].join("\n")}\n"
+        replace(root, "docs/templates.md", full_block, short_block)
+      end
+
+      expect_failure("private worktree evidence template trailing field", "private worktree evidence template mismatch") do |root|
+        replace(
+          root,
+          "docs/templates.md",
+          "- Blocker: <none | exact blocker>\n```",
+          "- Blocker: <none | exact blocker>\n- Extra: <not allowed>\n```"
+        )
+      end
+
+      expect_failure("private worktree evidence example omission", "private worktree evidence example mismatch") do |root|
+        replace(root, "examples/closeout.md", "- Per-worktree Git directory: <private canonical per-worktree Git directory>\n", "")
+      end
+
+      expect_failure("private worktree evidence example path mismatch", "private worktree evidence path state mismatch") do |root|
+        replace(
+          root,
+          "examples/closeout.md",
+          "- Canonical path: <private canonical reviewer-worktree path>\n- Owner/category: Reviewer 2/reviewer-verification\n- Checkout kind: detached\n",
+          "- Canonical path: <private canonical reviewer-worktree path>\n- Owner/category: Reviewer 2/reviewer-verification\n- Checkout kind: named branch\n"
+        )
       end
 
       expect_failure("public worktree record rule omission", "public worktree record rule missing") do |root|
@@ -1894,7 +2052,12 @@ module FourEyesDocs
       end
 
       with_fixture do |root|
-        append(root, "docs/templates.md", "\n```text\n## New Orchestrator Prompt ##\n```\n")
+        replace(
+          root,
+          "docs/templates.md",
+          "\n## Private Worktree Lifecycle Evidence\n",
+          "\n```text\n## New Orchestrator Prompt ##\n```\n\n## Private Worktree Lifecycle Evidence\n"
+        )
         Checker.new(root).check!
       end
       pass("fenced heading lookalike ignored")
