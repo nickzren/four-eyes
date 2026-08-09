@@ -4,6 +4,8 @@ Reviewer output returns to the human relay or orchestrator and is never posted d
 
 An exactly authorized direct Claude reviewer returns the same structured outcome privately to the orchestrator. A direct invocation `error`, `timeout`, or `could-not-review` has `Verdict: not issued`, stands for that round, and holds the gate; it is never silently retried or replaced by manual relay inside the same round.
 
+The packet or forge artifact remains the source of reviewed bytes. Only a repo-backed reviewer of a commit-bound `(Phase branch mode: on, Worktree mode: on)` implementation artifact that creates a detached worktree has worktree cleanup duties. That reviewer removes the clean owned worktree normally and verifies its path absent before returning. Dirty state or failed cleanup returns `could-not-review` with `Verdict: not issued`. Plan, packet-only, forge-only, no-repo, and `(off, off)` uncommitted reviewers create no worktree and have no cleanup obligation.
+
 ```text
 Reviewer slot: 2
 Agent/session: Claude Code
