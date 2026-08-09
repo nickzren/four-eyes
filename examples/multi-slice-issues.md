@@ -23,7 +23,7 @@ Worktree reference: none
 Remote push: disallowed
 Merge target: main
 
-Plan digest: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+Plan digest: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 Workflow revision: cccccccccccccccccccccccccccccccccccccccc
 
 | Phase | Depends on | Status | Branch/PR | Gate | Next action |
