@@ -47,17 +47,20 @@ Review artifact:
 Autonomy decision:
 - phase branch approved; merge requires human approval
 
+Status:
+- ready.
+
 Current gate:
-- Approval.
+- human approval.
 
 Next human action:
 - Approve merge to `main`, post-merge verification, closeout, and phase branch deletion.
 
 Exact approval phrase:
-- Approved: merge phase/EXAMPLE-retry-behavior into main, verify, close the issue, and delete the phase branch.
+- Approved: merge phase/EXAMPLE-retry-behavior into main, verify, close the coordination record, and delete the phase branch.
 
 If blocked:
-- The orchestrator will keep the issue at Review or Blocked, fix the phase branch, push the update, and request delta review.
+- The orchestrator will keep the coordination record at Review or Blocked, fix the phase branch, push the update, and request delta review.
 
 Still out of scope:
 - No merge to `main`, deploys, data changes, unrelated refactors, or other slices.

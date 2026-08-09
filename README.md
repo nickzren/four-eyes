@@ -161,7 +161,7 @@ The reproducible pre-change source bootstrap at revision `225430672fad342d693137
 - complete Templates: 25,609 bytes
 - complete Issue Tracker Setup: 8,995 bytes
 
-The current bootstrap is the README Default Workflow section plus generated Role Contracts. `ruby scripts/check-docs.rb` reports its bytes, savings, and reduction; the current bootstrap must not exceed 13,000 bytes.
+The current bootstrap is the README Default Workflow section plus generated Role Contracts. `ruby scripts/check-docs.rb` reports its bytes, savings, and reduction; the current bootstrap must not exceed 12,000 bytes.
 
 ## Source Of Truth
 

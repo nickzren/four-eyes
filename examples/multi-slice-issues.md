@@ -5,7 +5,8 @@
 ```text
 Title: Retry workflow cleanup
 
-Current gate: Review
+Status: review
+Current gate: review
 Next gated action: merge Phase 1
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
@@ -27,19 +28,20 @@ Workflow revision: cccccccccccccccccccccccccccccccccccccccc
 
 | Phase | Depends on | Status | Branch/PR | Gate | Next action |
 | --- | --- | --- | --- | --- | --- |
-| Retry classification | none | review | phase/retry-classification / PR #10 | Review | collect both verdicts |
-| Retry metrics | Retry classification | blocked | none | Blocked | wait for dependency to become terminal |
-| Vendor evaluation | none | waiting external eval | none | Waiting External Eval | recheck vendor result |
+| Retry classification | none | review | phase/retry-classification / PR #10 | review | collect both verdicts |
+| Retry metrics | Retry classification | blocked | none | dependencies | wait for dependency to become terminal |
+| Vendor evaluation | none | waiting external eval | none | external evaluation | recheck vendor result |
 ```
 
-`waiting external eval` is non-terminal. The independent Retry classification phase may proceed, while Retry metrics remains unready because it depends on a non-terminal phase.
+`Status` records lifecycle progress; `Gate` records what controls the next transition. `waiting external eval` is non-terminal. The independent Retry classification phase may proceed, while Retry metrics remains unready because it depends on a non-terminal phase.
 
 ## Active Phase
 
 ```text
 Title: Retry classification
 
-Current gate: Review
+Status: review
+Current gate: review
 Next gated action: merge
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on

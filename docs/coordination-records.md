@@ -24,6 +24,8 @@ Record:
 
 For multi-phase work, use the fixed ledger columns `Phase | Depends on | Status | Branch/PR | Gate | Next action`.
 
+`Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field.
+
 ## Recommended Record Shape
 
 Load the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, or Coordination Records only when their exact policy, template, or coordination behavior is needed. Reviewers receive filled immutable packets and do not need the workflow-document set.
@@ -73,7 +75,7 @@ With phase branch mode on, default worktree mode to on and keep the primary chec
 
 Public coordination records never include worktree paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, or cleanup diagnostics. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence.
 
-## Parent And Child Issues
+## Multi-Phase Ledger And Durable Follow-Ups
 
 Multi-phase work uses one GitHub parent issue with a compact phase ledger. Do not create a child issue for each committed phase.
 
@@ -95,4 +97,4 @@ Prefer a commit-preserving merge when branch-tip recovery or reviewed-commit anc
 
 Reviewers may submit review verdicts, but they do not edit coordination metadata or the ledger. The orchestrator posts carried verdicts verbatim after the verdict embargo and owns synthesis and closeout.
 
-Record and verify closeout before deleting temporary plans, local state records, worktrees, or branches.
+Record and verify pre-cleanup branch and worktree facts first. Perform only the authorized worktree, pull-request, and branch resolution, then record and verify the final closeout results in the authoritative coordination record. Remove temporary plans and local state records only after that final record is verified.

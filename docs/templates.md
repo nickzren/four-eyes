@@ -41,7 +41,7 @@ Abandoned branch cleanup: yes | ask | no
 
 If phase branch mode is off or phase branch flow is `pre-review`, do not execute the plan yet.
 
-If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit and push only the named phase branch if remote push is allowed, run verification, set the gate to Review, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid.
+If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit and push only the named phase branch if remote push is allowed, run verification, set Status `review` and Gate `review`, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid.
 
 Default review transport to `pr` for remote implementation work. Selecting `pr` pre-authorizes creating or updating only the recorded phase pull request, maintaining its bounded description, requesting expected reviewers, and submitting expected reviewer verdicts. It never authorizes merge, unrelated pull request changes, or repository settings.
 
@@ -143,7 +143,8 @@ Out of scope:
    - commitment: committed | optional | future
    - phase source: explicit | inferred by orchestrator
    - depends on: <none | slice name(s)>
-   - initial gate: Todo | In Progress | Review | Blocked
+   - initial status: todo | ready | in progress | review | waiting external eval | blocked
+   - initial gate: none | dependencies | review | human approval | external evaluation | blocker resolution | human handoff
    - autonomy mode: inherit | review-approved-auto-execute | manual
    - phase branch mode: inherit | on | off
    - phase branch flow: inherit | implementation-first | pre-review
@@ -180,7 +181,7 @@ Out of scope:
 - Keep raw evidence under `/tmp/...` unless another approved evidence path is required.
 ```
 
-## Task Issue Template
+## Coordination Record Template
 
 ```text
 ## Workflow
@@ -241,7 +242,8 @@ Reviewers return verdicts to the orchestrator or human relay and never edit coor
 
 Local plan path: `<absolute path>`
 Plan status: local-only temporary | not required because <reason>
-Current gate: Backlog | Todo | In Progress | Review | Approval | Blocked | Waiting External Eval | Done
+Status: todo | ready | in progress | review | waiting external eval | blocked | merged | completed | abandoned | retained | handed off
+Current gate: none | dependencies | review | human approval | external evaluation | blocker resolution | human handoff
 
 ## Goal
 
@@ -419,8 +421,11 @@ Verification:
 Autonomy decision:
 - manual approval required | auto-execute authorized
 
+Status:
+- in progress | ready | review | blocked
+
 Current gate:
-- In Progress | Approval | Review | Blocked
+- none | human approval | review | blocker resolution
 
 Next human action:
 - <exact action needed, or none if auto-execute is authorized>
@@ -492,8 +497,11 @@ Verification:
 - <narrow checks run and result>
 - <if broad checks have unrelated failures, state that plainly>
 
+Status:
+- in progress | ready | review | waiting external eval | blocked | merged | completed | abandoned | retained | handed off
+
 Current gate:
-- In Progress | Review | Approval | Blocked | Waiting External Eval | Done
+- none | review | human approval | external evaluation | blocker resolution | human handoff
 
 Review needed:
 - <none | reviewer slots must review the implementation diff or phase branch diff before protected-branch push/apply/deploy/merge/closeout>
@@ -510,6 +518,12 @@ Sensitive-data note:
 ```text
 Waiting external evaluation
 
+Status:
+- waiting external eval
+
+Current gate:
+- external evaluation
+
 Executed:
 - <what completed>
 
@@ -524,6 +538,24 @@ Next read-only recheck:
 
 Do not close yet because:
 - <verification not complete>
+```
+
+## Pre-Cleanup Resolution Record
+
+```text
+Pre-cleanup resolution record
+
+Coordination status before cleanup:
+- <review | approval | blocked>
+
+Authorized resolution:
+- <merged cleanup | abandoned cleanup | retain | hand off>
+
+Branch and worktree facts:
+- <opaque worktree reference, lifecycle path, local and remote tip SHAs, PR link/id, and blocker>
+
+Next action:
+- Perform only the authorized resolution, then record and verify the final closeout results.
 ```
 
 ## Closeout
@@ -544,7 +576,7 @@ Committed:
 - <commit hash/message or not committed>
 
 Resulting coordination status:
-- completed | waiting external eval | merged
+- merged | completed | abandoned | retained | handed off
 
 Next human action:
 - <none | approve closeout | validate external result | review follow-up>
@@ -554,10 +586,6 @@ Remaining work:
 
 Sensitive-data note:
 - No secrets/raw sensitive identifiers were committed or posted.
-
-Local cleanup:
-- <temporary local plan removed, or "not created">
-- <raw evidence location, if any>
 
 Worktree resolution records (zero or more, one per created opaque reference):
 - Reference: <ownership-category>/<opaque reference>
@@ -576,6 +604,10 @@ Branch resolution:
 - PR: <link/id or none>
 - Reason: <merge cleanup | abandoned because... | kept because... | handoff blocker...>
 - Revisit trigger if kept: <follow-up record or date>
+
+Temporary artifacts after this final record is recorded and verified:
+- <remove temporary local plan and execution-state record, then verify absence | not created>
+- <raw evidence location, if any>
 ```
 
 Keep canonical paths, Git identities, local expected-state transitions, exact ref pre/post checks, clean diagnostics, removal results, and retained-checkout absence verification in private local evidence. Post only the sanitized worktree resolution fields in the Closeout block.

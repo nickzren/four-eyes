@@ -34,7 +34,7 @@ module FourEyesDocs
       "docs/playbook.md" => 1,
       "docs/templates.md" => 2,
       "docs/coordination-records.md" => 2,
-      "examples/task-issue.md" => 1,
+      "examples/coordination-record.md" => 1,
       "examples/multi-slice-issues.md" => 2
     }.freeze
     REVIEWER2_OPTION_OCCURRENCES = {
@@ -59,7 +59,7 @@ module FourEyesDocs
     PRE_BOOTSTRAP_TOTAL = 92_036
     PRE_BOOTSTRAP_RECORD_RULE = "The reproducible pre-change source bootstrap at revision `225430672fad342d693137254c256ca44f2bd8ef` was 92,036 UTF-8 bytes:"
     POST_BOOTSTRAP_MEMBERS = ["README.md#Default Workflow", "docs/role-contracts.md"].freeze
-    POST_BOOTSTRAP_BUDGET = 13_000
+    POST_BOOTSTRAP_BUDGET = 12_000
     POST_BOOTSTRAP_RECORD_RULE = "The current bootstrap is the README Default Workflow section plus generated Role Contracts. `ruby scripts/check-docs.rb` reports its bytes, savings, and reduction; the current bootstrap must not exceed #{POST_BOOTSTRAP_BUDGET.to_s.reverse.scan(/.{1,3}/).join(",").reverse} bytes."
     COORDINATION_RECORD_LINE = "Coordination record: pr | github-issue | local"
     WORKTREE_MODE_LINE = "Worktree mode: on | off"
@@ -70,7 +70,7 @@ module FourEyesDocs
       "docs/playbook.md" => 1,
       "docs/templates.md" => 2,
       "docs/coordination-records.md" => 1,
-      "examples/task-issue.md" => 1,
+      "examples/coordination-record.md" => 1,
       "examples/multi-slice-issues.md" => 2
     }.freeze
     WORKTREE_OPTION_OCCURRENCES = {
@@ -196,7 +196,7 @@ module FourEyesDocs
       "- `(Phase branch mode: on, Worktree mode: off)` requires explicit human approval because it disables collision protection.",
       "- `(Phase branch mode: off, Worktree mode: on)` is invalid.",
       "- A compliant platform mechanism is allowed; otherwise use `git worktree`. Git's own same-branch and path refusals are the mechanical enforcement. Pre-creation inspection records a readable stop reason but does not replace those refusals.",
-      "- Never use force to create or remove a worktree. Never remove a worktree automatically before its lifecycle record is complete.",
+      "- Never use force to create or remove a worktree. Never remove a worktree automatically before its immutable ownership record and pre-cleanup facts are complete.",
       "- Prefer a worktree path outside the repository root. A project-local root is allowed only when `git check-ignore -v` exits zero for it and identifies an existing positive repository-specific rule in a tracked repository ignore file or that repository's own Git metadata; a negation or host-global rule is insufficient.",
       "- After creation, recompute the primary-checkout fingerprint. If the fingerprint command fails or its untracked digest changes, the worktree location is non-compliant.",
       "- Absolute paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, and cleanup diagnostics stay in local or private evidence. Public surfaces carry only the opaque worktree reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker.",
@@ -246,14 +246,14 @@ module FourEyesDocs
       "- An intentionally kept branch still requires complete ownership, exact retained local expected SHA, authoritative remote state, clean status, branch tips, reason, next owner, and revisit trigger. Remove and verify the worktree while leaving branch, expected local SHA, remote state, and PR unchanged.",
       "- Never run `git worktree prune` in the normal lifecycle. A stale entry is an out-of-band, human-gated repair.",
       "- Cleanup removes only the exact path in the ownership record and only when its live branch or detached SHA matches that record. Never remove another agent's worktree.",
-      "- Cleanup failure keeps the issue open and records the opaque reference, branch, owner/category, path privately, observed state, and blocker.",
+      "- Cleanup failure keeps the coordination record open and records the opaque reference, branch, owner/category, path privately, observed state, and blocker.",
       "- Worktree mode on with phase branch mode on pre-authorizes compliant named-branch creation and normal worktree removal. Phase branch mode separately authorizes branch creation, commits, allowed pushes, and approved merged-branch cleanup. Every existing human gate remains."
     ].freeze
     COORDINATION_FIELD_OCCURRENCES = {
       "README.md" => 1,
       "docs/templates.md" => 2,
       "docs/coordination-records.md" => 1,
-      "examples/task-issue.md" => 1,
+      "examples/coordination-record.md" => 1,
       "examples/multi-slice-issues.md" => 2,
       "examples/closeout.md" => 1
     }.freeze
@@ -307,6 +307,11 @@ module FourEyesDocs
       "4. The workflow revision is the full repository commit SHA carried by coordination records, packets, and verdicts.",
       "5. External document synchronization, source-body markers, readback checks, and a standing synchronization issue are not required."
     ].freeze
+    LEDGER_GATE_RULE = "`Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field."
+    LEDGER_EXAMPLE_RULE = "`Status` records lifecycle progress; `Gate` records what controls the next transition. `waiting external eval` is non-terminal. The independent Retry classification phase may proceed, while Retry metrics remains unready because it depends on a non-terminal phase."
+    TWO_STAGE_CLOSEOUT_RULE = "Record and verify pre-cleanup branch and worktree facts first. Perform only the authorized worktree, pull-request, and branch resolution, then record and verify the final closeout results in the authoritative coordination record. Remove temporary plans and local state records only after that final record is verified."
+    COORDINATION_TERMINAL_OPTIONS_LINE = "- merged | completed | abandoned | retained | handed off"
+    TEMPORARY_ARTIFACT_CLEANUP_RULE = "Temporary artifacts after this final record is recorded and verified:"
     FIELD_PREFIXES = [
       "Handoff mode:",
       "Review tier:",
@@ -363,7 +368,8 @@ module FourEyesDocs
       /sync payload/i,
       /standing workflow-doc/i,
       /one child issue for every/i,
-      /phase child issue/i
+      /phase child issue/i,
+      /\btask issue\b/i
     ].freeze
 
     attr_reader :root
@@ -535,11 +541,11 @@ module FourEyesDocs
     def check_field_order!
       templates = normalized_read("docs/templates.md")
       new_section = section(templates, "## New Orchestrator Prompt", "## Local Plan Template")
-      task_issue_section = section(templates, "## Task Issue Template", "## Reviewer Prompt")
+      coordination_record_section = section(templates, "## Coordination Record Template", "## Reviewer Prompt")
       new_prompt = unique_text_prompt(new_section, "workflow field template mismatch")
-      task_issue = unique_text_prompt(task_issue_section, "workflow field template mismatch")
+      coordination_record = unique_text_prompt(coordination_record_section, "workflow field template mismatch")
       expected_lines = workflow_field_lines(new_prompt)
-      actual_lines = workflow_field_lines(task_issue)
+      actual_lines = workflow_field_lines(coordination_record)
       fail_check("workflow field order mismatch") unless expected_lines == actual_lines
     end
 
@@ -627,6 +633,26 @@ module FourEyesDocs
       check_exact_rule_section!(playbook, "## Coordination Record Contract", "## Local Coordination Record", COORDINATION_REQUIRED_RULES, "coordination record")
       check_exact_rule_section!(playbook, "## Local Coordination Record", "## Repository Revision Loading", LOCAL_RECORD_REQUIRED_RULES, "local coordination record")
       check_exact_rule_section!(playbook, "## Repository Revision Loading", "## Right-Sizing Slices", REVISION_LOADING_REQUIRED_RULES, "repository revision loading")
+      coordination_contract = section(playbook, "## Coordination Record Contract", "## Local Coordination Record")
+      require_unique_operative_line_in_section!(playbook, coordination_contract, LEDGER_GATE_RULE, "ledger gate semantics missing")
+
+      coordination = normalized_read("docs/coordination-records.md")
+      recommended_fields = section(coordination, "## Recommended Fields", "## Recommended Record Shape")
+      require_unique_operative_line_in_section!(coordination, recommended_fields, LEDGER_GATE_RULE, "coordination ledger gate semantics missing")
+      github_integration = section(coordination, "## GitHub Integration")
+      require_unique_operative_line_in_section!(coordination, github_integration, TWO_STAGE_CLOSEOUT_RULE, "two-stage closeout rule missing")
+
+      multi_phase = normalized_read("examples/multi-slice-issues.md")
+      require_unique_operative_line_in_section!(multi_phase, multi_phase, LEDGER_EXAMPLE_RULE, "ledger example semantics missing")
+
+      templates = normalized_read("docs/templates.md")
+      pre_cleanup = templates.index("## Pre-Cleanup Resolution Record")
+      closeout = templates.index("## Closeout")
+      fail_check("pre-cleanup and closeout template order mismatch") unless pre_cleanup && closeout && pre_cleanup < closeout
+      closeout_template = section(templates, "## Closeout", "## Private Worktree Lifecycle Evidence")
+      require_unique_line_in_section!(templates, closeout_template, COORDINATION_TERMINAL_OPTIONS_LINE, "closeout terminal options mismatch")
+      require_unique_line_in_section!(templates, closeout_template, TEMPORARY_ARTIFACT_CLEANUP_RULE, "closeout temporary-artifact order mismatch")
+      fail_check("non-terminal status present in closeout template") if closeout_template.include?("waiting external eval")
     end
 
     def check_exact_rule_section!(content, start_heading, end_heading, expected, label)
@@ -693,7 +719,7 @@ module FourEyesDocs
       end
 
       templates = normalized_read("docs/templates.md")
-      local_plan = section(templates, "## Local Plan Template", "## Task Issue Template")
+      local_plan = section(templates, "## Local Plan Template", "## Coordination Record Template")
       WORKTREE_DEFAULT_LINES.each do |line|
         require_unique_line_in_section!(templates, local_plan, line, "worktree default field mismatch")
         total = markdown_paths.sum { |relative| normalized_read(relative).lines.count { |candidate| candidate.chomp == line } }
@@ -764,7 +790,7 @@ module FourEyesDocs
       check_private_worktree_evidence_examples!(private_example)
 
       coordination = normalized_read("docs/coordination-records.md")
-      phase_mode = section(coordination, "## Phase Branch Mode", "## Parent And Child Issues")
+      phase_mode = section(coordination, "## Phase Branch Mode", "## Multi-Phase Ledger And Durable Follow-Ups")
       require_unique_operative_line_in_section!(coordination, phase_mode, PUBLIC_WORKTREE_RECORD_RULE, "public worktree record rule missing")
 
       reviewer = normalized_read("examples/reviewer-comment.md")
@@ -1336,7 +1362,16 @@ module FourEyesDocs
       end
 
       expect_failure("mismatched current bootstrap budget", "current bootstrap budget record missing") do |root|
-        replace(root, "README.md", Checker::POST_BOOTSTRAP_RECORD_RULE, Checker::POST_BOOTSTRAP_RECORD_RULE.sub("13,000", "14,000"))
+        replace(root, "README.md", Checker::POST_BOOTSTRAP_RECORD_RULE, Checker::POST_BOOTSTRAP_RECORD_RULE.sub("12,000", "14,000"))
+      end
+
+      expect_failure("omitted current bootstrap budget", "current bootstrap budget record missing") do |root|
+        replace(root, "README.md", "#{Checker::POST_BOOTSTRAP_RECORD_RULE}\n", "")
+      end
+
+      expect_failure("relocated current bootstrap budget", "current bootstrap budget record missing") do |root|
+        replace(root, "README.md", "#{Checker::POST_BOOTSTRAP_RECORD_RULE}\n", "")
+        append(root, "README.md", "\n#{Checker::POST_BOOTSTRAP_RECORD_RULE}\n")
       end
 
       expect_failure("orchestrator prompt mismatch", "orchestrator loading prompt mismatch") do |root|
@@ -1377,6 +1412,19 @@ module FourEyesDocs
         replace(root, "README.md", block, "<!--\n#{block}\n-->")
       end
 
+      expect_failure("omitted README loading block", "default loading instructions mismatch") do |root|
+        replace(root, "README.md", Checker::DEFAULT_LOADING_BLOCK, "")
+      end
+
+      expect_failure("relocated README loading block", "default loading instructions mismatch") do |root|
+        replace(root, "README.md", Checker::DEFAULT_LOADING_BLOCK, "")
+        append(root, "README.md", "\n#{Checker::DEFAULT_LOADING_BLOCK}")
+      end
+
+      expect_failure("mismatched README loading block", "default loading instructions mismatch") do |root|
+        replace(root, "README.md", "- Four Eyes Role Contracts", "- every workflow document")
+      end
+
       expect_failure("field-order drift", "workflow field order mismatch") do |root|
         path = "docs/templates.md"
         content = read(root, path)
@@ -1387,7 +1435,7 @@ module FourEyesDocs
       end
 
       expect_failure("Reviewer 2 field omission", "Reviewer 2 field block mismatch") do |root|
-        replace(root, "examples/task-issue.md", "Direct Reviewer 2 authorization: none\n", "")
+        replace(root, "examples/coordination-record.md", "Direct Reviewer 2 authorization: none\n", "")
       end
 
       expect_failure("Reviewer 2 option drift", "Reviewer 2 option block mismatch") do |root|
@@ -1409,6 +1457,21 @@ module FourEyesDocs
         replace(root, "docs/templates.md", "#{Checker::COORDINATION_RECORD_LINE}\n", "")
       end
 
+      expect_failure("coordination field duplicate", "workflow field occurrence mismatch: Coordination record:") do |root|
+        replace(root, "docs/templates.md", "#{Checker::COORDINATION_RECORD_LINE}\n", "#{Checker::COORDINATION_RECORD_LINE}\n#{Checker::COORDINATION_RECORD_LINE}\n")
+      end
+
+      expect_failure("coordination field relocation", "workflow field missing: Coordination record:") do |root|
+        replace(root, "docs/templates.md", "#{Checker::COORDINATION_RECORD_LINE}\n", "")
+        append(root, "docs/templates.md", "\n#{Checker::COORDINATION_RECORD_LINE}\n")
+      end
+
+      expect_failure("coordination field order", "workflow field order mismatch") do |root|
+        first = "Review transport: pr | manual-relay\n"
+        second = "#{Checker::COORDINATION_RECORD_LINE}\n"
+        replace(root, "docs/templates.md", first + second, second + first)
+      end
+
       expect_failure("coordination option drift", "invalid selected coordination record in README.md") do |root|
         replace(root, "README.md", "\n#{Checker::COORDINATION_RECORD_LINE}\n", "\nCoordination record: pr | local | github-issue\n")
       end
@@ -1417,8 +1480,25 @@ module FourEyesDocs
         replace(root, "docs/playbook.md", "#{Checker::COORDINATION_REQUIRED_RULES[7]}\n", "")
       end
 
-      expect_failure("coordination rule extension", "coordination record rules mismatch") do |root|
-        replace(root, "docs/playbook.md", Checker::COORDINATION_REQUIRED_RULES[0], "#{Checker::COORDINATION_REQUIRED_RULES[0]} Extra text.")
+      expect_failure("coordination rule relocation", "coordination record rules mismatch") do |root|
+        rule = Checker::COORDINATION_REQUIRED_RULES[7]
+        replace(root, "docs/playbook.md", "#{rule}\n", "")
+        append(root, "docs/playbook.md", "\n#{rule}\n")
+      end
+
+      expect_failure("coordination rule order", "coordination record rules mismatch") do |root|
+        first = "#{Checker::COORDINATION_REQUIRED_RULES[0]}\n"
+        second = "#{Checker::COORDINATION_REQUIRED_RULES[1]}\n"
+        replace(root, "docs/playbook.md", first + second, second + first)
+      end
+
+      expect_failure("coordination unchecked extension", "coordination record rules mismatch") do |root|
+        rule = Checker::COORDINATION_REQUIRED_RULES.last
+        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n26. Unchecked coordination rule.\n")
+      end
+
+      expect_failure("local record rule omission", "local coordination record rules mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::LOCAL_RECORD_REQUIRED_RULES[1]}\n", "")
       end
 
       expect_failure("local record rule relocation", "local coordination record rules mismatch") do |root|
@@ -1427,10 +1507,52 @@ module FourEyesDocs
         append(root, "docs/playbook.md", "\n#{rule}\n")
       end
 
+      expect_failure("local record rule order", "local coordination record rules mismatch") do |root|
+        first = "#{Checker::LOCAL_RECORD_REQUIRED_RULES[0]}\n"
+        second = "#{Checker::LOCAL_RECORD_REQUIRED_RULES[1]}\n"
+        replace(root, "docs/playbook.md", first + second, second + first)
+      end
+
+      expect_failure("local record unchecked extension", "local coordination record rules mismatch") do |root|
+        rule = Checker::LOCAL_RECORD_REQUIRED_RULES.last
+        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n10. Unchecked local-record rule.\n")
+      end
+
+      expect_failure("repository revision rule omission", "repository revision loading rules mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::REVISION_LOADING_REQUIRED_RULES[1]}\n", "")
+      end
+
+      expect_failure("repository revision rule relocation", "repository revision loading rules mismatch") do |root|
+        rule = Checker::REVISION_LOADING_REQUIRED_RULES[1]
+        replace(root, "docs/playbook.md", "#{rule}\n", "")
+        append(root, "docs/playbook.md", "\n#{rule}\n")
+      end
+
       expect_failure("repository revision rule order", "repository revision loading rules mismatch") do |root|
         first = "#{Checker::REVISION_LOADING_REQUIRED_RULES[0]}\n"
         second = "#{Checker::REVISION_LOADING_REQUIRED_RULES[1]}\n"
         replace(root, "docs/playbook.md", first + second, second + first)
+      end
+
+      expect_failure("repository revision unchecked extension", "repository revision loading rules mismatch") do |root|
+        rule = Checker::REVISION_LOADING_REQUIRED_RULES.last
+        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n6. Unchecked revision-loading rule.\n")
+      end
+
+      expect_failure("ledger gate semantics omission", "ledger gate semantics missing") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::LEDGER_GATE_RULE}\n", "")
+      end
+
+      expect_failure("non-terminal closeout option", "closeout terminal options mismatch") do |root|
+        replace(root, "docs/templates.md", Checker::COORDINATION_TERMINAL_OPTIONS_LINE, "- completed | waiting external eval | merged")
+      end
+
+      expect_failure("two-stage closeout omission", "two-stage closeout rule missing") do |root|
+        replace(root, "docs/coordination-records.md", "#{Checker::TWO_STAGE_CLOSEOUT_RULE}\n", "")
+      end
+
+      expect_failure("temporary-artifact closeout ordering omission", "closeout temporary-artifact order mismatch") do |root|
+        replace(root, "docs/templates.md", "#{Checker::TEMPORARY_ARTIFACT_CLEANUP_RULE}\n", "")
       end
 
       expect_failure("combined handoff option drift", "handoff mode options mismatch") do |root|
@@ -1466,14 +1588,14 @@ module FourEyesDocs
         replace(root, "docs/templates.md", "\n```\n\n## Local Plan Template", "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Local Plan Template")
       end
 
-      expect_failure("workflow field moved outside task-issue prompt", "workflow field missing: Autonomy mode:") do |root|
+      expect_failure("workflow field moved outside coordination-record prompt", "workflow field missing: Autonomy mode:") do |root|
         path = "docs/templates.md"
         content = read(root, path)
-        section_start = content.index("## Task Issue Template") || raise("Task Issue fixture missing")
-        field_start = content.index("Autonomy mode: review-approved-auto-execute | manual\n", section_start) || raise("Task Issue Autonomy fixture missing")
+        section_start = content.index("## Coordination Record Template") || raise("Coordination Record fixture missing")
+        field_start = content.index("Autonomy mode: review-approved-auto-execute | manual\n", section_start) || raise("Coordination Record Autonomy fixture missing")
         content.slice!(field_start, "Autonomy mode: review-approved-auto-execute | manual\n".length)
         anchor = "\n```\n\n## Reviewer Prompt"
-        content.sub!(anchor, "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Reviewer Prompt") || raise("Task Issue close fixture missing")
+        content.sub!(anchor, "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Reviewer Prompt") || raise("Coordination Record close fixture missing")
         write(root, path, content)
       end
 
@@ -1497,26 +1619,26 @@ module FourEyesDocs
       end
 
       expect_failure("invalid selected worktree mode", "invalid selected worktree mode") do |root|
-        replace(root, "examples/task-issue.md", "Worktree mode: on", "Worktree mode: maybe")
+        replace(root, "examples/coordination-record.md", "Worktree mode: on", "Worktree mode: maybe")
       end
 
       expect_failure("invalid phase/worktree mode combination", "invalid phase/worktree mode combination") do |root|
-        replace(root, "examples/task-issue.md", "Phase branch mode: on", "Phase branch mode: off")
+        replace(root, "examples/coordination-record.md", "Phase branch mode: on", "Phase branch mode: off")
       end
 
       with_fixture do |root|
-        replace(root, "examples/task-issue.md", "Worktree mode: on", "Worktree mode: off")
-        replace(root, "examples/task-issue.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
+        replace(root, "examples/coordination-record.md", "Worktree mode: on", "Worktree mode: off")
+        replace(root, "examples/coordination-record.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
         Checker.new(root).check!
         pass("phase-on worktree-off exception shape")
       end
 
       expect_failure("worktree-off reference mismatch", "worktree-off reference mismatch") do |root|
-        replace(root, "examples/task-issue.md", "Worktree mode: on", "Worktree mode: off")
+        replace(root, "examples/coordination-record.md", "Worktree mode: on", "Worktree mode: off")
       end
 
       expect_failure("missing executable worktree reference", "executable worktree reference missing") do |root|
-        replace(root, "examples/task-issue.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
+        replace(root, "examples/coordination-record.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
       end
 
       expect_failure("non-ready worktree reference", "non-executable worktree reference mismatch") do |root|
@@ -1983,6 +2105,10 @@ module FourEyesDocs
 
       expect_failure("retired synchronized-document instruction", "retired coordination policy present") do |root|
         append(root, "README.md", "\nLoad a synced workflow document before review.\n")
+      end
+
+      expect_failure("retired task-issue role", "retired coordination policy present") do |root|
+        append(root, "README.md", "\nUse a task issue as the required workflow state record.\n")
       end
 
       Checker::STALE_PHRASES.each do |phrase|

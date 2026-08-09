@@ -1,4 +1,4 @@
-# Example Task Issue
+# Example Coordination Record
 
 ## Workflow
 
@@ -14,7 +14,8 @@ Review tier: full
 
 Local plan path: `/path/to/repo/tmp/example-execution-plan.md`
 Plan status: local-only temporary
-Current gate: Review
+Status: review
+Current gate: review
 Autonomy mode: review-approved-auto-execute
 Phase branch mode: on
 Phase branch flow: implementation-first
@@ -66,7 +67,7 @@ Out of scope:
 
 - No deploy without explicit human approval.
 - No unrelated refactor.
-- No raw logs or credentials in issue comments.
+- No raw logs or credentials in public coordination comments.
 
 ## Current Plan
 
@@ -80,7 +81,7 @@ Next gated action: merge
 
 ## Next Human Action
 
-Send the Reviewer 2 prompt, issue context, PR link, exact artifact identity, and verification evidence to Claude Code because this example uses manual handoff. With exactly authorized direct Claude review, the orchestrator instead dispatches only the sealed packet and that reviewer's own prior findings once for the numbered round through the platform's native isolated tool. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent.
+Send the Reviewer 2 prompt, coordination-record context, PR link, exact artifact identity, and verification evidence to Claude Code because this example uses manual handoff. With exactly authorized direct Claude review, the orchestrator instead dispatches only the sealed packet and that reviewer's own prior findings once for the numbered round through the platform's native isolated tool. The orchestrator runs or reuses Reviewer 1 as a named isolated subagent.
 
 The orchestrator holds carried verdicts until both slots return or have terminal records, posts them verbatim, recomputes the live forge head and PR diff SHA-256, then synthesizes. If both reviewers approve with no blockers and identity still matches, the orchestrator asks for human merge approval. If either reviewer blocks or the artifact changes, the orchestrator fixes the phase branch and requests the required delta review.
 
