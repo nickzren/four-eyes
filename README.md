@@ -24,15 +24,15 @@ Linear or another issue tracker is the audit and status record, not the reviewer
 1. If the task input is not clear enough to execute, the orchestrator writes a temporary local executable plan.
 2. If the plan is big and has no phases, the orchestrator infers practical phases and creates a Linear parent issue plus phase child issues.
 3. Reviewers confirm the plan before implementation starts when the plan defines the work, using the same reviewer handoff as later reviews.
-4. For each phase, the orchestrator creates a phase branch from the base branch.
-5. The orchestrator implements the whole phase, commits to the phase branch, pushes only that branch, runs verification, and moves the phase issue to Review.
+4. For each phase, the orchestrator creates a phase branch and dedicated worktree from the base while the primary checkout stays coordination-only.
+5. In that worktree, the orchestrator verifies the baseline, implements the whole phase, commits and pushes only the phase branch, runs verification, and moves the phase issue to Review.
 6. The orchestrator prepares the review transport and reviewer handoff.
 7. When available, the orchestrator runs Reviewer 1 as a named isolated internal subagent and reuses it for the phase or parent workflow. Reviewer 2 stays human-relayed by default; optional direct Claude review is allowed only through a native isolated invocation tool under exact human-approved phase, model, call, and cost bounds.
 8. Reviewers inspect the exact revision-bound PR or packet independently and return verdicts outside the tracker.
 9. After every expected slot returns or has a terminal record, the orchestrator posts carried verdicts verbatim, verifies the repository and artifact are unchanged, then synthesizes.
 10. If blocked or an accepted nit changes the artifact, the orchestrator fixes the phase branch and requests the required delta review.
 11. When reviewers approve, the human approves merge to `main` or another protected branch.
-12. The orchestrator merges, verifies, updates or closes the tracker item, deletes the phase branch if approved, and removes the temporary local plan.
+12. The orchestrator merges, verifies, resolves every owned worktree, applies authorized branch cleanup, updates or closes the tracker item, and removes the temporary local plan.
 
 This default shows the Full review path. Light uses one opposite-family reviewer. Skip uses no reviewer.
 
@@ -90,6 +90,8 @@ For a Codex-led workflow, Reviewer 1 may be a reusable named Codex subagent. Tha
 For high-throughput work, use one branch per phase.
 
 Phase branch mode is the default high-throughput path for repo implementation phases when branch pushes are safe. The orchestrator may create the phase branch, implement the whole phase, commit to it, and push updates to that branch without asking the human for every commit or push. Reviewers review the phase branch diff and verification evidence after the phase is implemented, not after every bug.
+
+With phase branch mode on, worktree mode defaults to on: create one dedicated worktree for the phase branch and keep the primary checkout fixed on the recorded base. Worktree mode off with phase branch mode on requires explicit human approval; worktree mode on with phase branch mode off is invalid. Remove every workflow-owned worktree through its recorded lifecycle before deleting its branch.
 
 Human approval is still required before merging into `main` or another protected branch. The merge approval can also authorize post-merge verification, tracker closeout, and deleting the phase branch after the merge.
 
@@ -152,7 +154,7 @@ If the repo is not available locally, clone or read the source repo first. Then 
 - docs/role-contracts.md
 - scripts/check-docs.rb
 
-Create or update five runtime documents for Default Workflow, Playbook, Templates, Issue Tracker Setup, and Role Contracts, plus one Linear Setup maintainer document. Generate Role Contracts and all six revision-marked sync payloads with `scripts/check-docs.rb`; do not hand-edit the derived document or marker values. Make phase branch mode with implementation-first flow the default high-throughput path. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. Keep manual external Reviewer 2 first/default. Permit optional direct Claude review only where the orchestrator platform provides an isolated fresh-context invocation tool and the human has authorized the exact task or phase, full model identity, maximum calls, and maximum cost amount and currency. Require a fresh manual Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and the full workflow revision from matching loaded document markers. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
+Create or update five runtime documents for Default Workflow, Playbook, Templates, Issue Tracker Setup, and Role Contracts, plus one Linear Setup maintainer document. Generate Role Contracts and all six revision-marked sync payloads with `scripts/check-docs.rb`; do not hand-edit the derived document or marker values. Make phase branch mode with implementation-first flow and one dedicated phase worktree the default high-throughput path; keep the primary checkout coordination-only and remove owned worktrees before branch deletion. Make review transport default to `pr` when the repo has a remote and CI or branch protection, otherwise `manual-relay`. Make post-merge branch cleanup default to `yes` and abandoned branch cleanup default to `ask`. Make the Codex-led default use the named isolated Reviewer 1 subagent `reviewer1`, reused across phases and review rounds for the same parent workflow. Keep manual external Reviewer 2 first/default. Permit optional direct Claude review only where the orchestrator platform provides an isolated fresh-context invocation tool and the human has authorized the exact task or phase, full model identity, maximum calls, and maximum cost amount and currency. Require a fresh manual Reviewer 2 session for the parent workflow unless the human explicitly chooses otherwise. Require each task issue and verdict to record the current review round, exact transport-specific artifact identity, and the full workflow revision from matching loaded document markers. Hold orchestrator-carried verdicts until all expected slots have returned or have a terminal record, then post them verbatim before synthesis. If the task input is not clear enough to execute safely, have the orchestrator write a temporary local executable plan, have reviewers confirm it when it defines the work, keep it uncommitted, and remove it after closeout. Create a standing workflow-doc review issue. Keep it brief, public-safe, and generic. Do not add company names, secrets, internal links, or real task history. If repo or Linear access is missing, stop and say exactly what access is needed.
 ```
 
 ## Run Your First Review
@@ -173,6 +175,7 @@ Direct Reviewer 2 authorization: none | human-approved phase + full model + maxi
 Act as orchestrator.
 
 Use phase branch mode with implementation-first flow unless the plan says otherwise.
+Use worktree mode with one dedicated phase worktree whenever phase branch mode is on. Keep the primary checkout on the recorded base and coordination-only.
 Use `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask` unless the plan says otherwise.
 Use review transport `pr` when the repo has a remote and CI or branch protection; otherwise use `manual-relay`.
 If you can create or reuse a named isolated Reviewer 1 subagent, run Reviewer 1 internally. Keep Reviewer 2 human-relayed unless `direct Claude reviewer` is selected, the platform provides isolated fresh context, and I have authorized this exact phase plus the full model identity, maximum calls, and maximum cost amount and currency. If the platform cannot honor every bound, use manual relay. Reviewers never write Linear.
@@ -182,12 +185,12 @@ If the plan is large and has no phases, infer practical phases from scope, files
 Before pushing a phase branch, confirm branch pushes do not deploy, mutate live systems, publish releases, or trigger hard-to-reverse external effects. If they do, stop and ask for human approval before pushing.
 
 For the first ready phase:
-1. Create a phase branch from the base branch.
-2. Implement the whole phase.
+1. Create a phase branch and dedicated worktree from the base branch; validate ownership, checkout identity, cleanliness, and baseline before edits.
+2. Implement the whole phase only in that worktree.
 3. Commit and push only the named phase branch.
 4. Run verification.
 5. If review transport is `pr`, open or update the PR from phase branch to merge target under the bounded PR-write authorization. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
-6. Update Linear to Review.
+6. Update Linear to Review with the sanitized worktree reference and state result.
 7. Run or reuse internal Reviewer 1 if available. For manual Reviewer 2, return its filled Reviewer Prompt for human relay. For an authorized direct Claude reviewer, invoke it once for the numbered round with only the sealed packet and that reviewer's own prior findings; the returned verdict or terminal outcome stands for that round.
 
 Do not merge to main or another protected branch. End with the current gate plus my exact next action.

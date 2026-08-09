@@ -60,6 +60,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Branch
 
 - Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed and pushed there before review when phase branch mode authorizes it.
+- With phase branch mode on, default to one owned phase worktree, keep the primary checkout fixed, verify baseline, and remove it before branch deletion; the packet remains the review artifact, only a repo-backed reviewer that creates a detached worktree must remove it before verdict, and the contract has no named integration dependency.
 - Review the complete phase artifact before merge. Merge to `main` or another protected branch always remains a human gate.
 - Every agent-created phase branch must resolve as merged and deleted, abandoned under its explicit cleanup gate, intentionally kept with owner and revisit trigger, or handed to the human with the blocker recorded.
 - Record local and remote tip SHAs before deletion. Divergent tips, unscoped branches, non-workflow PRs, preservation needs, or cleanup side effects require human handoff.

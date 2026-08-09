@@ -14,6 +14,11 @@ Review transport: pr
 Handoff mode: reviewer1-subagent + manual reviewer2
 Reviewer 2 handoff: manual external reviewer
 Direct Reviewer 2 authorization: none
+Base branch: main
+Phase branch: none
+Worktree mode: on
+Worktree reference: none
+Remote push: disallowed
 Merge target: main
 
 Active child: EXAMPLE-201
@@ -53,6 +58,8 @@ Reviewer 2 handoff: manual external reviewer
 Direct Reviewer 2 authorization: none
 Base branch: main
 Phase branch: phase/EXAMPLE-201-retry-classification
+Worktree mode: on
+Worktree reference: phase-execution/EXAMPLE-201-worktree
 Remote push: allowed
 Merge target: main
 
@@ -103,7 +110,17 @@ Title: EXAMPLE-202 retry metrics
 Current gate: Blocked
 Next gated action: implementation
 Autonomy mode: review-approved-auto-execute
+Phase branch mode: on
+Phase branch flow: implementation-first
 Review transport: pr
+Reviewer 2 handoff: manual external reviewer
+Direct Reviewer 2 authorization: none
+Base branch: main
+Phase branch: none
+Worktree mode: on
+Worktree reference: none
+Remote push: disallowed
+Merge target: main
 Current review round: 1
 Workflow revision: cccccccccccccccccccccccccccccccccccccccc
 

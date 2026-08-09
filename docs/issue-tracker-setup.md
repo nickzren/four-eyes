@@ -48,6 +48,7 @@ Every non-trivial task issue should include:
 - next gated action
 - autonomy mode
 - phase branch mode, if enabled
+- worktree mode and sanitized worktree reference
 - review transport
 - current positive review round
 - workflow revision matching the loaded workflow document markers
@@ -103,6 +104,8 @@ Phase branch mode: on
 Phase branch flow: implementation-first
 Base branch: <base>
 Phase branch: <branch>
+Worktree mode: on | off
+Worktree reference: none | <ownership-category>/<opaque worktree reference>
 Remote push: allowed | disallowed
 Merge target: <target>
 Post-merge branch cleanup: yes | no
@@ -110,6 +113,10 @@ Abandoned branch cleanup: yes | ask | no
 ```
 
 When enabled, the orchestrator may create, commit to, and push the named phase branch without per-commit human approval. With `implementation-first`, reviewers review the completed phase branch diff and verification evidence. Human approval is still required before merge into the target branch. The merge approval may include post-merge verification, tracker closeout, and branch deletion.
+
+Use `(Phase branch mode: on, Worktree mode: on)` as the default phase-branch path. The orchestrator records the opaque reference before creation, keeps the primary checkout on the recorded base and coordination-only, validates the worktree and baseline, and implements only there. `(off, off)` preserves the primary-checkout and uncommitted-review path. `(on, off)` requires explicit human approval. `(off, on)` is invalid.
+
+Public tracker records never include worktree paths, usernames, host layout, remote URLs, remote names, or full refs. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence.
 
 Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`. Every agent-created phase branch must be resolved at closeout as merged and deleted, abandoned with any workflow-created PR closed and branch deleted, intentionally kept with owner and revisit trigger, or handed off to the human. Record branch name, local tip SHA, remote tip SHA if present, PR link if present, and reason before deletion. If local and remote tips differ, preserve the branch and hand off to the human.
 
@@ -160,3 +167,4 @@ Even with automatic links, keep the issue closeout explicit:
 - whether sensitive data stayed out of public surfaces
 - temporary local plans and working artifacts removed
 - phase branch resolution, including tip SHAs before cleanup
+- worktree resolution for every created opaque reference before branch deletion

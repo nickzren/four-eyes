@@ -41,7 +41,7 @@ module FourEyesDocs
       "docs/issue-tracker-setup.md" => 1,
       "docs/linear-setup.md" => 1,
       "examples/task-issue.md" => 1,
-      "examples/multi-slice-issues.md" => 2
+      "examples/multi-slice-issues.md" => 3
     }.freeze
     REVIEWER2_OPTION_OCCURRENCES = {
       "README.md" => 1,
@@ -80,6 +80,74 @@ module FourEyesDocs
     LIVE_LINEAR_READBACK_RULE = "The separate live Linear readback was 92,059 bytes. Do not use that readback or maintainer-document bytes in the source-savings denominator. `ruby scripts/check-docs.rb` reports the current source bootstrap, bytes saved, and percentage reduction; the post-change source bootstrap must not exceed 12,000 bytes."
     POST_BOOTSTRAP_MEMBERS = ["README.md#Default Workflow", "docs/role-contracts.md"].freeze
     POST_BOOTSTRAP_BUDGET = 12_000
+    WORKTREE_MODE_LINE = "Worktree mode: on | off"
+    WORKTREE_REFERENCE_LINE = "Worktree reference: none | <ownership-category>/<opaque worktree reference>"
+    WORKTREE_FIELD_PREFIXES = ["Worktree mode:", "Worktree reference:"].freeze
+    WORKTREE_OPTION_LINES = [WORKTREE_MODE_LINE, WORKTREE_REFERENCE_LINE].freeze
+    WORKTREE_FIELD_OCCURRENCES = {
+      "docs/playbook.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/issue-tracker-setup.md" => 1,
+      "examples/task-issue.md" => 1,
+      "examples/multi-slice-issues.md" => 3
+    }.freeze
+    WORKTREE_OPTION_OCCURRENCES = {
+      "docs/playbook.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/issue-tracker-setup.md" => 1
+    }.freeze
+    WORKTREE_DEFAULT_LINES = [
+      "Worktree mode default: on | off",
+      "Worktree reference default: none"
+    ].freeze
+    WORKTREE_SLICE_LINES = [
+      "   - worktree mode: inherit | on | off",
+      "   - worktree reference: none | <ownership-category>/<opaque worktree reference>"
+    ].freeze
+    DEFAULT_WORKTREE_RULE = "4. For each phase, the orchestrator creates a phase branch and dedicated worktree from the base while the primary checkout stays coordination-only."
+    ROLE_WORKTREE_RULE = "- With phase branch mode on, default to one owned phase worktree, keep the primary checkout fixed, verify baseline, and remove it before branch deletion; the packet remains the review artifact, only a repo-backed reviewer that creates a detached worktree must remove it before verdict, and the contract has no named integration dependency."
+    WORKTREE_REQUIRED_RULES = [
+      "The worktree lifecycle requires no named plugin, skill, marketplace product, or vendor-specific integration.",
+      "- `(Phase branch mode: on, Worktree mode: on)` is the default phase-branch path: use one dedicated named-branch worktree and keep the primary checkout coordination-only.",
+      "- `(Phase branch mode: off, Worktree mode: off)` preserves the existing primary-checkout execution and uncommitted-review path.",
+      "- `(Phase branch mode: on, Worktree mode: off)` requires explicit human approval because it disables collision protection.",
+      "- `(Phase branch mode: off, Worktree mode: on)` is invalid.",
+      "- Never use force to create or remove a worktree. Never remove a worktree automatically before its lifecycle record is complete.",
+      "- Prefer a worktree path outside the repository root. A project-local root is allowed only when `git check-ignore -v` exits zero for it and identifies an existing positive repository-specific rule in a tracked repository ignore file or that repository's own Git metadata; a negation or host-global rule is insufficient.",
+      "- After creation, recompute the primary-checkout fingerprint. If the fingerprint command fails or its untracked digest changes, the worktree location is non-compliant.",
+      "- Before fresh creation, require the primary checkout on the recorded base branch at the stored base SHA, clean under `git status --porcelain=v1 --untracked-files=all`, and equal to its canonical stored fingerprint.",
+      "- Before fresh creation, require `git worktree list --porcelain` to show no conflicting path or checkout, require the full local phase ref absent, and require an authoritative live query of the bound remote subject to report the full remote phase ref absent.",
+      "- Create the named phase branch and worktree together from the exact base without force. The primary checkout stays on the base branch and performs no phase implementation.",
+      "- Before sealing ownership, require the primary branch, HEAD, cleanliness, and fingerprint to remain exactly unchanged.",
+      "- Before sealing ownership, require the phase worktree at the canonical recorded path, on the exact named phase branch, at the base SHA, clean, fingerprintable, and bound to the expected Git common directory and distinct per-worktree Git directory.",
+      "- Repeat the authoritative live remote-absence query after local creation. Only when every primary, phase, local-ref, Git-identity, fingerprint, and remote postcondition matches may the orchestrator seal the immutable creation record and record local `absent -> <base SHA>` and remote `absent` expected states.",
+      "- A failed creation postcondition creates only a recovery record from observed facts and a human handoff. Never adopt, remove, retry, or advance expected state automatically.",
+      "- Before edits, run only the repository's documented setup and verification commands in the phase worktree and record exact results. Never run a generic dependency installer automatically.",
+      "- If the repository documents no verification command, the reviewed plan must define one or explicitly record that no baseline is available.",
+      "- A failing baseline proceeds only after the human accepts the exact command, bounded failure signature, and impact. A plan-authored acceptance alone is insufficient.",
+      "- Immediately before every authorized commit, require the exact full phase ref and expected local SHA. Afterward, require the same branch, a different new SHA that descends from both the previous expected SHA and immutable base, then record previous/new values and advance expected local state.",
+      "- A missing, premature, unauthorized, unchanged, or non-descendant local-ref transition hands off and is never absorbed.",
+      "- Obtain authoritative remote state from a live query to the exact remote or forge subject, never from remote-tracking refs alone.",
+      "- Before every authorized push or remote deletion, require authoritative live state to equal expected state. Freeze the expected local tip as a push's intended remote SHA.",
+      "- After every authorized push or remote deletion, query the same subject again and require the intended exact new state before recording previous/new values or advancing expected remote state.",
+      "- Reviewer worktrees are optional and apply only to a repo-backed reviewer of a commit-bound `(Phase branch mode: on, Worktree mode: on)` implementation artifact that needs local execution.",
+      "- A plan, packet-only, forge-only, no-repo, or `(off, off)` uncommitted reviewer has no worktree obligation and inspects the immutable supplied artifact directly.",
+      "- The immutable packet or forge artifact, never a mutable worktree, is the source of reviewed bytes.",
+      "- A reviewer-created worktree follows the same compliant-location and ownership rules as a phase worktree.",
+      "- Dirty reviewer state or failed cleanup returns `Review status: could-not-review` with `Verdict: not issued`; any drafted judgment is non-counting evidence. A reviewer that created no worktree has no cleanup obligation. Only the orchestrator records `error` or `timeout` when no response can be obtained.",
+      "- Worktree removal and branch resolution are separate. Resolve every phase worktree as merged, abandoned, intentionally kept branch, or human handoff. Remove the owned worktree before deleting its branch.",
+      "- Before requesting merge approval, bind the credential-free target repository identity, full target ref, exact live target tip, exact reviewed phase head, canonical reviewed-artifact digest, intended target, and merge strategy.",
+      "- Immediately before an approved forge merge, re-query the exact target and artifact and require all bound identities and approvals unchanged. Also require the primary checkout still on its stored base branch and SHA, clean, at its stored fingerprint, with that base an ancestor of the live target tip.",
+      "- Only exact closeout authorization permits a fast-forward-only move of the primary target branch directly to the verified merge commit. Never create another merge, rebase, reset, force, or move to a later target tip.",
+      "- After the primary fast-forward, require the exact target branch and merge-commit HEAD, clean state, and successful new fingerprint before recording the new coordination base and running post-merge verification there.",
+      "- For merged cleanup, record state; exit the worktree; remove it normally without force; verify its exact path absent from `git worktree list --porcelain` from a retained checkout; then apply the existing merged branch cleanup rule.",
+      "- Before authorized local phase-ref deletion, require the worktree absent and the full local ref equal to expected local state. After deletion, require the ref absent before recording previous/new state and advancing expected local state to `absent`.",
+      "- Before authorized remote branch deletion, require authoritative live state equal to the expected exact SHA. Afterward, require the exact ref absent before recording previous/new state and advancing expected remote state to `absent`.",
+      "- Abandoned cleanup requires complete ownership, applicable expected state, authoritative local and remote state, PR state, cleanliness, and preservation need. Dirty, divergent, changed, unowned, or preservation-needed state hands off.",
+      "- An intentionally kept branch still requires complete ownership, exact retained local expected SHA, authoritative remote state, clean status, branch tips, reason, next owner, and revisit trigger. Remove and verify the worktree while leaving branch, expected local SHA, remote state, and PR unchanged.",
+      "- Never run `git worktree prune` in the normal lifecycle. A stale entry is an out-of-band, human-gated repair.",
+      "- Cleanup removes only the exact path in the ownership record and only when its live branch or detached SHA matches that record. Never remove another agent's worktree."
+    ].freeze
     FIELD_PREFIXES = [
       "Handoff mode:",
       "Review tier:",
@@ -92,6 +160,8 @@ module FourEyesDocs
       "Direct Reviewer 2 authorization:",
       "Base branch:",
       "Phase branch:",
+      "Worktree mode:",
+      "Worktree reference:",
       "Remote push:",
       "Merge target:",
       "Post-merge branch cleanup:",
@@ -185,6 +255,7 @@ module FourEyesDocs
       check_loading_prompts!
       check_field_order!
       check_reviewer2_handoff!
+      check_worktree_contract!
       check_sync_contract!
       check_links!
       check_stale_phrases!
@@ -449,6 +520,92 @@ module FourEyesDocs
       AUTOMATION_LADDER_LINES.each do |line|
         require_unique_operative_line_in_section!(playbook, ladder, line, "automation ladder mismatch")
       end
+    end
+
+    def check_worktree_contract!
+      occurrences = Hash.new(0)
+      option_occurrences = Hash.new(0)
+      markdown_paths.each do |relative|
+        lines = normalized_read(relative).lines.map(&:chomp)
+        lines.each_with_index do |line, index|
+          next unless line.start_with?(WORKTREE_FIELD_PREFIXES.first)
+
+          occurrences[relative] += 1
+          block = lines[index, WORKTREE_FIELD_PREFIXES.length]
+          unless block&.length == WORKTREE_FIELD_PREFIXES.length &&
+              WORKTREE_FIELD_PREFIXES.zip(block).all? { |prefix, value| value.start_with?(prefix) }
+            fail_check("worktree field block mismatch in #{relative}")
+          end
+          fail_check("worktree field anchor mismatch in #{relative}") unless index.positive? && lines[index - 1].start_with?("Phase branch:")
+          fail_check("worktree field anchor mismatch in #{relative}") unless lines[index + WORKTREE_FIELD_PREFIXES.length]&.start_with?("Remote push:")
+          option_occurrences[relative] += 1 if block == WORKTREE_OPTION_LINES
+          if line.include?("|") && block != WORKTREE_OPTION_LINES
+            fail_check("worktree option block mismatch in #{relative}")
+          end
+          next if block == WORKTREE_OPTION_LINES
+
+          mode = block.fetch(0).delete_prefix("Worktree mode: ")
+          reference = block.fetch(1).delete_prefix("Worktree reference: ")
+          fail_check("invalid selected worktree mode in #{relative}") unless %w[on off].include?(mode)
+          unless reference == "none" || reference.match?(/\A[a-z0-9][a-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._-]*\z/)
+            fail_check("invalid selected worktree reference in #{relative}")
+          end
+          phase_branch = lines[index - 1].delete_prefix("Phase branch: ")
+          if phase_branch == "none"
+            fail_check("non-executable worktree reference mismatch in #{relative}") unless reference == "none"
+          elsif mode == "on"
+            fail_check("executable worktree reference missing in #{relative}") if reference == "none"
+          end
+        end
+      end
+
+      WORKTREE_FIELD_OCCURRENCES.each do |relative, expected|
+        fail_check("worktree field occurrence mismatch in #{relative}") unless occurrences.fetch(relative, 0) == expected
+      end
+      unexpected = occurrences.keys - WORKTREE_FIELD_OCCURRENCES.keys
+      fail_check("unexpected worktree field occurrence in #{unexpected.first}") unless unexpected.empty?
+      WORKTREE_OPTION_OCCURRENCES.each do |relative, expected|
+        fail_check("worktree option occurrence mismatch in #{relative}") unless option_occurrences.fetch(relative, 0) == expected
+      end
+
+      templates = normalized_read("docs/templates.md")
+      local_plan = section(templates, "## Local Plan Template", "## Task Issue Template")
+      WORKTREE_DEFAULT_LINES.each do |line|
+        require_unique_line_in_section!(templates, local_plan, line, "worktree default field mismatch")
+        total = markdown_paths.sum { |relative| normalized_read(relative).lines.count { |candidate| candidate.chomp == line } }
+        fail_check("worktree default field occurrence mismatch") unless total == 1
+      end
+      WORKTREE_SLICE_LINES.each do |line|
+        require_unique_line_in_section!(templates, local_plan, line, "worktree slice field mismatch")
+        total = markdown_paths.sum { |relative| normalized_read(relative).lines.count { |candidate| candidate.chomp == line } }
+        fail_check("worktree slice field occurrence mismatch") unless total == 1
+      end
+      default_positions = WORKTREE_DEFAULT_LINES.map { |line| local_plan.index(line) }
+      slice_positions = WORKTREE_SLICE_LINES.map { |line| local_plan.index(line) }
+      fail_check("worktree default field order mismatch") unless default_positions == default_positions.sort
+      fail_check("worktree slice field order mismatch") unless slice_positions == slice_positions.sort
+
+      playbook = normalized_read("docs/playbook.md")
+      lifecycle = section(playbook, "## Worktree Lifecycle", "## Authority")
+      WORKTREE_REQUIRED_RULES.each do |line|
+        require_unique_operative_line_in_section!(playbook, lifecycle, line, "worktree lifecycle rule missing")
+      end
+
+      readme = normalized_read("README.md")
+      default_workflow = default_workflow_source
+      require_unique_operative_line_in_section!(readme, default_workflow, DEFAULT_WORKTREE_RULE, "default workflow worktree rule missing")
+
+      role_contracts = normalized_read("docs/role-contracts.md")
+      branch = section(role_contracts, "## Branch", "## Loading")
+      require_unique_operative_line_in_section!(role_contracts, branch, ROLE_WORKTREE_RULE, "role-contract worktree rule missing")
+
+      closeout = normalized_read("examples/closeout.md")
+      ["merged", "abandoned", "intentionally kept branch", "reviewer detached"].each do |path|
+        fail_check("worktree closeout path missing: #{path}") unless closeout.include?("- Resolution path: #{path}")
+      end
+
+      reviewer = normalized_read("examples/reviewer-comment.md")
+      fail_check("reviewer worktree cleanup rule missing") unless reviewer.include?("Dirty state or failed cleanup returns `could-not-review` with `Verdict: not issued`.")
     end
 
     def section(content, start_heading, end_heading = nil)
@@ -1209,6 +1366,76 @@ module FourEyesDocs
         anchor = "\n```\n\n## Reviewer Prompt"
         content.sub!(anchor, "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Reviewer Prompt") || raise("Task Issue close fixture missing")
         write(root, path, content)
+      end
+
+      expect_failure("worktree field omission", "workflow field missing: Worktree mode:") do |root|
+        replace(root, "docs/templates.md", "#{Checker::WORKTREE_OPTION_LINES.join("\n")}\n", "")
+      end
+
+      expect_failure("worktree field order drift", "workflow field order mismatch") do |root|
+        block = "#{Checker::WORKTREE_OPTION_LINES.join("\n")}\n"
+        reversed = "#{Checker::WORKTREE_OPTION_LINES.reverse.join("\n")}\n"
+        replace(root, "docs/templates.md", block, reversed)
+      end
+
+      expect_failure("worktree field anchor drift", "worktree field anchor mismatch") do |root|
+        block = "#{Checker::WORKTREE_OPTION_LINES.join("\n")}\n"
+        replace(root, "docs/issue-tracker-setup.md", block, "Remote note: local only\n#{block}")
+      end
+
+      expect_failure("worktree option drift", "worktree option block mismatch") do |root|
+        replace(root, "docs/issue-tracker-setup.md", Checker::WORKTREE_MODE_LINE, "Worktree mode: off | on")
+      end
+
+      expect_failure("invalid selected worktree mode", "invalid selected worktree mode") do |root|
+        replace(root, "examples/task-issue.md", "Worktree mode: on", "Worktree mode: maybe")
+      end
+
+      expect_failure("missing executable worktree reference", "executable worktree reference missing") do |root|
+        replace(root, "examples/task-issue.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
+      end
+
+      expect_failure("non-ready worktree reference", "non-executable worktree reference mismatch") do |root|
+        replace(root, "examples/multi-slice-issues.md", "Phase branch: none\nWorktree mode: on\nWorktree reference: none", "Phase branch: none\nWorktree mode: on\nWorktree reference: phase-execution/not-ready")
+      end
+
+      expect_failure("worktree default omission", "worktree default field mismatch") do |root|
+        replace(root, "docs/templates.md", "#{Checker::WORKTREE_DEFAULT_LINES.first}\n", "")
+      end
+
+      expect_failure("worktree default duplicate", "worktree default field occurrence mismatch") do |root|
+        append(root, "README.md", "\n#{Checker::WORKTREE_DEFAULT_LINES.first}\n")
+      end
+
+      expect_failure("worktree slice field omission", "worktree slice field mismatch") do |root|
+        replace(root, "docs/templates.md", "#{Checker::WORKTREE_SLICE_LINES.first}\n", "")
+      end
+
+      expect_failure("unexpected worktree field block", "unexpected worktree field occurrence") do |root|
+        append(root, "README.md", "\nPhase branch: none\nWorktree mode: off\nWorktree reference: none\nRemote push: disallowed\n")
+      end
+
+      Checker::WORKTREE_REQUIRED_RULES.each_with_index do |line, index|
+        expect_failure("worktree lifecycle rule #{index + 1} omission", "worktree lifecycle rule missing") do |root|
+          replace(root, "docs/playbook.md", "#{line}\n", "")
+        end
+      end
+
+      expect_failure("default workflow worktree omission", "default workflow worktree rule missing") do |root|
+        replace(root, "README.md", "#{Checker::DEFAULT_WORKTREE_RULE}\n", "")
+      end
+
+      expect_failure("role-contract worktree omission", "role-contract worktree rule missing") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::ROLE_WORKTREE_RULE}\n", "")
+        Checker.new(root).write_derived!
+      end
+
+      expect_failure("merged worktree closeout omission", "worktree closeout path missing: merged") do |root|
+        replace(root, "examples/closeout.md", "- Resolution path: merged\n", "")
+      end
+
+      expect_failure("reviewer worktree cleanup omission", "reviewer worktree cleanup rule missing") do |root|
+        replace(root, "examples/reviewer-comment.md", "Dirty state or failed cleanup returns `could-not-review` with `Verdict: not issued`.", "Cleanup failure is recorded.")
       end
 
       with_fixture do |root|

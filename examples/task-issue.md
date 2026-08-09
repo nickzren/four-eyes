@@ -23,6 +23,8 @@ Reviewer 2 handoff: manual external reviewer
 Direct Reviewer 2 authorization: none
 Base branch: main
 Phase branch: phase/EXAMPLE-retry-behavior
+Worktree mode: on
+Worktree reference: phase-execution/EXAMPLE-retry-worktree
 Remote push: allowed
 Merge target: main
 Post-merge branch cleanup: yes

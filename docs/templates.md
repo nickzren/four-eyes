@@ -32,6 +32,8 @@ Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
 Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 Base branch: <branch>
 Phase branch: <branch or "none">
+Worktree mode: on | off
+Worktree reference: none | <ownership-category>/<opaque worktree reference>
 Remote push: disallowed | allowed
 Merge target: <branch>
 Post-merge branch cleanup: yes | no
@@ -39,7 +41,7 @@ Abandoned branch cleanup: yes | ask | no
 
 If phase branch mode is off or phase branch flow is `pre-review`, do not execute the plan yet.
 
-If phase branch mode is on and phase branch flow is `implementation-first`, create the phase branch, set the gate to In Progress while implementing, implement the phase, commit and push only the named phase branch if remote push is allowed, run verification, set the gate to Review, then return reviewer prompts for the branch diff.
+If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit and push only the named phase branch if remote push is allowed, run verification, set the gate to Review, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid.
 
 Default review transport to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work. Selecting `pr` pre-authorizes creating or updating the PR for the recorded phase branch and merge target, maintaining its bounded review description, requesting expected reviewers, and submitting expected reviewer verdicts. It does not authorize merge, unrelated PR changes, repository-setting changes, or other GitHub writes. Open or update the PR before requesting review and make it the review artifact. Public PRs should use the tracker issue ID only unless the tracker is accessible to the PR audience.
 
@@ -47,7 +49,7 @@ Before requesting review, use the canonical artifact and repository commands in 
 
 Give reviewers the filled immutable packet and exact task evidence. Reviewers do not need to load the workflow-document set unless a disputed workflow rule is itself under review.
 
-If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. Manual external Reviewer 2 remains the default and the human relays that prompt and verdict. In `light` tier, do not run a same-family internal Reviewer 1; use exactly one opposite-family reviewer through the selected Reviewer 2 handoff. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; a reused reviewer already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per reviewer per round; a returned verdict or terminal outcome stands. Do not argue, re-prompt, retry, resample, or switch transport in the same round. Hold orchestrator-carried verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for every manual external reviewer. For manual Reviewer 2, ask the human to use a fresh session for the parent workflow, reusable across phases and rounds, unless they explicitly choose otherwise.
+If Reviewer 1 handoff is `internal named subagent` and the review tier is `full`, create or reuse the named Reviewer 1 subagent `reviewer1` for the parent workflow. Reuse it across phases and fix/re-review rounds when continuity helps it understand what already happened. Start a new `reviewer1` only for an unrelated workflow, when the human asks for a reset, or if its context was contaminated with peer review, synthesis, hidden reasoning, or unrelated task context. Manual external Reviewer 2 remains the default and the human relays that prompt and verdict. In `light` tier, do not run a same-family internal Reviewer 1; use exactly one opposite-family reviewer through the selected Reviewer 2 handoff. Light permits one bounded, in-scope, same-risk fix and delta review by that same reviewer. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision. Pass only the exact review packet, verification evidence, neutral prior phase summary when needed, reviewer slot number, and the Reviewer Prompt. Full-tier delta rounds send the exact delta packet and bind the current complete artifact; a reused reviewer already holds its own prior findings. Do not pass parent transcript, hidden reasoning, other reviewer output, synthesis, or combined conclusions. Send one verdict request per reviewer per round; a returned verdict or terminal outcome stands. Do not argue, re-prompt, retry, resample, or switch transport in the same round. Hold orchestrator-carried verdicts until every expected slot has returned or has a terminal record. Direct external PR reviews are outside orchestrator control. After the embargo lifts, post each carried verdict verbatim, then synthesize. Return filled Reviewer Prompt templates for every manual external reviewer. For manual Reviewer 2, ask the human to use a fresh session for the parent workflow, reusable across phases and rounds, unless they explicitly choose otherwise. A repo-backed reviewer of a commit-bound `(on, on)` implementation artifact may use its own detached worktree at the reviewed SHA, but packet bytes or the forge artifact remain authoritative. A reviewer that creates such a worktree must remove it cleanly before returning a verdict; failed cleanup returns `could-not-review`. Plan, packet-only, forge-only, no-repo, and `(off, off)` uncommitted reviews have no worktree obligation.
 
 Select `direct Claude reviewer` only when the orchestrator platform provides native isolated fresh-context invocation and the human has authorized the exact task or phase, full model identity, maximum calls, and maximum cost amount and currency. If the platform cannot honor every bound, use manual relay. Send only the sealed packet and that reviewer's own prior findings. The direct reviewer returns privately to the orchestrator and never writes the tracker. A Claude-family author or orchestrator still needs another-family review or a recorded human panel override. A later attempt after any verdict, error, timeout, or could-not-review outcome requires a new numbered round; do not replace it by switching transport inside the same round.
 
@@ -102,6 +104,8 @@ Autonomy mode default: review-approved-auto-execute
 Phase branch mode default: on | off
 Phase branch flow default: implementation-first | pre-review
 Review transport default: pr | manual-relay
+Worktree mode default: on | off
+Worktree reference default: none
 Workflow revision: <full commit SHA from matching loaded workflow document markers>
 Post-merge branch cleanup default: yes
 Abandoned branch cleanup default: ask
@@ -146,6 +150,8 @@ Out of scope:
    - current review round: <positive integer>
    - base branch:
    - phase branch:
+   - worktree mode: inherit | on | off
+   - worktree reference: none | <ownership-category>/<opaque worktree reference>
    - remote push: disallowed | allowed
    - merge target:
    - post-merge branch cleanup: yes | no
@@ -197,6 +203,8 @@ Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
 Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 Base branch: <branch>
 Phase branch: <branch or "none">
+Worktree mode: on | off
+Worktree reference: none | <ownership-category>/<opaque worktree reference>
 Remote push: disallowed | allowed
 Merge target: <branch>
 Post-merge branch cleanup: yes | no
@@ -338,6 +346,7 @@ If the local plan file is not accessible, require its full public-safe contents 
 If execution already created a material diff, inspect the exact transport-identified artifact before protected-branch push, apply, deploy, merge, or closeout.
 Echo the provided identity exactly. Missing, malformed, mismatched, or inaccessible identity is `Review status: could-not-review` and no approval.
 Never post to Linear or another tracker.
+For a commit-bound `(Phase branch mode: on, Worktree mode: on)` implementation review, the packet or forge artifact is authoritative. If you create a detached worktree at the reviewed SHA to run local checks, use a distinct owned path, verify detached HEAD at that exact SHA, remove it normally before returning, and verify the path is absent from a retained checkout's worktree list. Dirty state or failed cleanup requires `Review status: could-not-review` and `Verdict: not issued`. If you create no worktree, you have no worktree cleanup obligation.
 
 Return exactly one outcome form.
 
@@ -547,6 +556,21 @@ Sensitive-data note:
 Local cleanup:
 - <temporary local plan removed, or "not created">
 - <raw evidence location, if any>
+
+Worktree resolution records (zero or more, one per created opaque reference):
+- Reference: <ownership-category>/<opaque reference>
+- Owner/category: <owner/category>
+- Checkout kind: named branch | detached
+- Remote subject: bound | none
+- Expected/live remote comparison: <match | mismatch | none>
+- Previous/new local expected state: <sha/sha | sha/absent | none>
+- Local ref pre-delete check: <exact match | not applicable | failed>
+- Local ref post-delete check: <absent | not applicable | failed>
+- Clean status: <clean | dirty>
+- Removal: <removed normally | intentionally kept checkout | handed off>
+- Retained-checkout absence check: <passed | not applicable | failed>
+- Resolution path: <merged | abandoned | intentionally kept branch | reviewer detached | human handoff>
+- Blocker: <none | exact blocker>
 
 Branch resolution:
 - <merged and deleted | abandoned and deleted | intentionally kept | handed off to human>
