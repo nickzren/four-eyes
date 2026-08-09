@@ -114,16 +114,16 @@ Private worktree lifecycle evidence
 
 - Reference: phase-execution/EXAMPLE-retry-worktree
 - Canonical path: <private canonical phase-worktree path>
-- Owner/category: orchestrator/phase-execution
+- Owner/category and cleanup owner: orchestrator/phase-execution | orchestrator
 - Checkout kind: named branch
-- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at abc1234
+- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 - Git common directory: <private canonical common Git directory>
 - Per-worktree Git directory: <private canonical per-worktree Git directory>
 - Base SHA: 1111111111111111111111111111111111111111
-- Stored primary fingerprint: <HEAD/staged/unstaged/untracked values>
-- Remote identity/name/full ref: <private remote identity/name/full ref>
-- Expected/live remote state: abc1234/abc1234
-- Previous/new local expected state: abc1234/absent
+- Stored primary fingerprint: HEAD=1111111111111111111111111111111111111111; staged=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; unstaged=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; untracked=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+- Remote identity/name/full ref: example.invalid/four-eyes | origin | refs/heads/phase/EXAMPLE-retry-behavior
+- Expected/live remote state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Previous/new local expected state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/absent
 - Local ref pre-delete check: exact match
 - Local ref post-delete check: absent
 - Clean status: clean
@@ -140,7 +140,7 @@ Private worktree lifecycle evidence
 
 - Reference: reviewer-verification/EXAMPLE-r2-round-1
 - Canonical path: <private canonical reviewer-worktree path>
-- Owner/category: Reviewer 2/reviewer-verification
+- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | Reviewer 2
 - Checkout kind: detached
 - Expected branch/ref or reviewed SHA: 2222222222222222222222222222222222222222
 - Git common directory: <private canonical common Git directory>

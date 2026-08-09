@@ -587,7 +587,7 @@ Private worktree lifecycle evidence
 
 - Reference: <ownership-category>/<opaque reference>
 - Canonical path: <private absolute path>
-- Owner/category: <owner/category>
+- Owner/category and cleanup owner: <owner/category> | <cleanup owner>
 - Checkout kind: named branch | detached
 - Expected branch/ref or reviewed SHA: <full ref and SHA | detached SHA>
 - Git common directory: <private canonical path>

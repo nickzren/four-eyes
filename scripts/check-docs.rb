@@ -124,6 +124,7 @@ module FourEyesDocs
     ].freeze
     PRIVATE_WORKTREE_CLOSEOUT_PREFIXES = [
       "- Canonical path:",
+      "- Owner/category and cleanup owner:",
       "- Expected branch/ref or reviewed SHA:",
       "- Git common directory:",
       "- Per-worktree Git directory:",
@@ -141,7 +142,7 @@ module FourEyesDocs
     PRIVATE_WORKTREE_EVIDENCE_LINES = [
       "- Reference: <ownership-category>/<opaque reference>",
       "- Canonical path: <private absolute path>",
-      "- Owner/category: <owner/category>",
+      "- Owner/category and cleanup owner: <owner/category> | <cleanup owner>",
       "- Checkout kind: named branch | detached",
       "- Expected branch/ref or reviewed SHA: <full ref and SHA | detached SHA>",
       "- Git common directory: <private canonical path>",
@@ -158,6 +159,50 @@ module FourEyesDocs
       "- Retained-checkout absence check: <passed | not applicable | failed>",
       "- Resolution path: <merged | abandoned | intentionally kept branch | reviewer detached | human handoff>",
       "- Blocker: <none | exact blocker>"
+    ].freeze
+    PRIVATE_WORKTREE_EXAMPLE_LINES = [
+      [
+        "- Reference: phase-execution/EXAMPLE-retry-worktree",
+        "- Canonical path: <private canonical phase-worktree path>",
+        "- Owner/category and cleanup owner: orchestrator/phase-execution | orchestrator",
+        "- Checkout kind: named branch",
+        "- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "- Git common directory: <private canonical common Git directory>",
+        "- Per-worktree Git directory: <private canonical per-worktree Git directory>",
+        "- Base SHA: 1111111111111111111111111111111111111111",
+        "- Stored primary fingerprint: HEAD=1111111111111111111111111111111111111111; staged=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; unstaged=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; untracked=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "- Remote identity/name/full ref: example.invalid/four-eyes | origin | refs/heads/phase/EXAMPLE-retry-behavior",
+        "- Expected/live remote state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "- Previous/new local expected state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/absent",
+        "- Local ref pre-delete check: exact match",
+        "- Local ref post-delete check: absent",
+        "- Clean status: clean",
+        "- Removal result: removed normally",
+        "- Retained-checkout absence check: passed",
+        "- Resolution path: merged",
+        "- Blocker: none"
+      ],
+      [
+        "- Reference: reviewer-verification/EXAMPLE-r2-round-1",
+        "- Canonical path: <private canonical reviewer-worktree path>",
+        "- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | Reviewer 2",
+        "- Checkout kind: detached",
+        "- Expected branch/ref or reviewed SHA: 2222222222222222222222222222222222222222",
+        "- Git common directory: <private canonical common Git directory>",
+        "- Per-worktree Git directory: <private canonical per-worktree Git directory>",
+        "- Base SHA: not applicable",
+        "- Stored primary fingerprint: not applicable",
+        "- Remote identity/name/full ref: none/none/none",
+        "- Expected/live remote state: none/none",
+        "- Previous/new local expected state: none",
+        "- Local ref pre-delete check: not applicable",
+        "- Local ref post-delete check: not applicable",
+        "- Clean status: clean",
+        "- Removal result: removed normally",
+        "- Retained-checkout absence check: passed",
+        "- Resolution path: reviewer detached",
+        "- Blocker: none"
+      ]
     ].freeze
     PUBLIC_WORKTREE_RECORD_RULE = "Public tracker records never include worktree paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, or cleanup diagnostics. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence."
     DEFAULT_WORKTREE_RULE = "4. For each phase, the orchestrator creates a phase branch and dedicated worktree from the base while the primary checkout stays coordination-only."
@@ -771,30 +816,12 @@ module FourEyesDocs
       end
       fail_check("private worktree evidence example count mismatch") unless blocks.length == 2
 
-      prefixes = PRIVATE_WORKTREE_EVIDENCE_LINES.map { |line| "#{line.split(':', 2).first}:" }
-      records = blocks.map do |block|
+      blocks.zip(PRIVATE_WORKTREE_EXAMPLE_LINES).each do |block, expected_fields|
         lines = block[:body].lines.map(&:chomp)
-        start = lines.index { |line| line.start_with?(prefixes.first) }
-        fail_check("private worktree evidence example mismatch") unless start
-        fields = lines[start, prefixes.length]
-        unless fields&.length == prefixes.length && prefixes.zip(fields).all? { |prefix, value| value.start_with?(prefix) }
-          fail_check("private worktree evidence example mismatch")
-        end
-        fail_check("private worktree evidence example trailing field") unless start + prefixes.length == lines.length
-        fields.to_h { |value| value.split(": ", 2) }
-      end
-
-      expected = {
-        "merged" => ["named branch", false],
-        "reviewer detached" => ["detached", true]
-      }
-      paths = records.map { |record| record.fetch("- Resolution path") }
-      fail_check("private worktree evidence paths mismatch") unless paths.sort == expected.keys.sort
-      records.each do |record|
-        checkout, remote_none = expected.fetch(record.fetch("- Resolution path"))
-        fail_check("private worktree evidence path state mismatch") unless record.fetch("- Checkout kind") == checkout
-        remote = record.fetch("- Remote identity/name/full ref")
-        fail_check("private worktree evidence path state mismatch") unless (remote == "none/none/none") == remote_none
+        expected_lines = ["Private worktree lifecycle evidence", ""] + expected_fields
+        fail_check("private worktree evidence example mismatch") unless lines.length == expected_lines.length
+        path = expected_fields.find { |line| line.start_with?("- Resolution path: ") }.split(": ", 2).last
+        fail_check("private worktree evidence state mismatch: #{path}") unless lines == expected_lines
       end
     end
 
@@ -1713,13 +1740,56 @@ module FourEyesDocs
         replace(root, "examples/closeout.md", "- Per-worktree Git directory: <private canonical per-worktree Git directory>\n", "")
       end
 
-      expect_failure("private worktree evidence example path mismatch", "private worktree evidence path state mismatch") do |root|
+      expect_failure("private worktree evidence example path mismatch", "private worktree evidence state mismatch: reviewer detached") do |root|
         replace(
           root,
           "examples/closeout.md",
-          "- Canonical path: <private canonical reviewer-worktree path>\n- Owner/category: Reviewer 2/reviewer-verification\n- Checkout kind: detached\n",
-          "- Canonical path: <private canonical reviewer-worktree path>\n- Owner/category: Reviewer 2/reviewer-verification\n- Checkout kind: named branch\n"
+          "- Canonical path: <private canonical reviewer-worktree path>\n- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | Reviewer 2\n- Checkout kind: detached\n",
+          "- Canonical path: <private canonical reviewer-worktree path>\n- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | Reviewer 2\n- Checkout kind: named branch\n"
         )
+      end
+
+      [
+        [
+          "reviewer cleanup owner mismatch",
+          "- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | Reviewer 2\n",
+          "- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | orchestrator\n",
+          "private worktree evidence state mismatch: reviewer detached"
+        ],
+        [
+          "merged abbreviated reviewed head",
+          "- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+          "- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at abc1234\n",
+          "private worktree evidence state mismatch: merged"
+        ],
+        [
+          "merged remote state mismatch",
+          "- Expected/live remote state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+          "- Expected/live remote state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/none\n",
+          "private worktree evidence state mismatch: merged"
+        ],
+        [
+          "merged local transition mismatch",
+          "- Previous/new local expected state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/absent\n",
+          "- Previous/new local expected state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+          "private worktree evidence state mismatch: merged"
+        ],
+        [
+          "merged dirty cleanup mismatch",
+          "- Local ref post-delete check: absent\n- Clean status: clean\n- Removal result: removed normally\n",
+          "- Local ref post-delete check: absent\n- Clean status: dirty\n- Removal result: removed normally\n",
+          "private worktree evidence state mismatch: merged"
+        ],
+        [
+          "reviewer retained-checkout mismatch",
+          "- Local ref post-delete check: not applicable\n- Clean status: clean\n- Removal result: removed normally\n- Retained-checkout absence check: passed\n",
+          "- Local ref post-delete check: not applicable\n- Clean status: clean\n- Removal result: removed normally\n- Retained-checkout absence check: failed\n",
+          "private worktree evidence state mismatch: reviewer detached"
+        ]
+      ].each do |name, original, replacement, error|
+        expect_failure(name, error) do |root|
+          replace(root, "examples/closeout.md", original, replacement)
+        end
       end
 
       expect_failure("public worktree record rule omission", "public worktree record rule missing") do |root|
