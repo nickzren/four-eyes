@@ -671,10 +671,15 @@ module FourEyesDocs
       standard_flow = section(playbook, "## Standard Task Flow", "## Orchestrator Next-Action Rule")
       require_unique_operative_line_in_section!(playbook, standard_flow, READ_ONLY_NO_DIFF_RULE, "read-only transition semantics mismatch")
       gate_state = section(playbook, "## Gate State", "## Gate Rule")
-      LIFECYCLE_STATUS_LINES.each do |line|
-        require_unique_operative_line_in_section!(playbook, gate_state, line, "lifecycle status vocabulary mismatch")
+      status_start = gate_state.index("Lifecycle status values:\n")
+      gate_start = gate_state.index("Gate values name the condition controlling the next transition:\n")
+      fail_check("lifecycle status vocabulary mismatch") unless status_start && gate_start && status_start < gate_start
+      status_block = gate_state[status_start...gate_start]
+      actual_status_lines = markdown_lines(status_block).each_with_object([]) do |entry, lines|
+        lines << entry[:line] if entry[:context] == :prose && entry[:line].start_with?("- ")
       end
-      fail_check("lifecycle status vocabulary mismatch") if gate_state.lines.any? { |line| line.start_with?("- Backlog:") }
+      fail_check("lifecycle status vocabulary mismatch") unless actual_status_lines == LIFECYCLE_STATUS_LINES
+      fail_check("non-contract forge state label") if gate_state.lines.any? { |line| line.start_with?("- `state:") }
 
       coordination = normalized_read("docs/coordination-records.md")
       recommended_fields = section(coordination, "## Recommended Fields", "## Recommended Record Shape")
@@ -705,11 +710,11 @@ module FourEyesDocs
 
       coordination_prompt = unique_text_prompt(section(templates, "## Coordination Record Template", "## Reviewer Prompt"), "coordination record template missing")
       require_unique_line_in_section!(coordination_prompt, coordination_prompt, PUBLIC_PLAN_REFERENCE_TEMPLATE, "public plan reference mismatch")
-      fail_check("private path guidance exposed in public coordination record") if coordination_prompt.include?("Local plan path:") || coordination_prompt.match?(%r{(?:^|[`[:space:]])/(?:Users|home|tmp|var|private|Volumes)/})
+      fail_check("private path guidance exposed in public coordination record") if coordination_prompt.include?("Local plan path:") || absolute_local_path?(coordination_prompt)
 
       coordination_example = normalized_read("examples/coordination-record.md")
       require_unique_line_in_section!(coordination_example, coordination_example, PUBLIC_PLAN_REFERENCE_EXAMPLE, "public plan reference example mismatch")
-      fail_check("private path exposed in public coordination example") if coordination_example.match?(%r{(?:^|[`[:space:]])/(?:Users|home|tmp|var|private|Volumes)/})
+      fail_check("private path exposed in public coordination example") if absolute_local_path?(coordination_example)
 
       closeout_example = normalized_read("examples/closeout.md")
       merged_example = section(closeout_example, "## Merged PR And Worktree Example", "## Non-Terminal Waiting Example")
@@ -729,6 +734,14 @@ module FourEyesDocs
         rules << line if entry[:context] == :prose && line.match?(/\A\d+\. /)
       end
       fail_check("#{label} rules mismatch") unless actual == expected
+    end
+
+    def absolute_local_path?(content)
+      boundary = %r{(?:\A|[\s`"'(<])}
+      posix = %r{#{boundary}/(?!/)[A-Za-z0-9._-]}
+      windows = %r{#{boundary}[A-Za-z]:[\\/][^\s`"'<>)]}
+      home = %r{#{boundary}~[\\/][^\s`"'<>)]}
+      content.match?(posix) || content.match?(windows) || content.match?(home)
     end
 
     def check_worktree_contract!
@@ -1622,6 +1635,14 @@ module FourEyesDocs
         replace(root, "docs/playbook.md", "Lifecycle status values:\n", "Lifecycle status values:\n\n- Backlog: idea not started")
       end
 
+      expect_failure("unknown lifecycle status addition", "lifecycle status vocabulary mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n- Draft: not a real lifecycle status\n")
+      end
+
+      expect_failure("non-contract forge state label", "non-contract forge state label") do |root|
+        replace(root, "docs/playbook.md", "- `waiting:external-eval`\n", "- `waiting:external-eval`\n- `state:applied-awaiting-verification`\n")
+      end
+
       expect_failure("pre-cleanup status vocabulary drift", "pre-cleanup status vocabulary mismatch") do |root|
         replace(root, "docs/templates.md", Checker::PRE_CLEANUP_STATUS_LINE, "- <review | approval | blocked>")
       end
@@ -1634,12 +1655,16 @@ module FourEyesDocs
         replace(root, "examples/orchestrator-synthesis.md", "#{Checker::SYNTHESIS_BLOCKED_RULE}\n", "")
       end
 
-      expect_failure("public plan reference template uses absolute path", "public plan reference mismatch") do |root|
-        replace(root, "docs/templates.md", Checker::PUBLIC_PLAN_REFERENCE_TEMPLATE, "Local plan path: `<absolute path>`")
+      expect_failure("independent absolute path in public coordination template", "private path guidance exposed in public coordination record") do |root|
+        replace(root, "docs/templates.md", Checker::PUBLIC_PLAN_REFERENCE_TEMPLATE, "#{Checker::PUBLIC_PLAN_REFERENCE_TEMPLATE}\nPrivate evidence: /srv/four-eyes/evidence")
       end
 
-      expect_failure("public plan reference example uses absolute path", "public plan reference example mismatch") do |root|
-        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "Local plan reference: `/Users/example/repo/tmp/plan.md`")
+      expect_failure("independent absolute path in public coordination example", "private path exposed in public coordination example") do |root|
+        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: /srv/four-eyes/evidence")
+      end
+
+      expect_failure("Windows absolute path in public coordination example", "private path exposed in public coordination example") do |root|
+        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: C:\\four-eyes\\evidence")
       end
 
       expect_failure("non-terminal closeout option", "closeout terminal options mismatch") do |root|

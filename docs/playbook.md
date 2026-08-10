@@ -788,7 +788,6 @@ For a `github-issue` record whose forge lacks custom states, use labels or issue
 - `gate:review`
 - `gate:human-approval`
 - `waiting:external-eval`
-- `state:applied-awaiting-verification`
 - `gate:blocker-resolution`
 
 When using gate labels, remove the old gate label in the same update that adds the new gate label.
