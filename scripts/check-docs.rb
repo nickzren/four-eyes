@@ -153,12 +153,17 @@ module FourEyesDocs
       "reviewer detached" => {
         "- Owner/category and cleanup owner" => "Reviewer 2/reviewer-verification | Reviewer 2",
         "- Checkout kind" => "detached",
+        "- Base SHA" => "not applicable",
+        "- Stored primary fingerprint" => "not applicable",
         "- Remote identity/name/full ref" => "none/none/none",
         "- Expected/live remote state" => "none/none",
         "- Previous/new local expected state" => "none",
+        "- Local ref pre-delete check" => "not applicable",
+        "- Local ref post-delete check" => "not applicable",
         "- Clean status" => "clean",
         "- Removal result" => "removed normally",
-        "- Retained-checkout absence check" => "passed"
+        "- Retained-checkout absence check" => "passed",
+        "- Blocker" => "none"
       }
     }.freeze
     PUBLIC_WORKTREE_RECORD_RULE = "Public coordination records never include worktree paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, or cleanup diagnostics. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence."
@@ -371,7 +376,11 @@ module FourEyesDocs
       "Default to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.",
       "Remote push: allowed | disallowed",
       "The orchestrator may commit and push the recorded phase branch without per-commit approval when pushes are side-effect-free. Human approval remains required before merge to a protected branch.",
-      "- Phase branch commits and pushes may be pre-authorized only by phase branch mode."
+      "- Phase branch commits and pushes may be pre-authorized only by phase branch mode.",
+      "from latest successful sync note",
+      "direct Claude adapter",
+      "Claude adapter status:",
+      "Claude contract manifest SHA-256:"
     ].freeze
     RETIRED_POLICY_PATTERNS = [
       /\bLinear\b/i,
@@ -516,12 +525,10 @@ module FourEyesDocs
       post_bytes = default_workflow_source.bytesize + normalized_read("docs/role-contracts.md").bytesize
       fail_check("bootstrap byte budget exceeded: #{post_bytes} > #{POST_BOOTSTRAP_BUDGET}") if post_bytes > POST_BOOTSTRAP_BUDGET
       saved = PRE_BOOTSTRAP_TOTAL - post_bytes
-      {
-        before: PRE_BOOTSTRAP_TOTAL,
-        after: post_bytes,
-        saved: saved,
-        reduction: (saved.to_f * 100 / PRE_BOOTSTRAP_TOTAL)
-      }
+      reduction = saved.to_f * 100 / PRE_BOOTSTRAP_TOTAL
+      fail_check("current bootstrap report mismatch") unless [PRE_BOOTSTRAP_TOTAL, post_bytes, saved, format("%.2f", reduction)] == [92_036, 11_973, 80_063, "86.99"]
+
+      { before: PRE_BOOTSTRAP_TOTAL, after: post_bytes, saved: saved, reduction: reduction }
     end
 
     def check_loading_prompts!
@@ -1053,6 +1060,15 @@ module FourEyesDocs
                           subject.match?(/\A[0-9a-f]{40}\z/)
                         end
         fail_check("private worktree evidence state mismatch: #{path}") unless valid_subject
+        if path == "merged"
+          fields = {
+            "- Base SHA" => /\A[0-9a-f]{40}\z/,
+            "- Stored primary fingerprint" => /\AHEAD=[0-9a-f]{40}; staged=[0-9a-f]{64}; unstaged=[0-9a-f]{64}; untracked=[0-9a-f]{64}\z/,
+            "- Remote identity/name/full ref" => /\A\S+ \| \S+ \| refs\/heads\/phase\/\S+\z/,
+            "- Blocker" => /\Anone\z/
+          }
+          fail_check("private worktree evidence state mismatch: #{path}") unless fields.all? { |field, pattern| record.fetch(field).match?(pattern) }
+        end
         paths << path
       end
       fail_check("private worktree evidence example paths mismatch") unless paths.sort == PRIVATE_WORKTREE_EXAMPLE_EXPECTATIONS.keys.sort
@@ -1508,6 +1524,21 @@ module FourEyesDocs
         end
       end
 
+      with_fixture do |root|
+        outside = Dir.mktmpdir("four-eyes-link-")
+        link = File.join(root, "link")
+        File.symlink(outside, link)
+        begin
+          assert_failure("fixture symlink refused", "contains a symlink") do
+            write(root, "link/outside.txt", "changed")
+          end
+          raise "symlink write escaped" if File.exist?(File.join(outside, "outside.txt"))
+        ensure
+          File.unlink(link) if File.symlink?(link)
+          FileUtils.remove_entry(outside) if File.directory?(outside)
+        end
+      end
+
       baseline_readme = nil
       begin
         with_fixture do |root|
@@ -1561,6 +1592,10 @@ module FourEyesDocs
       expect_failure("bootstrap budget overflow", "bootstrap byte budget exceeded") do |root|
         insert_before_role_end(root, "x" * Checker::POST_BOOTSTRAP_BUDGET)
         Checker.new(root).write_derived!
+      end
+
+      expect_failure("within-cap bootstrap byte drift", "current bootstrap report mismatch") do |root|
+        replace(root, "README.md", "## Default Workflow\n", "## Default Workflow\n\n")
       end
 
       expect_failure("omitted current bootstrap budget", "current bootstrap budget record missing") do |root|
@@ -1622,11 +1657,31 @@ module FourEyesDocs
 
       expect_omission_failure("phase-branch merge", "docs/playbook.md", Checker::PHASE_BRANCH_MERGE_RULE, "phase-branch merge rule mismatch")
 
+      [
+        ["selected value", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: maybe\n", "field value"],
+        ["selected occurrence", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: allowed\nRemote push: allowed\n", "field occurrence"],
+        ["default", "docs/templates.md", "#{Checker::REMOTE_PUSH_DEFAULT_LINE}\n", "", "default occurrence"],
+        ["slice field", "docs/templates.md", "#{Checker::REMOTE_PUSH_SLICE_OPTION_LINE}\n", "   - remote push: allowed | disallowed\n", "slice field occurrence"]
+      ].each do |name, path, from, to, error|
+        expect_failure("remote-push #{name} drift", "remote push #{error} mismatch") do |root|
+          replace(root, path, from, to)
+        end
+      end
+
+      expect_failure("remote-push executable order drift", "remote push field order mismatch", :check_remote_push_fields!) do |root|
+        replace(
+          root,
+          "examples/coordination-record.md",
+          "Worktree reference: phase-execution/EXAMPLE-retry-worktree\nRemote push: allowed\n",
+          "Remote push: allowed\nWorktree reference: phase-execution/EXAMPLE-retry-worktree\n"
+        )
+      end
+
       expect_failure("local commit authority narrowed", "local commit authority changed") do |root|
         replace(root, "docs/playbook.md", "This intentionally allows local commits to the named phase branch before review.", "Local commits require remote-push approval before review.")
       end
 
-      expect_failure("role-contract exact-human push path removed", "role-contract push gate mismatch") do |root|
+      expect_failure("role-contract exact-human push path removed", "role-contract push gate mismatch", :check_review_efficiency_and_policy!) do |root|
         line = "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push follows Push Authorization: the pre-authorized path requires the authoritative coordination record to say `Remote push: allowed`, and exact human approval remains available."
         replace(root, "docs/playbook.md", line, "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push requires `Remote push: allowed`.")
         Checker.new(root).write_derived!
@@ -1700,11 +1755,11 @@ module FourEyesDocs
         replace(root, "docs/playbook.md", "\n### Mode And Location\n", "\n### Mode And Location\n\n- Unreviewed lifecycle expansion.\n")
       end
 
-      expect_failure("default workflow worktree omission", "default workflow worktree rule missing") do |root|
+      expect_failure("default workflow worktree omission", "default workflow worktree rule missing", :check_worktree_contract!) do |root|
         replace(root, "README.md", "#{Checker::DEFAULT_WORKTREE_RULE}\n", "")
       end
 
-      expect_failure("role-contract worktree omission", "role-contract worktree rule missing") do |root|
+      expect_failure("role-contract worktree omission", "role-contract worktree rule missing", :check_worktree_contract!) do |root|
         replace(root, "docs/playbook.md", "#{Checker::ROLE_WORKTREE_RULE}\n", "")
         Checker.new(root).write_derived!
       end
@@ -1747,6 +1802,17 @@ module FourEyesDocs
 
       expect_failure("reviewer cleanup owner mismatch", "private worktree evidence state mismatch: reviewer detached") do |root|
         replace(root, "examples/closeout.md", "Reviewer 2/reviewer-verification | Reviewer 2", "Reviewer 2/reviewer-verification | orchestrator")
+      end
+
+      [
+        ["detached base SHA", "- Base SHA: not applicable\n", "- Base SHA: #{'1' * 40}\n", "reviewer detached"],
+        ["detached fingerprint", "- Stored primary fingerprint: not applicable\n", "- Stored primary fingerprint: HEAD=#{'1' * 40}\n", "reviewer detached"],
+        ["detached local ref", "- Local ref pre-delete check: not applicable\n", "- Local ref pre-delete check: exact match\n", "reviewer detached"],
+        ["detached remote tuple", "- Remote identity/name/full ref: none/none/none\n", "- Remote identity/name/full ref: example.invalid/four-eyes | origin | refs/heads/phase/example\n", "reviewer detached"]
+      ].each do |name, from, to, path|
+        expect_failure("#{name} mismatch", "private worktree evidence state mismatch: #{path}") do |root|
+          replace(root, "examples/closeout.md", from, to)
+        end
       end
 
       expect_failure("merged abbreviated reviewed head", "private worktree evidence state mismatch: merged") do |root|
@@ -1870,8 +1936,9 @@ module FourEyesDocs
         playbook = read(root, "docs/playbook.md")
         playbook.sub!("# Four Eyes Role Contracts\n", "# Four Eyes Role Contracts\n\nUTF-8 fixture: café 😀\n") || raise("Role Contracts fixture missing")
         write(root, "docs/playbook.md", playbook)
-        Checker.new(root).write_derived!
-        Checker.new(root).check!
+        checker = Checker.new(root)
+        checker.write_derived!
+        checker.send(:check_derived!)
       end
       pass("multibyte Role Contracts extraction")
 
@@ -1961,18 +2028,26 @@ module FourEyesDocs
     end
 
     def source_snapshot
-      entries = %w[AGENTS.md README.md scripts/check-docs.rb]
-      entries.concat(Dir.chdir(@source_root) { Dir.glob("{.github,docs,examples}/**/*", File::FNM_DOTMATCH).sort })
-      entries.each_with_object({}) do |relative, snapshot|
+      source_paths.each_with_object({}) do |relative, snapshot|
         candidate = File.join(@source_root, relative)
-        snapshot[relative] = File.binread(candidate) if File.file?(candidate)
+        snapshot[relative] = File.symlink?(candidate) ? "L#{File.readlink(candidate)}" : "F#{File.binread(candidate)}"
       end
+    end
+
+    def source_paths
+      stdout = IO.popen(["git", "-C", @source_root, "ls-files", "-coz", "--exclude-standard"], "rb", &:read)
+      raise CheckError, "source list failed" unless $?.success?
+
+      stdout.split("\0").sort
     end
 
     def fixture_snapshot
       Dir.chdir(@fixture_root) do
         Dir.glob("**/*", File::FNM_DOTMATCH).sort.each_with_object({}) do |relative, snapshot|
-          snapshot[relative] = File.binread(relative) if File.file?(relative)
+          candidate = File.join(@fixture_root, relative)
+          raise CheckError, "fixture has a symlink" if File.symlink?(candidate)
+
+          snapshot[relative] = File.binread(candidate) if File.file?(candidate)
         end
       end
     end
@@ -2005,16 +2080,22 @@ module FourEyesDocs
       target = File.expand_path(relative, canonical_root)
       raise CheckError, "self-test mutation target is outside the fixture root" unless beneath?(target, canonical_root) && target != canonical_root
 
+      current = canonical_root
+      target.delete_prefix("#{canonical_root}#{File::SEPARATOR}").split(File::SEPARATOR).each do |component|
+        current = File.join(current, component)
+        raise CheckError, "target contains a symlink" if File.symlink?(current)
+      end
+
       parent = File.realpath(File.dirname(target))
       raise CheckError, "self-test mutation target is outside the fixture root" unless beneath?(parent, canonical_root)
 
       target
     end
 
-    def expect_failure(name, message)
+    def expect_failure(name, message, check = :check!)
       with_fixture do |root|
         yield root
-        assert_failure(name, message) { Checker.new(root).check! }
+        assert_failure(name, message) { Checker.new(root).send(check) }
       end
     end
 
