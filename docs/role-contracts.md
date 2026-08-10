@@ -5,13 +5,13 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Authority
 
 - Four Eyes is tool-agnostic and manual-first. One orchestrator owns execution and synthesis; reviewers judge independently; the human owns real-risk gates.
-- The task issue and any reviewed local plan define scope, modes, tier, branch, transport, verification, stop conditions, and the next gated action.
+- The task context, coordination record, and any reviewed local plan define scope, modes, tier, branch, transport, verification, stop conditions, and the next gated action.
 - The orchestrator may escalate review or safety requirements. It must not downgrade a human-selected tier, expand scope, or cross a human gate on its own.
-- Shared truth is the task issue, temporary local plan when one exists, exact repository state, immutable review artifact, and verification evidence. Agent memory is not authoritative.
+- Shared truth is the coordination record, temporary local plan when one exists, exact repository state, immutable review artifact, and verification evidence. Agent memory is not authoritative.
 
 ## Orchestrator
 
-- Own the temporary plan when needed, tracker state, phase boundaries, implementation, verification, reviewer handoff, verdict embargo, synthesis, and closeout.
+- Own the temporary plan when needed, coordination state, phase boundaries, implementation, verification, reviewer handoff, verdict embargo, synthesis, and closeout.
 - In the Codex-led default, launch the isolated internal Reviewer 1 subagent. Return manual external reviewer prompts to the human; invoke direct Reviewer 2 only through a native isolated tool under exact human-approved phase, full model, maximum-call, and maximum-cost bounds. Direct mode has no standing or orchestrator-selected opt-in.
 - Give each reviewer only the immutable packet and that reviewer's own prior findings. Never provide peer verdicts, synthesis, hidden reasoning, or the parent transcript before independent judgment.
 - Wait for every expected slot to return a verdict or terminal record. Then post carried verdicts verbatim before synthesis.
@@ -36,10 +36,10 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Human Gate
 
-- Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned tracker issue set; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
+- Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned coordination record; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
 - Phase branch mode may pre-authorize commits and pushes only to the recorded phase branch when pushes have no gated side effects.
 - PR transport may pre-authorize only bounded operations on the recorded phase PR. It never authorizes merge, unrelated PR changes, or repository settings changes.
-- Tracker bookkeeping and already-authorized local verification do not need repeated human approval.
+- Authorized coordination bookkeeping and local verification do not need repeated human approval.
 
 ## Artifact
 
@@ -50,12 +50,12 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Any changed artifact invalidates prior approval. Full sends the changed complete artifact to both slots. Light permits only its single bounded same-reviewer delta before escalation.
 - Recompute live forge head and artifact immediately before merge. Stale approvals never authorize a changed head.
 
-## Tracker
+## Coordination
 
-- The tracker is the status, gate, and audit record, not the reviewer message bus. Reviewers never write it; the orchestrator decides when to post progress, verdicts, synthesis, approvals, and closeout.
-- Record the current gate, next gated action, positive review round, workflow revision, exact artifact identity, branch/PR, verification, reviewer outcomes, nit disposition, and branch resolution.
-- Keep tracker and public PR content brief, sanitized, and public-safe. Never post secrets, raw credentials, private links on public surfaces, raw sensitive logs, or unrelated task history.
-- Every loaded synced workflow document must carry the same full revision marker as the task issue. Unknown or mixed revisions hold the gate.
+- Every non-trivial task selects `pr`, `github-issue`, or `local`; the orchestrator alone owns coordination metadata, gates, ledgers, and closeout.
+- Use a pull request for single-phase remote work, one GitHub parent ledger for multi-phase or durable blocked work, and a temporary local record only for resumability without forge coordination.
+- Record the current gate, next action, round, full workflow revision, artifact identity, phase dependency state, verification, verdicts, nit disposition, and branch or worktree resolution.
+- Keep public coordination content brief and sanitized. Never post secrets, raw credentials, private links on public surfaces, raw sensitive logs, absolute local paths, or unrelated task history.
 
 ## Branch
 
@@ -67,8 +67,8 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Loading
 
-- Default orchestrator bootstrap is the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts.
-- Load Four Eyes Playbook only for exact policy detail or canonical commands; Templates only to fill an artifact; Issue Tracker Setup only for tracker-neutral behavior; Linear Setup only for Linear creation or sync.
+- Default orchestrator bootstrap is the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts.
+- Load Four Eyes Playbook only for exact policy detail or canonical commands; Templates only to fill an artifact; Coordination Records only for coordination behavior.
 - Reviewers receive a filled immutable packet and task evidence. They do not need the workflow-document set unless a disputed rule itself is under review.
-- Synced workflow documents begin with the full workflow revision and source-body digest markers. Compare every loaded marker with the task issue; missing, abbreviated, mixed, or mismatched markers hold the gate.
+- Load every policy surface from one recorded full repository commit SHA. Missing, abbreviated, mixed, or unresolvable revisions hold the gate.
 - `docs/role-contracts.md` is generated byte-for-byte from this marked source. Direct edits are invalid.

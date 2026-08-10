@@ -26,7 +26,7 @@ This playbook is the Four Eyes policy. It works with any orchestrator and review
 
 The supported workflow is manual-first:
 
-- a Codex App orchestrator or another primary agent owns the plan, execution, synthesis, and tracker updates
+- a Codex App orchestrator or another primary agent owns the plan, execution, synthesis, and coordination record
 - when available, the orchestrator runs Reviewer 1 as a named isolated subagent and reuses it for the phase or parent workflow
 - the orchestrator launches internal Reviewer 1; the human relays manual external Reviewer 2 by default
 - optional direct Claude review is allowed only through a native isolated invocation tool under exact human-approved phase, model, call, and cost bounds
@@ -35,13 +35,13 @@ The supported workflow is manual-first:
 
 Manual mode preserves independent judgment and keeps the process simple. It relies on the orchestrator to isolate any internal reviewer subagent and on human discipline for external message passing.
 
-## Tracker Ownership
+## Coordination Ownership
 
-The issue tracker is the audit and status record, not the reviewer message bus.
+The selected pull request, GitHub parent issue, or temporary local record carries coordination state. It is not the reviewer message bus.
 
-Reviewers return verdicts to the orchestrator or human relay. They never write the tracker. The orchestrator decides what to record there.
+Reviewers return verdicts to the orchestrator or human relay. They may submit a review verdict through the selected transport, but they never edit coordination metadata, status, the phase ledger, or closeout.
 
-The orchestrator owns tracker updates:
+The orchestrator owns coordination updates:
 
 - phase or slice status
 - synthesized reviewer outcome
@@ -68,7 +68,7 @@ Manual external Reviewer 2 is first/default, and the human relays its prompt and
 
 Every internal or directly invoked reviewer receives only the sealed review packet and its own prior findings:
 
-- issue or plan summary
+- coordination-record or plan summary
 - PR or branch target
 - verification evidence
 - neutral prior phase summary when needed
@@ -97,16 +97,16 @@ Usually the primary agent session.
 Responsibilities:
 
 - create or update the local executable plan when needed
-- create or update the issue tracker item from the plan
-- decide whether the plan stays one issue or splits into execution-slice issues
+- select and maintain the coordination record from the plan
+- decide whether work stays in one pull request or needs a GitHub parent ledger
 - identify acceptance criteria, non-goals, and current git status before editing
 - check existing implementation patterns before adding new ones
 - keep sensitive data out of issues, commits, and broad summaries
 - synthesize expected reviewer feedback for the selected tier
 - resolve blockers or ask the human for an explicit override
-- execute review-first work only after its review gate is clear; implementation-first phase branch work may execute before review but must reach Review before merge
+- execute review-first work only after its review gate is clear; implementation-first phase branch work may execute before review but must reach Status `review` and Gate `review` before merge
 - post verification, commit summary, and remaining risks
-- after every issue or gate update, tell the human the current gate and exact next action
+- after every coordination-record or gate update, tell the human the current gate and exact next action
 
 ### Reviewer 1
 
@@ -115,8 +115,8 @@ Usually a separate agent session or a named reviewer subagent.
 Responsibilities:
 
 - review independently before reading other reviewer output or orchestrator synthesis
-- when prompted with a current-work issue reference, treat it as a review request: read the provided issue or packet context, review the current diff and verification evidence, and return the review to the orchestrator or human relay
-- review against the linked local plan file, current repo state, current implementation diff and verification evidence if present, issue body, and orchestrator-provided plan/update content
+- when prompted with a current-work coordination-record reference, treat it as a review request: read the provided record or packet context, review the current diff and verification evidence, and return the review to the orchestrator or human relay
+- review against the linked local plan file, current repo state, current implementation diff and verification evidence if present, coordination-record content, and orchestrator-provided plan/update content
 - if the local plan file is not accessible, require its full public-safe contents through the manual-relay artifact; a summary or hash alone is could-not-review
 - check acceptance criteria, correctness, scope, safety, missing tests, and operational risks
 - inspect the exact identified review artifact and independently recompute or confirm its hash
@@ -145,7 +145,7 @@ The human owns final approval for real risk gates:
 - live or external systems, databases, cloud, deploys, destructive actions, costly actions, or production data/resource changes
 - any action the plan or workflow marks as approval-gated
 
-Human approval is not required for tracker-only workflow preparation such as creating planned child issues, moving a ready slice to its recorded next gate, posting reviewer prompts, synthesizing reviews, or updating gate metadata.
+Human approval is not required for in-scope coordination preparation such as opening the recorded pull request, creating the authorized parent ledger, moving a phase to its recorded next gate, posting reviewer prompts, synthesizing reviews, or updating gate metadata.
 
 ## Autonomy Mode
 
@@ -176,7 +176,7 @@ Required changes before execution must be addressed and recorded in synthesis be
 
 When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning `Approve` or `Approve with nits` authorize the orchestrator to execute the reviewed local slice when there are no blockers, required changes before execution, unresolved execution-affecting questions, dirty worktree conflicts, scope changes, or commands outside the pre-authorized classes or reviewed plan. The orchestrator must not ask for `Approved: execute ...` for that slice.
 
-Auto-execute alone does not authorize commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, closeout unless already authorized, scope change, commands outside the pre-authorized classes or reviewed plan, or work outside the assigned tracker issue set. Commit and push require phase branch mode or explicit human approval. Bounded PR writes require `Review transport: pr`. Merge and protected-branch push remain separate human gates.
+Auto-execute alone does not authorize commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, closeout unless already authorized, scope change, commands outside the pre-authorized classes or reviewed plan, or work outside the assigned coordination record. Commit and push require phase branch mode or explicit human approval. Bounded PR writes require `Review transport: pr`. Merge and protected-branch push remain separate human gates.
 
 ## Phase Branch Mode
 
@@ -198,7 +198,7 @@ Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`.
 
 When phase branch mode is `on`, the orchestrator may create the phase branch, commit to it, and push updates to that exact branch without asking the human for every commit or push, if all of these are true:
 
-- the branch name, base branch, and merge target are recorded in the plan or issue
+- the branch name, base branch, and merge target are recorded in the plan or coordination record
 - the work stays inside the approved phase scope
 - pushes go only to the named phase branch
 - branch pushes do not deploy, mutate live systems, publish releases, or trigger hard-to-reverse external actions
@@ -216,10 +216,10 @@ Phase branch mode alone does not authorize:
 - deploy, apply, cloud/database mutation, destructive action, or costly action
 - merge into the target branch
 
-The human merge approval may authorize merge, post-merge verification, tracker closeout, and phase branch cleanup. Use an exact phrase such as:
+The human merge approval may authorize merge, post-merge verification, coordination closeout, and phase branch cleanup. Use an exact phrase such as:
 
 ```text
-Approved: merge <phase branch> into <target branch>, verify, close the issue, and delete the phase branch.
+Approved: merge <phase branch> into <target branch>, verify, close the coordination record, and delete the phase branch.
 ```
 
 If the repository has branch-push side effects, such as preview deploys, production deploys, release publishing, or data mutation, remote push is a human gate unless the human explicitly pre-authorizes that side effect.
@@ -235,7 +235,7 @@ Resolution must be exactly one of:
 - intentionally kept, with reason, next owner, and a revisit trigger such as a follow-up issue or date recorded
 - handed off to the human, with the exact blocker recorded
 
-Before deleting any phase branch, record in the tracker closeout:
+Before deleting any phase branch, record in the coordination closeout:
 
 - branch name
 - local tip SHA
@@ -262,9 +262,9 @@ Never auto-delete main, protected, release, or unscoped branches; tags; branches
 
 ## Workflow Revision And Artifact Identity
 
-The workflow revision is the full pushed repo commit SHA in the marker at the top of every synced workflow document. Record that full SHA on every active task issue and every verdict. Every loaded workflow document and the task issue must use the same full revision. Missing, abbreviated, conflicting, or mixed workflow revisions fail closed. The standing workflow-doc issue records successful sync history, but it does not override document markers.
+The workflow revision is one recorded full repository commit SHA. Resolve it to an exact commit and load policy surfaces from that commit, not from mutable working-tree files. Record the full SHA in the coordination record, every review packet, and every verdict. Missing, abbreviated, conflicting, mixed, or unresolvable workflow revisions fail closed.
 
-The task issue also records the current positive review round and review transport. A new or changed artifact starts a new round. Preserve the reviewer provenance fields, then use the transport-specific identity fields below with identical wording and order.
+The authoritative coordination record also records the current positive review round and review transport. A new or changed artifact starts a new round. Preserve the reviewer provenance fields, then use the transport-specific identity fields below with identical wording and order.
 
 PR verdict identity:
 
@@ -473,13 +473,13 @@ Selecting `Review transport: pr` pre-authorizes only these writes for the record
 When review transport is `pr`:
 
 - the orchestrator opens or updates a PR from the phase branch to the merge target after verification
-- the issue records the current review round, workflow revision, full reviewed head SHA, and PR diff SHA-256
-- the PR body includes the tracker issue link only when the repo is private or the tracker is accessible to the PR audience; otherwise it includes the tracker issue ID only
+- the coordination record holds the current review round, workflow revision, full reviewed head SHA, and PR diff SHA-256
+- the PR body links the GitHub parent coordination issue when one exists
 - the PR body includes the sanitized plan summary, acceptance criteria, verification evidence, and risk notes
 - reviewers review the PR diff directly and write their verdict before reading other reviews
 - verdict mapping is `Approve` -> approve, `Approve with nits` -> approve with comments, and `Block` -> request changes
 - reviewer bodies include the required reviewer header
-- the PR is the review artifact; the tracker remains the gate and status record
+- the PR is the review artifact and, after verified state transfer, the coordination record
 - branch protection should dismiss stale approvals when the head changes
 - immediately before merge, the orchestrator compares the current forge head and canonical PR diff SHA-256 with every approval; all must match
 
@@ -502,7 +502,7 @@ Every plan, phase, or slice should state the review tier:
 Review tier: skip | light | full
 ```
 
-- `skip`: tiny docs, typos, formatting, simple issue/admin work, or other changes from the playbook skip list. Run verification when useful and keep the configured branch or merge gate.
+- `skip`: tiny docs, typos, formatting, simple coordination/admin work, or other changes from the playbook skip list. Run verification when useful and keep the configured branch or merge gate.
 - `light`: the default for routine low-risk, reversible repo work. Use one reviewer from a different model family than the agent that authored the change. Allow one bounded fix and one delta review by that same reviewer only when scope and risk stay unchanged; this is not an open-ended autonomous fix loop. A scope or risk change, failed verification, could-not-review result, sensitive path, oversized diff, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 - `full`: the normal Four Eyes gate: two independent reviewers, synthesis, bounded fix/re-review, and human approval for real-risk gates.
 
@@ -545,7 +545,7 @@ The reviewer returns `could-not-review` when it cannot inspect the identified ar
 
 ## Plan-First Rule
 
-For non-trivial repo, infrastructure, cloud, security, deploy, cleanup, migration, debugging, or operational work, create a temporary local executable plan when the task input is not clear enough to execute safely. Task input can be a user prompt, tracker issue, local note, or existing plan.
+For non-trivial repo, infrastructure, cloud, security, deploy, cleanup, migration, debugging, or operational work, create a temporary local executable plan when the task input is not clear enough to execute safely. Task input can be a user prompt, GitHub issue, pull request, local note, or existing plan.
 
 The plan should state:
 
@@ -561,7 +561,7 @@ The plan should state:
 - rollback or stop conditions
 - sensitive-data boundaries
 
-A local plan file is not required for simple issue admin, queue triage, one-line fixes, tiny doc edits, or tasks the human explicitly wants handled directly.
+A local plan file is not required for simple coordination admin, queue triage, one-line fixes, tiny doc edits, or tasks the human explicitly wants handled directly.
 
 When a local plan defines or clarifies the work, reviewers review the plan as part of the gate before execution; for implementation-first phase branches, that means before implementation starts. The plan must be specific enough for reviewers to confirm scope, acceptance criteria, commands, verification, stop conditions, and human gates.
 
@@ -574,96 +574,76 @@ Use the least durable place that still supports the work:
 
 Local executable plans are temporary coordination artifacts. Do not commit them, and prefer a gitignored path for repo-local plans so bulk staging cannot pick them up. If the work produces durable documentation, write that documentation separately from the temporary execution plan.
 
-Remove the temporary local plan after the issue, phase, or parent workflow is complete. If work pauses before completion, keep the plan only as long as it is needed to resume safely.
+Remove the temporary local plan after the task, phase, or parent workflow is complete. If work pauses before completion, keep the plan only as long as it is needed to resume safely.
 
 If reviewers cannot access the local plan file, the orchestrator must provide the full public-safe plan contents as the manual-relay artifact. A checksum or sanitized summary alone does not permit review; return could-not-review when the full artifact cannot be shared safely through an approved path.
 
-## Issue Rule
+## Coordination Record Contract
 
-The issue tracker is the gate, audit, and status record. It should summarize and gate the local plan, not replace it, and it should not be used as the default reviewer message bus.
+1. Every non-trivial task records `Coordination record: pr | github-issue | local`.
+2. `pr` is the default for single-phase remote work; the pull request is the coordination record once it exists.
+3. `github-issue` uses exactly one parent issue carrying a compact phase ledger for multi-phase work or durable blockers.
+4. `local` is the no-forge fallback; it provides resumability, not permanent audit. Work needing durable history uses `pr` or `github-issue`.
+5. Before the pull request exists, `pr` mode keeps a temporary local execution-state record at the recorded canonical path.
+6. When the pull request opens, copy the execution-state content into it, verify the copy landed and matches, and only then treat the pull request as authoritative. Until that verification passes, the local record remains authoritative.
+7. Reviewers may submit verdicts through the selected review transport, including pull request reviews. A direct pull request verdict may change forge review status; it never changes the Four Eyes gate, ledger status, or closeout metadata. Reviewers never edit coordination metadata, status, the phase ledger, or closeout. The orchestrator owns every coordination update.
+8. Promote `pr` to `github-issue` when a second phase becomes committed, when a dependency or blocker exists outside the current pull request, or when deferred work must survive the current pull request's closeout. Continuing a single-phase pull request across sessions is not a promotion trigger.
+9. Promotion is check-act-verify-record: create the parent issue carrying the plan digest, phase ledger, current pull request, dependencies, and current gate; verify the issue content matches what was written; backlink the pull request to the issue; and switch authority to the parent issue only after both records agree. Any mismatch stops and hands off.
+10. Multi-phase work uses one parent ledger. Do not create a child issue for each committed execution slice.
+11. Create child issues only for independently owned, externally blocked, or durable follow-up work.
+12. Selecting `Coordination record: github-issue` pre-authorizes creating, updating, and closing exactly one parent coordination issue plus explicitly accepted durable follow-ups. It authorizes no unrelated issue operations.
+13. The parent ledger uses the fixed columns `Phase | Depends on | Status | Branch/PR | Gate | Next action`.
+14. Ledger status values are `todo`, `ready`, `in progress`, `review`, `waiting external eval`, `blocked`, and one terminal value.
+15. `waiting external eval` is not terminal. A phase whose dependencies are all terminal may proceed regardless of any unrelated phase waiting on external evaluation; a phase that depends on a waiting phase stays unready.
+16. A phase becomes `ready` only when every phase it depends on is terminal.
+17. Terminal values are `merged`, `completed`, `abandoned`, `retained`, and `handed off`. `blocked` is never terminal, and any failed cleanup remains `blocked`.
+18. `merged` requires the pull request merged and the reviewed head ancestral to the target.
+19. `completed` is the successful terminal value for work producing no merge, such as `local` mode. It requires the recorded verification evidence present and the working tree clean.
+20. `abandoned` requires authoritative local and remote tip equality, closure of any applicable pull request, clean worktree removal, resolved branches, and a recorded reason and tip SHA.
+21. `retained` requires resolved branch and worktree state plus recorded tip SHA, owner, and revisit trigger.
+22. `handed off` requires a recorded blocker, owner, next action, and recorded human acceptance of ownership. Without recorded acceptance the phase stays `blocked`.
+23. Record closeout evidence in the coordination record and verify it landed before removing any temporary plan or local state record.
+24. In `pr` mode, post the final closeout record to the pull request before removing the temporary plan and execution-state record.
+25. Parent completion requires every phase terminal, with each claimed resolution verified against real Git or forge state rather than the ledger's own claim.
 
-Use one issue when the plan is one execution slice.
+`Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field.
 
-Use a parent issue plus child slice issues when the local plan has multiple named execution slices the plan commits to, independent execution gates, different repos, different owners, different deploy windows, independent rollback or verification, or different approvals.
+## Local Coordination Record
 
-Route issues by the provided Linear team/workspace or workspace mapping. Keep private mappings in local or workspace setup docs. If no mapping exists or the target is ambiguous, stop and ask before creating issues.
+1. The execution-state record lives at one canonical gitignored path recorded in the task's bound state, rooted in the primary coordination checkout.
+2. It belongs to the primary checkout and therefore survives phase-worktree removal; never place it inside a phase worktree.
+3. Before use, require it to be a regular file and not a symlink.
+4. It records the workflow revision, the plan digest it is bound to, the phase ledger, the current gate, and the next action.
+5. Its content is public-safe from creation, because `pr` mode copies it into the pull request. Never write absolute paths, usernames, host directory layout, credentials, or private identifiers into it.
+6. A workflow-revision or plan-digest mismatch holds the gate; it is never silently rebound.
+7. Write it atomically, then read it back and require the readback to match what was written.
+8. It survives the entire parent workflow and is removed only after every phase is terminal and closeout is verified.
+9. Verify its absence after removal, from a checkout that still exists.
 
-Do not create separate reviewer child issues by default. Reviewer identity belongs in the review artifact, synthesis, or orchestrator-posted tracker update.
+## Repository Revision Loading
 
-### Multi-Slice Plans
+1. Workflow policy loads from this repository at one recorded full commit SHA.
+2. Resolve the recorded SHA to an exact commit before loading, and load policy surfaces from that commit rather than from mutable working-tree files.
+3. A missing, abbreviated, mixed, or unresolvable revision holds the gate.
+4. The workflow revision is the full repository commit SHA carried by coordination records, packets, and verdicts.
+5. External document synchronization, source-body markers, readback checks, and a standing synchronization issue are not required.
 
-When a finalized local plan contains multiple execution slices:
+## Right-Sizing Slices
 
-- a slice is ready when it has no unresolved upstream dependency, missing evidence, owner ambiguity, or approval blocker
-- create the parent issue and one child issue for every named execution slice the plan commits to
-- record the intended execution order and inter-slice dependencies in the parent issue
-- use the parent issue as the overview gate; child issues carry exact slice gates such as Review, Approval, In Progress, Blocked, or Waiting External Eval
-- parent gate mirrors the next active child gate; use Blocked only when no child is actionable, and Done only after all children are verified and closed
-- assign each ready child slice the Review gate, except implementation-first phase branch slices use In Progress while the branch is being implemented and Review after the branch is ready
-- keep downstream or unready slices Todo or Blocked when they depend on earlier slices, external decisions, missing evidence, or unresolved ownership
-- after a child slice reaches Done or Waiting External Eval, the orchestrator checks the next committed child slice; if it is ready and uses implementation-first phase branch flow, move it to In Progress and implement it, otherwise move it to Review and post filled reviewer prompts without asking for human approval
-- if the next committed child slice is not ready, leave its current gate and post a brief blocker note in the parent issue
-- reviewers review every ready slice and return feedback to the orchestrator or human relay
-- the orchestrator owns sequencing and may execute only the next ready slice according to its recorded phase branch flow and gates
-- post-execution review on each slice still applies before protected-branch push, apply, deploy, merge, or closeout
-- the parent issue is the agent team boundary; agents may read related issues for context but must not edit, comment on, or close any issue outside the parent and its child slice issues unless the human explicitly expands scope
-- if the parent plan changes materially, update affected slice issues in the same change under the Plan Drift Rule
+Review cost is per review run. Batch related changes with shared scope, risk, verification, and rollback. Split when gates, rollback, owners, repos, deploy windows, or risk classes differ, or when the phase diff becomes too large to review well.
 
-Key distinction: create and review broadly; execute narrowly.
+## Token-Efficient Review
 
-### Right-Sizing Slices
-
-Review cost is per review run, not per change. Size slices to the run:
-
-- Batch related low-risk cleanup into one slice, one issue, one review run with a combined acceptance list.
-- Split into separate slices only when gates, rollback, owners, repos, deploy windows, or risk class differ.
-- Do not open one issue per tiny change; do not hide unrelated risk classes inside one slice.
-- Split an oversized phase diff instead of mega-reviewing it.
-
-### Token-Efficient Review
-
-Keep review tokens focused on judgment:
-
-- reviewers inspect PR or repo diffs directly; do not paste large diffs into prompts, issues, or PR comments
+- reviewers inspect the PR or repo artifact directly; do not narrate a diff that Git already expresses
 - CI or check links replace pasted logs when CI exists
-- delta re-review may send the exact delta packet plus that reviewer's own prior findings, but it must bind the current complete head or artifact and prior reviewed head
-- after any artifact change, every expected `full`-tier slot re-reviews it; `light` permits only its one bounded same-reviewer delta, then escalates to `full` or a human decision
+- delta re-review sends the exact delta plus that reviewer's own prior findings while binding the current complete artifact
+- every changed Full-tier artifact returns to both expected slots; Light permits one bounded same-reviewer delta before escalation
 
-### Phase Review
+## Phase Review
 
-For high-throughput bug fixing, review phases instead of every bug:
+Review phases instead of every bug. The plan may infer phases from related scope, files, verification, risk, branch target, and rollback. Ask the human only when decomposition changes risk, ownership, merge target, deploy behavior, or has multiple materially different valid answers.
 
-- The plan may define Phase 1, Phase 2, and later phases, each with concrete tasks, files, verification, and acceptance criteria.
-- In phase branch mode, the orchestrator may complete all fixes in the current phase, commit them, and push the phase branch before asking reviewers to review.
-- Reviewers review the phase diff and verification evidence once, not every individual bug.
-- The orchestrator fixes all blocking feedback in one batch.
-- Re-review may focus on the blocker delta, but every expected slot must bind its new verdict to the changed complete head or artifact.
-- Default loop: initial review plus one fix/re-review. If still blocked, the human decides whether to continue, split, downgrade, or defer.
-
-### Phase Inference
-
-If a big executable plan exists locally but does not define phases, the orchestrator should infer phases before creating tracker child issues.
-
-Use phase boundaries that keep each phase executable and reviewable:
-
-- shared goal and acceptance criteria
-- related files or modules
-- one verification strategy
-- one branch, merge target, and rollback path
-- one risk class
-- no hidden deploy, cloud, database, destructive, costly, or external-state action
-
-The orchestrator may create the parent issue and inferred phase child issues as tracker preparation without human approval. Each inferred child issue must say:
-
-- `Phase source: inferred by orchestrator`
-- why the phase boundary was chosen
-- branch name, base branch, and merge target if phase branch mode is enabled
-- what remains out of scope
-- when the phase should stop and ask the human
-
-Ask the human before executing or creating many child issues only when the split changes risk, ownership, merge target, deploy behavior, or there are multiple materially different valid decompositions.
-
-If phase inference is unclear, default to one phase rather than many tiny issues, and record the uncertainty in the parent issue.
+For each phase, keep one branch, worktree, verification strategy, and gate. The orchestrator may implement the complete phase before review when implementation-first flow authorizes it. Reviewers inspect the phase diff once; blocking feedback is fixed in one batch.
 
 ## Phase Branch Flow
 
@@ -673,12 +653,12 @@ Use this flow when phase branch mode is enabled:
 2. Orchestrator creates the phase branch from the base branch.
 3. Orchestrator implements the whole phase on that branch.
 4. Orchestrator commits and pushes only the named phase branch when remote push is allowed.
-5. Orchestrator runs verification and updates the tracker with the current round, workflow revision, transport-specific artifact identity, phase branch, diff summary, and reviewer prompts.
+5. Orchestrator runs verification and updates the coordination record with the current round, workflow revision, transport-specific artifact identity, phase branch, diff summary, and reviewer prompts.
 6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the exact identified PR artifact. If Reviewer 1 can run as a named isolated internal subagent, the orchestrator creates or reuses it. The human sends every manual external reviewer prompt. An exactly authorized direct Reviewer 2 instead receives only its sealed packet and own prior findings through the platform's native isolated invocation tool.
 7. Reviewers inspect the exact artifact and verification evidence independently, then return verdicts through the selected transport. The orchestrator holds internal and relayed verdicts under the embargo until every expected slot has returned or has a terminal record.
 8. After the embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, synthesizes feedback, fixes blockers on the same phase branch, commits and pushes updates when authorized, and requests the required delta review.
 9. When all expected reviewers approve the unchanged current artifact, the orchestrator recomputes its identity and asks the human for the merge approval phrase.
-10. After approval, orchestrator merges into the target branch, runs post-merge verification, updates or closes the tracker item if authorized, records branch cleanup SHAs, and deletes the phase branch if authorized.
+10. After approval, orchestrator merges into the target branch, runs post-merge verification, records coordination closeout, records branch cleanup SHAs, and deletes the phase branch if authorized.
 
 This flow is meant to reduce review loops. It trades pre-implementation review for branch isolation and a hard merge gate.
 
@@ -687,38 +667,38 @@ This flow is meant to reduce review loops. It trades pre-implementation review f
 Use this flow when phase branch mode is off, or when pre-implementation review is required.
 
 1. Orchestrator creates a temporary local executable plan when the task input is not clear enough to execute safely.
-2. Orchestrator creates one issue or decomposes the plan into parent and child slice issues.
-3. Orchestrator adds the temporary plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, current gate, and review request. Current gate: Review for ready issue(s); Todo or Blocked for downstream or unready child slice issues.
-4. The orchestrator creates or reuses any internal Reviewer 1 subagent with only the review packet and its own prior review history. The human sends the ready issue link(s), exact accessible review artifact, and task prompt only to external expected reviewer slots. Current gate: Review for ready issue(s).
-5. Reviewers return verdicts independently to the orchestrator or human relay. The orchestrator holds internal and relayed verdicts under the embargo until every expected slot has returned or has a terminal record. Current gate: Review.
-6. After the embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, and synthesizes the expected reviews. Current gate: In Progress when auto-execute is authorized and execution is starting, Approval if human approval is needed, Review if material changes need re-review, or Blocked if blockers remain.
-7. Orchestrator updates code or plan if needed. Current gate: Review if material changes need re-review.
+2. Orchestrator selects `pr`, `github-issue`, or `local` and records any phase dependencies in one ledger.
+3. Orchestrator records the temporary plan path, sanitized summary, acceptance criteria, boundaries, expected files or resources, status, gate, and review request. Ready review phases use Status `review` and Gate `review`; downstream phases use Status `todo` or `blocked` and Gate `dependencies`.
+4. The orchestrator creates or reuses any internal Reviewer 1 subagent with only the review packet and its own prior review history. The human sends the exact accessible review artifact and task prompt only to external expected reviewer slots. Status: `review`; Gate: `review`.
+5. Reviewers return verdicts independently to the orchestrator or human relay. The orchestrator holds internal and relayed verdicts under the embargo until every expected slot has returned or has a terminal record. Status: `review`; Gate: `review`.
+6. After the embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, and synthesizes the expected reviews. Use Status `in progress` and Gate `none` when auto-execution starts; Status `ready` and Gate `human approval` when human approval is required; Status `review` and Gate `review` for material re-review; or Status `blocked` and Gate `blocker resolution` while blockers remain.
+7. Orchestrator updates code or plan if needed. Material changes use Status `review` and Gate `review`.
 8. If changes are material, repeat review on the updated slice.
-9. Human approves execution, apply, deploy, or merge when needed. Skip this for local execution authorized by autonomy mode. Current gate: Approval until approved.
-10. Orchestrator executes the approved or auto-authorized slice and posts verification. If phase branch mode is enabled, the orchestrator may commit and push updates to the named phase branch as part of this work. If execution creates material code, doc, config, infra, data, or plan changes, Current gate: Review.
+9. Human approves execution, apply, deploy, or merge when needed. Skip this for local execution authorized by autonomy mode. Until approval, use Status `ready` and Gate `human approval`.
+10. Orchestrator executes the approved or auto-authorized slice and posts verification. If phase branch mode is enabled, the orchestrator may commit and push updates to the named phase branch as part of this work. Material execution changes use Status `review` and Gate `review`.
 11. Reviewers review the exact identified implementation artifact and verification evidence before merge, apply, deploy, or closeout approval.
-12. After the verdict embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, synthesizes implementation reviews, and updates the tracker with the status, gate, and required human action. Current gate: Approval if aligned, Review if material changes need re-review, or Blocked if blockers remain.
+12. After the verdict embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, synthesizes implementation reviews, and updates the coordination record with the status, gate, and required human action. Use Status `ready` and Gate `human approval` when aligned, Status `review` and Gate `review` for material re-review, or Status `blocked` and Gate `blocker resolution` while blockers remain.
 13. Orchestrator commits only the intended tracked changes when phase branch mode authorizes branch commits, when the human approves the commit, or when the approved workflow explicitly calls for it.
-14. Orchestrator closes the issue only after verification, or moves it to an explicit waiting state.
+14. Orchestrator records a terminal status only after verification, or records an explicit non-terminal waiting state.
 
-If execution is read-only and creates no material diff, the orchestrator may move directly to Waiting External Eval, Approval, or Done according to the approved workflow and verification state.
+If execution is read-only and creates no material diff, use Status `completed` when verification is complete and no further action remains, Status `waiting external eval` with Gate `external evaluation` when an external result is pending, or Status `ready` with Gate `human approval` when an explicit human action is required.
 
-In multi-slice mode, steps 5-7 run independently for each ready slice.
+In multi-phase mode, steps 5-7 run independently for each ready phase.
 
-In multi-slice mode, advancing the next committed ready slice is tracker work owned by the orchestrator. An implementation-first phase branch slice moves to In Progress and is implemented before Review; a pre-review slice moves to Review before execution. If autonomy mode authorizes local execution, reviewer approval is the execution gate for review-first work. If phase branch mode is enabled, commits and pushes to the named phase branch may be handled by the orchestrator. The next human approval is for manual execution, protected-branch push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated.
+In multi-phase mode, advancing the next ready phase is coordination work owned by the orchestrator. A phase becomes ready only when all dependencies are terminal. An implementation-first phase uses Status `in progress` and Gate `none` before it reaches Status `review` and Gate `review`; a pre-review phase starts at Status `review` and Gate `review`. If autonomy mode authorizes local execution, reviewer approval is the execution gate for review-first work. If phase branch mode is enabled, commits and pushes to the named phase branch may be handled by the orchestrator. The next human approval is for manual execution, protected-branch push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated.
 
 ## Orchestrator Next-Action Rule
 
-After creating or updating an issue, changing a gate, posting a synthesis, requesting approval, or closing out work, the orchestrator must end its user-facing response with:
+After creating or updating a coordination record, changing a gate, posting a synthesis, requesting approval, or closing out work, the orchestrator must end its user-facing response with:
 
-- issue ID or link
+- authoritative coordination record
 - current gate
 - why that gate is set
 - exact next human action
 - what the orchestrator will do after that action
 - what remains out of scope or forbidden
 
-When the current gate is Approval, include an exact approval phrase the human can send, such as:
+When the current gate is `human approval`, include an exact approval phrase the human can send, such as:
 
 ```text
 Approved: execute <ISSUE-ID> <slice name> only.
@@ -732,7 +712,7 @@ If execution is still forbidden, say that plainly.
 
 Before editing:
 
-- read the issue, local plan, linked spec, and relevant existing files
+- read the coordination record, local plan, linked spec, and relevant existing files
 - identify acceptance criteria and non-goals
 - inspect current git status so unrelated work is not disturbed
 - check current implementation patterns before adding new ones
@@ -751,7 +731,7 @@ Before review, commit, PR, deploy, or apply:
 - run the narrowest useful verification command for the files or resources touched
 - if a broad check is known to have unrelated failures, say that plainly and include the targeted checks that passed
 - review the diff for unrelated changes
-- confirm the next gate is correctly recorded in the issue
+- confirm the next gate is correctly recorded in the coordination record
 
 ## Post-Execution Review Rule
 
@@ -768,7 +748,7 @@ Material changes include:
 
 After material execution changes, the orchestrator must:
 
-- update the issue Current gate to Review
+- update the coordination record to Status `review` and Gate `review`
 - increment the review round and record the workflow revision and exact transport-specific artifact identity
 - identify the exact files, resources, or diff to review
 - include verification already run
@@ -777,30 +757,38 @@ After material execution changes, the orchestrator must:
 
 Reviewers must review the current implementation diff and verification evidence, not only the original plan.
 
-If the approved action itself is apply, deploy, or another external mutation and creates no reviewable local diff, post verification and move to Waiting External Eval or Done according to the approved workflow.
+If the approved action itself is apply, deploy, or another external mutation and creates no reviewable local diff, post verification and move to Status `waiting external eval` with Gate `external evaluation`, or to the applicable terminal status, according to the approved workflow.
 
 ## Gate State
 
-The current gate must be visible in the issue tracker, not only buried in comments.
+The current gate must be visible in the authoritative coordination record, not only buried in chat.
 
-Recommended states:
+Lifecycle status values:
 
-- Backlog: idea not started
 - Todo: local plan exists or task is ready to prepare
+- Ready: every dependency is terminal and the phase is waiting to start or for an authorized transition
 - In Progress: orchestrator actively working
-- Review: waiting for expected reviewer slots
-- Approval: reviewers aligned, waiting for the human
+- Review: implementation or plan is waiting for expected reviewer slots
 - Blocked: blocked by reviewer finding, missing evidence, external decision, unresolved ownership, or prior slice
 - Waiting External Eval: executed, waiting for CI, logs, users, cloud evaluation, or another external system
-- Done: verified and closed
+- Merged, Completed, Abandoned, Retained, or Handed Off: verified terminal resolution
 
-If custom states are not available, use labels or issue-title prefixes:
+Gate values name the condition controlling the next transition:
+
+- None: no gate blocks the next authorized action
+- Dependencies: one or more required phases are non-terminal
+- Review: waiting for expected reviewer slots
+- Human Approval: waiting for an explicit human decision
+- External Evaluation: waiting for a recorded external result
+- Blocker Resolution: waiting for an in-scope blocker to be resolved
+- Human Handoff: waiting for recorded human acceptance of ownership
+
+For a `github-issue` record whose forge lacks custom states, use labels or issue-title prefixes. For `pr` or `local`, write the state directly in that coordination record.
 
 - `gate:review`
-- `gate:approval`
+- `gate:human-approval`
 - `waiting:external-eval`
-- `state:applied-awaiting-verification`
-- `blocked:<reason>`
+- `gate:blocker-resolution`
 
 When using gate labels, remove the old gate label in the same update that adds the new gate label.
 
@@ -808,7 +796,7 @@ When using gate labels, remove the old gate label in the same update that adds t
 
 Proceed when the expected reviewer slots for the selected tier are complete and all blocking feedback is resolved.
 
-A Block from any expected reviewer holds the gate. The orchestrator must address it or the human must explicitly override it in the issue before execution.
+A Block from any expected reviewer holds the gate. The orchestrator must address it or the human must explicitly override it in the coordination record before execution.
 
 An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots re-review the changed artifact. `Light` may apply one bounded, in-scope, same-risk fix and send the changed artifact to the same cross-family reviewer once. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 
@@ -819,7 +807,7 @@ Resolve every accepted nit before the next gate in one of two ways:
 
 Do not carry an approval across an implemented nit. Immediately before the next gated action, recompute the live repository fingerprint and artifact identity, including reviewed ignored temporary plans, and compare them with every approval.
 
-When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning `Approve` or `Approve with nits` authorize local execution when no Autonomy Mode stop condition or required change before execution applies. Otherwise move to Approval when the next action needs human approval.
+When autonomy mode is `review-approved-auto-execute`, all expected reviewers for the selected tier returning `Approve` or `Approve with nits` authorize local execution when no Autonomy Mode stop condition or required change before execution applies. Otherwise use Status `ready` and Gate `human approval` when the next action needs human approval.
 
 Use a third reviewer only when the human asks for a tie-break or extra risk review.
 
@@ -835,28 +823,28 @@ For tracked code changes, include the full commit SHA when available. Any change
 
 For uncommitted plan changes, include the plan path and a short summary of the changed gate, scope, or command.
 
-For multi-slice plans, update affected child slice issues in the same change.
+For multi-phase plans, update affected ledger rows in the same change.
 
 If a saved plan, deploy artifact, or generated evidence file is replaced, record the new path and checksum when useful.
 
 ## Safety Boundaries
 
-- Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into issues.
+- Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into public coordination records.
 - Use sanitized summaries for plans, logs, findings, and metadata.
-- Destructive, costly, cloud-mutating, deploy, apply, protected-branch push, or external posting outside the assigned tracker issue set requires explicit human approval, except for bounded PR operations explicitly pre-authorized by `Review transport: pr`.
+- Destructive, costly, cloud-mutating, deploy, apply, protected-branch push, or external posting outside the assigned coordination record requires explicit human approval, except for bounded PR operations explicitly pre-authorized by `Review transport: pr` or the single parent issue authorized by `Coordination record: github-issue`.
 - Phase branch commits and pushes may be pre-authorized only by phase branch mode.
 - Auto-execution is limited to reviewed local work inside the assigned slice.
-- The approved workflow may authorize issue closeout after acceptance criteria pass; otherwise human approval is required.
+- The approved workflow may authorize coordination closeout after acceptance criteria pass; otherwise human approval is required.
 - Saved plans must be applied by explicit filename, not by a stale default path.
 - Local-only plan documents stay uncommitted when the task says so.
 
 ## GitHub Boundary
 
-Use an issue tracker as the agent orchestration board.
+Use the selected pull request, GitHub parent issue, or local record as the coordination board.
 
-Use GitHub Issues or PRs when the work is repo-native, public, or should be tied directly to branches, commits, code review, and PR closure.
+Use one GitHub parent issue only when multi-phase state or a durable blocker cannot live in the current pull request.
 
-When a branch or PR exists, link it from the issue. Do not duplicate sensitive operational evidence into GitHub.
+When both a parent issue and pull request exist, backlink them and keep sensitive operational evidence local.
 
 When available, use branch protection on the merge target with required approvals, required status checks, and dismissal of stale approvals after new commits.
 
@@ -866,20 +854,20 @@ If a PR is opened, its description should briefly include:
 
 - what changed
 - why
-- issue link when the repo is private or the tracker is accessible to the PR audience; otherwise issue ID only
+- parent coordination issue link, when one exists
 - acceptance criteria checked
 - risk
 - how to test
 - what was intentionally not done
-- follow-up issues
+- accepted durable follow-up issues
 
 ## Close Discipline
 
-Do not close an issue just because code was written or an action completed.
+Do not close a coordination record just because code was written or an action completed.
 
-Close only when verification has passed and closeout is authorized, or when the issue explicitly records why verification is deferred or impossible.
+Close only when verification has passed and closeout is authorized, or when the coordination record explicitly states why verification is deferred or impossible.
 
-If an external system must update later, move the issue to a waiting state.
+If an external system must update later, move the coordination record to a waiting state.
 
 ## Worktree Lifecycle
 
@@ -892,7 +880,7 @@ The worktree lifecycle requires no named plugin, skill, marketplace product, or 
 - `(Phase branch mode: on, Worktree mode: off)` requires explicit human approval because it disables collision protection.
 - `(Phase branch mode: off, Worktree mode: on)` is invalid.
 - A compliant platform mechanism is allowed; otherwise use `git worktree`. Git's own same-branch and path refusals are the mechanical enforcement. Pre-creation inspection records a readable stop reason but does not replace those refusals.
-- Never use force to create or remove a worktree. Never remove a worktree automatically before its lifecycle record is complete.
+- Never use force to create or remove a worktree. Never remove a worktree automatically before its immutable ownership record and pre-cleanup facts are complete.
 - Prefer a worktree path outside the repository root. A project-local root is allowed only when `git check-ignore -v` exits zero for it and identifies an existing positive repository-specific rule in a tracked repository ignore file or that repository's own Git metadata; a negation or host-global rule is insufficient.
 - After creation, recompute the primary-checkout fingerprint. If the fingerprint command fails or its untracked digest changes, the worktree location is non-compliant.
 - Absolute paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, and cleanup diagnostics stay in local or private evidence. Public surfaces carry only the opaque worktree reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker.
@@ -954,7 +942,7 @@ The worktree lifecycle requires no named plugin, skill, marketplace product, or 
 - An intentionally kept branch still requires complete ownership, exact retained local expected SHA, authoritative remote state, clean status, branch tips, reason, next owner, and revisit trigger. Remove and verify the worktree while leaving branch, expected local SHA, remote state, and PR unchanged.
 - Never run `git worktree prune` in the normal lifecycle. A stale entry is an out-of-band, human-gated repair.
 - Cleanup removes only the exact path in the ownership record and only when its live branch or detached SHA matches that record. Never remove another agent's worktree.
-- Cleanup failure keeps the issue open and records the opaque reference, branch, owner/category, path privately, observed state, and blocker.
+- Cleanup failure keeps the coordination record open and records the opaque reference, branch, owner/category, path privately, observed state, and blocker.
 - Worktree mode on with phase branch mode on pre-authorizes compliant named-branch creation and normal worktree removal. Phase branch mode separately authorizes branch creation, commits, allowed pushes, and approved merged-branch cleanup. Every existing human gate remains.
 
 <!-- BEGIN FOUR EYES ROLE CONTRACTS SOURCE -->
@@ -965,13 +953,13 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Authority
 
 - Four Eyes is tool-agnostic and manual-first. One orchestrator owns execution and synthesis; reviewers judge independently; the human owns real-risk gates.
-- The task issue and any reviewed local plan define scope, modes, tier, branch, transport, verification, stop conditions, and the next gated action.
+- The task context, coordination record, and any reviewed local plan define scope, modes, tier, branch, transport, verification, stop conditions, and the next gated action.
 - The orchestrator may escalate review or safety requirements. It must not downgrade a human-selected tier, expand scope, or cross a human gate on its own.
-- Shared truth is the task issue, temporary local plan when one exists, exact repository state, immutable review artifact, and verification evidence. Agent memory is not authoritative.
+- Shared truth is the coordination record, temporary local plan when one exists, exact repository state, immutable review artifact, and verification evidence. Agent memory is not authoritative.
 
 ## Orchestrator
 
-- Own the temporary plan when needed, tracker state, phase boundaries, implementation, verification, reviewer handoff, verdict embargo, synthesis, and closeout.
+- Own the temporary plan when needed, coordination state, phase boundaries, implementation, verification, reviewer handoff, verdict embargo, synthesis, and closeout.
 - In the Codex-led default, launch the isolated internal Reviewer 1 subagent. Return manual external reviewer prompts to the human; invoke direct Reviewer 2 only through a native isolated tool under exact human-approved phase, full model, maximum-call, and maximum-cost bounds. Direct mode has no standing or orchestrator-selected opt-in.
 - Give each reviewer only the immutable packet and that reviewer's own prior findings. Never provide peer verdicts, synthesis, hidden reasoning, or the parent transcript before independent judgment.
 - Wait for every expected slot to return a verdict or terminal record. Then post carried verdicts verbatim before synthesis.
@@ -996,10 +984,10 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Human Gate
 
-- Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned tracker issue set; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
+- Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned coordination record; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
 - Phase branch mode may pre-authorize commits and pushes only to the recorded phase branch when pushes have no gated side effects.
 - PR transport may pre-authorize only bounded operations on the recorded phase PR. It never authorizes merge, unrelated PR changes, or repository settings changes.
-- Tracker bookkeeping and already-authorized local verification do not need repeated human approval.
+- Authorized coordination bookkeeping and local verification do not need repeated human approval.
 
 ## Artifact
 
@@ -1010,12 +998,12 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Any changed artifact invalidates prior approval. Full sends the changed complete artifact to both slots. Light permits only its single bounded same-reviewer delta before escalation.
 - Recompute live forge head and artifact immediately before merge. Stale approvals never authorize a changed head.
 
-## Tracker
+## Coordination
 
-- The tracker is the status, gate, and audit record, not the reviewer message bus. Reviewers never write it; the orchestrator decides when to post progress, verdicts, synthesis, approvals, and closeout.
-- Record the current gate, next gated action, positive review round, workflow revision, exact artifact identity, branch/PR, verification, reviewer outcomes, nit disposition, and branch resolution.
-- Keep tracker and public PR content brief, sanitized, and public-safe. Never post secrets, raw credentials, private links on public surfaces, raw sensitive logs, or unrelated task history.
-- Every loaded synced workflow document must carry the same full revision marker as the task issue. Unknown or mixed revisions hold the gate.
+- Every non-trivial task selects `pr`, `github-issue`, or `local`; the orchestrator alone owns coordination metadata, gates, ledgers, and closeout.
+- Use a pull request for single-phase remote work, one GitHub parent ledger for multi-phase or durable blocked work, and a temporary local record only for resumability without forge coordination.
+- Record the current gate, next action, round, full workflow revision, artifact identity, phase dependency state, verification, verdicts, nit disposition, and branch or worktree resolution.
+- Keep public coordination content brief and sanitized. Never post secrets, raw credentials, private links on public surfaces, raw sensitive logs, absolute local paths, or unrelated task history.
 
 ## Branch
 
@@ -1027,9 +1015,9 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Loading
 
-- Default orchestrator bootstrap is the task issue, Four Eyes Default Workflow, and Four Eyes Role Contracts.
-- Load Four Eyes Playbook only for exact policy detail or canonical commands; Templates only to fill an artifact; Issue Tracker Setup only for tracker-neutral behavior; Linear Setup only for Linear creation or sync.
+- Default orchestrator bootstrap is the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts.
+- Load Four Eyes Playbook only for exact policy detail or canonical commands; Templates only to fill an artifact; Coordination Records only for coordination behavior.
 - Reviewers receive a filled immutable packet and task evidence. They do not need the workflow-document set unless a disputed rule itself is under review.
-- Synced workflow documents begin with the full workflow revision and source-body digest markers. Compare every loaded marker with the task issue; missing, abbreviated, mixed, or mismatched markers hold the gate.
+- Load every policy surface from one recorded full repository commit SHA. Missing, abbreviated, mixed, or unresolvable revisions hold the gate.
 - `docs/role-contracts.md` is generated byte-for-byte from this marked source. Direct edits are invalid.
 <!-- END FOUR EYES ROLE CONTRACTS SOURCE -->

@@ -3,25 +3,25 @@
 ```text
 Closeout
 
+Coordination record: local
+
 Executed:
-- Implemented retry classification in the existing sync worker helper.
-- Added focused retry tests.
+- Completed a read-only retry-configuration audit.
+- Produced no repository diff and used no phase branch or worktree.
 
 Acceptance criteria checked:
-- 429 and 503 retry with backoff: pass.
-- permanent 4xx responses do not retry: pass.
-- existing success path unchanged: pass.
-- targeted tests pass: pass.
+- documented retry settings inspected: pass.
+- no repository mutation: pass.
 
 Verification:
-- `pytest tests/test_sync_worker.py`: pass.
-- `git diff --check`: pass.
+- documented read-only verification command: pass.
+- working tree clean: pass.
 
 Committed:
-- `abc1234 fix(sync): Add retry classification`
+- Not committed; no material diff.
 
-Resulting issue state will be set to:
-- Done
+Resulting coordination status:
+- completed
 
 Next human action:
 - None.
@@ -32,16 +32,40 @@ Remaining work:
 Sensitive-data note:
 - No secrets, raw logs, or sensitive identifiers were committed or posted.
 
-Local cleanup:
-- Local execution plan removed.
-- Raw test output not retained.
+Branch resolution:
+- No phase branch existed.
+
+Temporary artifacts after this final local record is verified:
+- Remove the temporary local plan and execution-state record, then verify absence.
+- Raw output not retained.
+```
+
+## Merged PR And Worktree Example
+
+```text
+Pre-cleanup resolution record
+
+- Bound reviewed head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Local tip SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Remote tip SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- PR: <PR link>
+- Authorized resolution: merged cleanup
+
+Final closeout results
+
+Resulting coordination status:
+- merged
 
 Branch resolution:
 - Merged and deleted after approved merge.
 - Branch: phase/EXAMPLE-retry-behavior
-- Local tip SHA before cleanup: abc1234
-- Remote tip SHA before cleanup: abc1234
+- Local tip SHA before cleanup: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Remote tip SHA before cleanup: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 - PR: <PR link>
+- PR final state: merged
+- Merge commit: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+- Reviewed head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Reviewed head ancestral to target: yes
 - Reason: post-merge cleanup authorized.
 
 Worktree resolution:
@@ -54,9 +78,40 @@ Worktree resolution:
 - Blocker: none
 ```
 
+```text
+Temporary artifacts after this final PR record is verified:
+- Remove the temporary local plan and execution-state record, then verify absence.
+```
+
+## Non-Terminal Waiting Example
+
+```text
+Coordination update
+
+Status: waiting external eval
+Gate: external evaluation
+Next action: recheck the recorded external result
+Closeout: not allowed; the coordination record remains open
+```
+
 ## Abandoned Worktree Example
 
 ```text
+Resulting coordination status:
+- abandoned
+
+Branch resolution:
+- Abandoned and deleted under the authorized cleanup gate.
+- Branch: phase/EXAMPLE-abandoned
+- Local tip SHA before cleanup: def5678
+- Remote tip SHA before cleanup: def5678
+- PR: <PR link>
+- PR final state: closed
+- Merge commit: none
+- Reviewed head: none
+- Reviewed head ancestral to target: not applicable
+- Reason: superseded work; no preservation required.
+
 Worktree resolution:
 - Reference: phase-execution/EXAMPLE-abandoned-worktree
 - Owner/category: orchestrator/phase-execution
@@ -70,12 +125,19 @@ Worktree resolution:
 ## Kept Branch Example
 
 ```text
+Resulting coordination status:
+- retained
+
 Branch resolution:
 - Intentionally kept.
 - Branch: phase/EXAMPLE-retry-behavior
 - Local tip SHA before cleanup: abc1234
 - Remote tip SHA before cleanup: abc1234
 - PR: <PR link>
+- PR final state: open
+- Merge commit: none
+- Reviewed head: none
+- Reviewed head ancestral to target: not applicable
 - Reason: waiting for upstream API decision.
 - Next owner: <owner>
 - Revisit trigger: EXAMPLE-123 or 2026-07-01.
@@ -88,6 +150,31 @@ Worktree resolution:
 - Expected/live remote comparison: match
 - Resolution path: intentionally kept branch
 - Blocker: none
+```
+
+## Handed-Off Example
+
+```text
+Resulting coordination status:
+- handed off
+
+Blocker:
+- Cleanup has an unapproved external side effect.
+
+Owner and next action:
+- Human owner accepted responsibility to decide the cleanup path.
+
+Branch resolution:
+- Handed off to human.
+- Branch: phase/EXAMPLE-side-effect
+- Local tip SHA before cleanup: fedcba9
+- Remote tip SHA before cleanup: fedcba9
+- PR: <PR link>
+- PR final state: open
+- Merge commit: none
+- Reviewed head: none
+- Reviewed head ancestral to target: not applicable
+- Reason: explicit human decision required.
 ```
 
 ## Reviewer Detached Worktree Example
@@ -107,7 +194,7 @@ Complete paths, Git identities, local expected-state transitions, ref pre/post c
 
 ## Private Lifecycle Evidence Example
 
-This local-only record is not posted to the tracker or public PR.
+This local-only record is not posted to a public coordination record.
 
 ```text
 Private worktree lifecycle evidence
