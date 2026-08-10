@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "digest"
 require "fileutils"
 require "tmpdir"
 require "uri"
@@ -18,6 +19,7 @@ module FourEyesDocs
     LOAD_ON_DEMAND_RULE = "Load Four Eyes Playbook only for exact policy detail or canonical commands, Templates only to fill an artifact, and Coordination Records only for coordination behavior. Reviewers receive a filled immutable packet and exact task evidence; they do not need the workflow-document set unless a disputed rule itself is under review."
     ROLE_LOADING_RULE = "- Default orchestrator bootstrap is the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts."
     COORDINATION_LOADING_RULE = "Load the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts by default. Load the Playbook, Templates, or Coordination Records only when their exact policy, template, or coordination behavior is needed. Reviewers receive filled immutable packets and do not need the workflow-document set."
+    DOCUMENTATION_ENFORCEMENT_RULE = "- Use exact mechanical enforcement when silent drift could change authority, a gate, artifact identity, reviewer isolation, terminal or cleanup behavior, a public/private boundary, or canonical generated output."
     HANDOFF_MODE_LINE = "Handoff mode: reviewer1-subagent + manual reviewer2 | reviewer1-subagent + direct reviewer2 | manual reviewer1 + manual reviewer2 | manual reviewer1 + direct reviewer2 | manual reviewer2 only | direct reviewer2 only | manual human relay"
     REVIEWER2_HANDOFF_LINE = "Reviewer 2 handoff: manual external reviewer | direct Claude reviewer"
     REVIEWER2_AUTHORIZATION_LINE = "Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost"
@@ -43,13 +45,7 @@ module FourEyesDocs
       "docs/templates.md" => 2,
       "docs/coordination-records.md" => 2
     }.freeze
-    AUTOMATION_LADDER_LINES = [
-      "1. Current baseline: PR transport with human-invoked external reviewers.",
-      "2. Current Codex-led default: reused named internal Reviewer 1, human-relayed external Reviewer 2.",
-      "3. Optional where the orchestrator platform provides native isolated invocation and the human records the exact phase, full model identity, maximum calls, and maximum cost amount and currency: orchestrator invokes only Reviewer 2 directly.",
-      "4. Future: CI-triggered reviewers.",
-      "Rung 3 is never globally or orchestrator-authorized; each task or phase requires the recorded human decision and enforceable bounds. Rung 4 is not implemented or pre-authorized."
-    ].freeze
+    DIRECT_REVIEW_LADDER_BOUNDARY = "Rung 3 is never globally or orchestrator-authorized; each task or phase requires the recorded human decision and enforceable bounds. Rung 4 is not implemented or pre-authorized."
     PRE_BOOTSTRAP_COMPONENTS = {
       "README.md#Default Workflow" => 2_630,
       "docs/playbook.md" => 54_802,
@@ -142,113 +138,38 @@ module FourEyesDocs
       "- Resolution path: <merged | abandoned | intentionally kept branch | reviewer detached | human handoff>",
       "- Blocker: <none | exact blocker>"
     ].freeze
-    PRIVATE_WORKTREE_EXAMPLE_LINES = [
-      [
-        "- Reference: phase-execution/EXAMPLE-retry-worktree",
-        "- Canonical path: <private canonical phase-worktree path>",
-        "- Owner/category and cleanup owner: orchestrator/phase-execution | orchestrator",
-        "- Checkout kind: named branch",
-        "- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "- Git common directory: <private canonical common Git directory>",
-        "- Per-worktree Git directory: <private canonical per-worktree Git directory>",
-        "- Base SHA: 1111111111111111111111111111111111111111",
-        "- Stored primary fingerprint: HEAD=1111111111111111111111111111111111111111; staged=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; unstaged=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; untracked=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "- Remote identity/name/full ref: example.invalid/four-eyes | origin | refs/heads/phase/EXAMPLE-retry-behavior",
-        "- Expected/live remote state: absent/absent",
-        "- Previous/new local expected state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/absent",
-        "- Local ref pre-delete check: exact match",
-        "- Local ref post-delete check: absent",
-        "- Clean status: clean",
-        "- Removal result: removed normally",
-        "- Retained-checkout absence check: passed",
-        "- Resolution path: merged",
-        "- Blocker: none"
-      ],
-      [
-        "- Reference: reviewer-verification/EXAMPLE-r2-round-1",
-        "- Canonical path: <private canonical reviewer-worktree path>",
-        "- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | Reviewer 2",
-        "- Checkout kind: detached",
-        "- Expected branch/ref or reviewed SHA: 2222222222222222222222222222222222222222",
-        "- Git common directory: <private canonical common Git directory>",
-        "- Per-worktree Git directory: <private canonical per-worktree Git directory>",
-        "- Base SHA: not applicable",
-        "- Stored primary fingerprint: not applicable",
-        "- Remote identity/name/full ref: none/none/none",
-        "- Expected/live remote state: none/none",
-        "- Previous/new local expected state: none",
-        "- Local ref pre-delete check: not applicable",
-        "- Local ref post-delete check: not applicable",
-        "- Clean status: clean",
-        "- Removal result: removed normally",
-        "- Retained-checkout absence check: passed",
-        "- Resolution path: reviewer detached",
-        "- Blocker: none"
-      ]
-    ].freeze
+    PRIVATE_WORKTREE_EXAMPLE_EXPECTATIONS = {
+      "merged" => {
+        "- Owner/category and cleanup owner" => "orchestrator/phase-execution | orchestrator",
+        "- Checkout kind" => "named branch",
+        "- Expected/live remote state" => "absent/absent",
+        "- Previous/new local expected state" => "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/absent",
+        "- Clean status" => "clean",
+        "- Removal result" => "removed normally",
+        "- Retained-checkout absence check" => "passed",
+        "- Local ref pre-delete check" => "exact match",
+        "- Local ref post-delete check" => "absent"
+      },
+      "reviewer detached" => {
+        "- Owner/category and cleanup owner" => "Reviewer 2/reviewer-verification | Reviewer 2",
+        "- Checkout kind" => "detached",
+        "- Base SHA" => "not applicable",
+        "- Stored primary fingerprint" => "not applicable",
+        "- Remote identity/name/full ref" => "none/none/none",
+        "- Expected/live remote state" => "none/none",
+        "- Previous/new local expected state" => "none",
+        "- Local ref pre-delete check" => "not applicable",
+        "- Local ref post-delete check" => "not applicable",
+        "- Clean status" => "clean",
+        "- Removal result" => "removed normally",
+        "- Retained-checkout absence check" => "passed",
+        "- Blocker" => "none"
+      }
+    }.freeze
     PUBLIC_WORKTREE_RECORD_RULE = "Public coordination records never include worktree paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, or cleanup diagnostics. Record only the opaque reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker if any. Detailed ownership and state transitions stay in private local evidence."
     DEFAULT_WORKTREE_RULE = "5. For each implementation phase, the orchestrator creates a phase branch and dedicated worktree while the primary checkout stays fixed and coordination-only."
     ROLE_WORKTREE_RULE = "- With phase branch mode on, default to one owned phase worktree, keep the primary checkout fixed, verify baseline, and remove it before branch deletion; the packet remains the review artifact, only a repo-backed reviewer that creates a detached worktree must remove it before verdict, and the contract has no named integration dependency."
-    WORKTREE_REQUIRED_RULES = [
-      "The worktree lifecycle requires no named plugin, skill, marketplace product, or vendor-specific integration.",
-      "- `(Phase branch mode: on, Worktree mode: on)` is the default phase-branch path: use one dedicated named-branch worktree and keep the primary checkout coordination-only.",
-      "- `(Phase branch mode: off, Worktree mode: off)` preserves the existing primary-checkout execution and uncommitted-review path.",
-      "- `(Phase branch mode: on, Worktree mode: off)` requires explicit human approval because it disables collision protection.",
-      "- `(Phase branch mode: off, Worktree mode: on)` is invalid.",
-      "- A compliant platform mechanism is allowed; otherwise use `git worktree`. Git's own same-branch and path refusals are the mechanical enforcement. Pre-creation inspection records a readable stop reason but does not replace those refusals.",
-      "- Never use force to create or remove a worktree. Never remove a worktree automatically before its immutable ownership record and pre-cleanup facts are complete.",
-      "- Prefer a worktree path outside the repository root. A project-local root is allowed only when `git check-ignore -v` exits zero for it and identifies an existing positive repository-specific rule in a tracked repository ignore file or that repository's own Git metadata; a negation or host-global rule is insufficient.",
-      "- After creation, recompute the primary-checkout fingerprint. If the fingerprint command fails or its untracked digest changes, the worktree location is non-compliant.",
-      "- Absolute paths, usernames, host layout, remote URLs, remote names, full refs, local expected-state transitions, and cleanup diagnostics stay in local or private evidence. Public surfaces carry only the opaque worktree reference, ownership category, checkout kind, remote-subject category, expected/live comparison result, lifecycle path, and blocker.",
-      "- Concurrent worktrees provide filesystem isolation, not semantic independence. Use the existing parent/child dependency record to declare whether phases may run concurrently.",
-      "- Before fresh creation, require the primary checkout on the recorded base branch at the stored base SHA, clean under `git status --porcelain=v1 --untracked-files=all`, and equal to its canonical stored fingerprint.",
-      "- Before fresh creation, require `git worktree list --porcelain` to show no conflicting path or checkout and require the full local phase ref absent. When a remote subject is bound, require an authoritative live query to report the full remote phase ref absent; when no remote is bound, require remote subject, name, full ref, expected state, and live state all to be `none`.",
-      "- Create the named phase branch and worktree together from the exact base without force. The primary checkout stays on the base branch and performs no phase implementation.",
-      "- Before sealing ownership, require the primary branch, HEAD, cleanliness, and fingerprint to remain exactly unchanged.",
-      "- Before sealing ownership, require the phase worktree at the canonical recorded path, on the exact named phase branch, at the base SHA, clean, fingerprintable, and bound to the expected Git common directory and distinct per-worktree Git directory.",
-      "- After local creation, repeat the authoritative live remote-absence query for a bound remote, or re-require the complete all-`none` tuple when no remote is bound. Only when every primary, phase, local-ref, Git-identity, fingerprint, and remote postcondition matches may the orchestrator seal the immutable creation record and record local `absent -> <base SHA>` plus remote expected state `absent` or `none`.",
-      "- A failed creation postcondition creates only a recovery record from observed facts and a human handoff. Never adopt, remove, retry, or advance expected state automatically.",
-      "- A phase-worktree immutable record binds opaque reference, canonical path, owner/category, checkout kind `named branch`, expected full local branch ref, initial full HEAD SHA, Git common directory, per-worktree Git directory, base SHA, stored primary pre-creation fingerprint, credential-free canonical remote identity or `none`, remote name or `none`, full remote ref or `none`, and initial expected remote state `absent` or `none`.",
-      "- Resume is not creation. Resume requires owner/category, checkout kind, canonical path, expected branch ref, base SHA, Git common directory, per-worktree Git directory, immutable remote subject tuple, and stored primary fingerprint to equal the immutable record; live local ref and worktree HEAD must equal mutable expected local state and descend from base; authoritative live remote state must equal mutable expected remote state; the primary must be clean at its stored fingerprint; and the phase checkout must be clean and successfully fingerprinted at the exact expected HEAD, with that fresh fingerprint recorded as the resumed execution baseline. Any mismatch hands off.",
-      "- Before edits, run only the repository's documented setup and verification commands in the phase worktree and record exact results. Never run a generic dependency installer automatically.",
-      "- If the repository documents no verification command, the reviewed plan must define one or explicitly record that no baseline is available.",
-      "- A failing baseline proceeds only after the human accepts the exact command, bounded failure signature, and impact. A plan-authored acceptance alone is insufficient.",
-      "- Immediately before every authorized commit, require the exact full phase ref and expected local SHA. Afterward, require the same branch, a different new SHA that descends from both the previous expected SHA and immutable base, then record previous/new values and advance expected local state.",
-      "- A missing, premature, unauthorized, unchanged, or non-descendant local-ref transition hands off and is never absorbed.",
-      "- The immutable remote subject uniquely keys every remote comparison. When it is `none`, remote name, full ref, expected state, and live state must all be `none`.",
-      "- Obtain authoritative remote state from a live query to the exact remote or forge subject, never from remote-tracking refs alone.",
-      "- Before every authorized push or remote deletion, require authoritative live state to equal expected state. Freeze the expected local tip as a push's intended remote SHA.",
-      "- After every authorized push or remote deletion, query the same subject again and require the intended exact new state before recording previous/new values or advancing expected remote state.",
-      "- Any remote subject, pre-transition, or post-transition mismatch hands off and is never absorbed.",
-      "- Creation, resume, review dispatch, local or remote transition, and cleanup compare authoritative live state with expected state. Unexpected advance, deletion, appearance, subject change, or ref change hands off.",
-      "- Reviewer worktrees are optional and apply only to a repo-backed reviewer of a commit-bound `(Phase branch mode: on, Worktree mode: on)` implementation artifact that needs local execution.",
-      "- A plan, packet-only, forge-only, no-repo, or `(off, off)` uncommitted reviewer has no worktree obligation and inspects the immutable supplied artifact directly.",
-      "- The immutable packet or forge artifact, never a mutable worktree, is the source of reviewed bytes.",
-      "- A reviewer-created worktree uses a distinct throwaway detached checkout at the exact reviewed SHA and records opaque reference, canonical path, reviewer owner, cleanup owner, checkout kind `detached`, reviewed SHA, Git common directory, and per-worktree Git directory. All remote fields are `none`.",
-      "- A reviewer-created worktree follows the same compliant-location and ownership rules as a phase worktree.",
-      "- A reviewer that creates a worktree must require detached HEAD at the exact SHA, work read-only, record clean status, remove it normally, and verify its exact path absent from `git worktree list --porcelain` from a retained checkout before returning a verdict.",
-      "- Dirty reviewer state or failed cleanup returns `Review status: could-not-review` with `Verdict: not issued`; any drafted judgment is non-counting evidence. A reviewer that created no worktree has no cleanup obligation. Only the orchestrator records `error` or `timeout` when no response can be obtained.",
-      "- Worktree removal and branch resolution are separate. Resolve every phase worktree as merged, abandoned, intentionally kept branch, or human handoff. Remove the owned worktree before deleting its branch.",
-      "- Before requesting merge approval, bind the credential-free target repository identity, full target ref, exact live target tip, exact reviewed phase head, canonical reviewed-artifact digest, intended target, and merge strategy.",
-      "- Immediately before an approved forge merge, re-query the exact target and artifact and require all bound identities and approvals unchanged. Also require the primary checkout still on its stored base branch and SHA, clean, at its stored fingerprint, with that base an ancestor of the live target tip.",
-      "- Execute only the exact human-approved merge. Immediately afterward require the authoritative target ref at the exact reported merge commit, require that commit to have exactly two parents in order with the pre-merge target tip first and exact reviewed phase head second, require both bound commits to be ancestors of it, and record previous/new target states before any local transition.",
-      "- Before changing the primary checkout, re-require its stored branch, SHA, cleanliness, and fingerprint and require its base SHA to be an ancestor of the verified merge commit.",
-      "- Only exact closeout authorization permits a fast-forward-only move of the primary target branch directly to the verified merge commit. Never create another merge, rebase, reset, force, or move to a later target tip.",
-      "- After the primary fast-forward, require the exact target branch and merge-commit HEAD, clean state, and successful new fingerprint before recording the new coordination base and running post-merge verification there.",
-      "- Merged cleanup requires complete ownership, expected cleanup HEAD equal to the latest approved reviewed head and local tip, applicable authoritative remote equality or expected absence, clean status, and verified merge ancestry.",
-      "- For merged cleanup, record state; exit the worktree; remove it normally without force; verify its exact path absent from `git worktree list --porcelain` from a retained checkout; then apply the existing merged branch cleanup rule.",
-      "- Before authorized local phase-ref deletion, require the worktree absent and the full local ref equal to expected local state. After deletion, require the ref absent before recording previous/new state and advancing expected local state to `absent`.",
-      "- Before authorized remote branch deletion, require authoritative live state equal to the expected exact SHA. Afterward, require the exact ref absent before recording previous/new state and advancing expected remote state to `absent`.",
-      "- Independently verified forge auto-deletion is accepted only when evidence binds the exact expected ref and SHA and a live query confirms absence; then record `absent` without issuing a deletion command.",
-      "- Remote deletion is not lease-protected because force variants are prohibited. The bounded control is a workflow-owned branch with unauthorized concurrent pushes plus exact pre-transition and post-transition live checks.",
-      "- Abandoned cleanup requires complete ownership, applicable expected state, authoritative local and remote state, PR state, cleanliness, and preservation need. Dirty, divergent, changed, unowned, or preservation-needed state hands off.",
-      "- A clean abandoned worktree is removed and verified absent before the PR and branch are resolved under `Abandoned branch cleanup`. No approved reviewed head or remote SHA is required when its expected state is `absent`.",
-      "- An intentionally kept branch still requires complete ownership, exact retained local expected SHA, authoritative remote state, clean status, branch tips, reason, next owner, and revisit trigger. Remove and verify the worktree while leaving branch, expected local SHA, remote state, and PR unchanged.",
-      "- Never run `git worktree prune` in the normal lifecycle. A stale entry is an out-of-band, human-gated repair.",
-      "- Cleanup removes only the exact path in the ownership record and only when its live branch or detached SHA matches that record. Never remove another agent's worktree.",
-      "- Cleanup failure keeps the coordination record open and records the opaque reference, branch, owner/category, path privately, observed state, and blocker.",
-      "- Worktree mode on with phase branch mode on pre-authorizes compliant named-branch creation and normal worktree removal. Phase branch mode separately authorizes branch creation, local commits, and approved merged-branch cleanup; remote push also requires Push Authorization. Every existing human gate remains."
-    ].freeze
+    WORKTREE_LIFECYCLE_SHA256 = "1a899436fe6bc050fff2d8bca6637eb25a4405de46d364ffb42a854884659be3"
     COORDINATION_FIELD_OCCURRENCES = {
       "README.md" => 1,
       "docs/templates.md" => 2,
@@ -382,24 +303,21 @@ module FourEyesDocs
     LEDGER_GATE_RULE = "`Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field."
     LEDGER_EXAMPLE_RULE = "`Status` records lifecycle progress; `Gate` records what controls the next transition. `waiting external eval` is non-terminal. The independent Retry classification phase may proceed, while Retry metrics remains unready because it depends on a non-terminal phase."
     READ_ONLY_NO_DIFF_RULE = "If execution is read-only and creates no material diff, use Status `completed` when verification is complete and no further action remains, Status `waiting external eval` with Gate `external evaluation` when an external result is pending, or Status `ready` with Gate `human approval` when an explicit human action is required."
-    LIFECYCLE_STATUS_LINES = [
-      "- Todo: local plan exists or task is ready to prepare",
-      "- Ready: every dependency is terminal and the phase is waiting to start or for an authorized transition",
-      "- In Progress: orchestrator actively working",
-      "- Review: implementation or plan is waiting for expected reviewer slots",
-      "- Blocked: blocked by reviewer finding, missing evidence, external decision, unresolved ownership, or prior slice",
-      "- Waiting External Eval: executed, waiting for CI, logs, users, cloud evaluation, or another external system",
-      "- Merged, Completed, Abandoned, Retained, or Handed Off: verified terminal resolution"
+    LIFECYCLE_STATUS_IDENTIFIERS = [
+      "Todo",
+      "Ready",
+      "In Progress",
+      "Review",
+      "Blocked",
+      "Waiting External Eval",
+      "Merged, Completed, Abandoned, Retained, or Handed Off"
     ].freeze
-    LIFECYCLE_STATUS_BLOCK = "Lifecycle status values:\n\n#{LIFECYCLE_STATUS_LINES.join("\n")}\n\n"
-    FORGE_LABEL_INTRO = "For a `github-issue` record whose forge lacks custom states, use labels or issue-title prefixes. For `pr` or `local`, write the state directly in that coordination record."
-    FORGE_LABEL_LINES = [
-      "- `gate:review`",
-      "- `gate:human-approval`",
-      "- `waiting:external-eval`",
-      "- `gate:blocker-resolution`"
+    FORGE_LABEL_IDENTIFIERS = [
+      "gate:review",
+      "gate:human-approval",
+      "waiting:external-eval",
+      "gate:blocker-resolution"
     ].freeze
-    FORGE_LABEL_BLOCK = "#{FORGE_LABEL_INTRO}\n\n#{FORGE_LABEL_LINES.join("\n")}\n\n"
     PRE_CLEANUP_STATUS_LINE = "- <ready | review | blocked>"
     PRE_CLEANUP_GATE_LINE = "- <human approval | review | blocker resolution>"
     SYNTHESIS_BLOCKED_RULE = "- The orchestrator will use Status `review` with Gate `review` while another review is required, or Status `blocked` with Gate `blocker resolution` while an in-scope blocker remains; it will fix the phase branch, push the update, and request the required review."
@@ -447,29 +365,8 @@ module FourEyesDocs
       "Abandoned branch cleanup:"
     ].freeze
     STALE_PHRASES = [
-      "Read the existing Four Eyes Default Workflow, Playbook, Templates, and Issue Tracker Setup in Linear first.",
-      "Until document markers exist",
-      "Until document-level revision markers exist",
-      "Until synced documents carry their own revision markers",
-      "from latest successful sync note",
-      "workflow revision from the standing workflow-doc sync note",
-      "latest successful sync note in the standing workflow-doc tracker issue is authoritative",
-      "four runtime documents",
-      "five documents total",
-      "all six payloads byte-exact",
-      "six successful byte comparisons",
-      "compare every byte with the generated expected payload",
-      "This proves stable Linear serialization, not source-body byte preservation.",
       "launch only the isolated internal Reviewer 1 subagent. Return every external reviewer prompt to the human for relay.",
       "External Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise",
-      "direct Claude adapter",
-      "Claude adapter status:",
-      "Claude contract manifest SHA-256:",
-      "Claude Reviewer 2 Adapter",
-      "scripts/claude-reviewer2.rb",
-      "scripts/check-claude-reviewer2.rb",
-      "schemas/reviewer-verdict.schema.json",
-      "adapter terminal record",
       "unless explicitly instructed to comment in the tracker",
       "Do not post to the tracker unless explicitly instructed.",
       "unless explicitly instructed to post to the tracker",
@@ -479,13 +376,18 @@ module FourEyesDocs
       "Default to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.",
       "Remote push: allowed | disallowed",
       "The orchestrator may commit and push the recorded phase branch without per-commit approval when pushes are side-effect-free. Human approval remains required before merge to a protected branch.",
-      "- Phase branch commits and pushes may be pre-authorized only by phase branch mode."
+      "- Phase branch commits and pushes may be pre-authorized only by phase branch mode.",
+      "from latest successful sync note",
+      "direct Claude adapter",
+      "Claude adapter status:",
+      "Claude contract manifest SHA-256:"
     ].freeze
     RETIRED_POLICY_PATTERNS = [
       /\bLinear\b/i,
       /synced workflow document/i,
       /sync payload/i,
       /standing workflow-doc/i,
+      /(?:Claude Reviewer 2 Adapter|claude-reviewer2|reviewer-verdict\.schema|adapter terminal record)/i,
       /one child issue for every/i,
       /phase child issue/i,
       /\btask issue\b/i
@@ -496,6 +398,7 @@ module FourEyesDocs
     def initialize(root, bootstrap_members: POST_BOOTSTRAP_MEMBERS)
       @root = File.expand_path(root)
       @bootstrap_members = bootstrap_members
+      @markdown_cache = {}
     end
 
     def check!
@@ -622,12 +525,10 @@ module FourEyesDocs
       post_bytes = default_workflow_source.bytesize + normalized_read("docs/role-contracts.md").bytesize
       fail_check("bootstrap byte budget exceeded: #{post_bytes} > #{POST_BOOTSTRAP_BUDGET}") if post_bytes > POST_BOOTSTRAP_BUDGET
       saved = PRE_BOOTSTRAP_TOTAL - post_bytes
-      {
-        before: PRE_BOOTSTRAP_TOTAL,
-        after: post_bytes,
-        saved: saved,
-        reduction: (saved.to_f * 100 / PRE_BOOTSTRAP_TOTAL)
-      }
+      reduction = saved.to_f * 100 / PRE_BOOTSTRAP_TOTAL
+      fail_check("current bootstrap report mismatch") unless [PRE_BOOTSTRAP_TOTAL, post_bytes, saved, format("%.2f", reduction)] == [92_036, 11_973, 80_063, "86.99"]
+
+      { before: PRE_BOOTSTRAP_TOTAL, after: post_bytes, saved: saved, reduction: reduction }
     end
 
     def check_loading_prompts!
@@ -720,9 +621,12 @@ module FourEyesDocs
 
       playbook = normalized_read("docs/playbook.md")
       ladder = section(playbook, "## Review Transport", "## Review Tier")
-      AUTOMATION_LADDER_LINES.each do |line|
-        require_unique_operative_line_in_section!(playbook, ladder, line, "automation ladder mismatch")
+      rungs = markdown_lines(ladder).each_with_object([]) do |entry, identifiers|
+        match = entry[:context] == :prose && entry[:line].match(/\A(\d+)\. /)
+        identifiers << match[1] if match
       end
+      fail_check("automation ladder mismatch") unless rungs == %w[1 2 3 4]
+      require_unique_operative_line_in_section!(playbook, ladder, DIRECT_REVIEW_LADDER_BOUNDARY, "automation ladder boundary mismatch")
     end
 
     def check_coordination_contract!
@@ -763,11 +667,16 @@ module FourEyesDocs
       gate_start = gate_state.index("Gate values name the condition controlling the next transition:\n")
       fail_check("lifecycle status vocabulary mismatch") unless status_start && gate_start && status_start < gate_start
       status_block = gate_state[status_start...gate_start]
-      fail_check("lifecycle status vocabulary mismatch") unless status_block == LIFECYCLE_STATUS_BLOCK
-      labels_start = gate_state.index(FORGE_LABEL_INTRO)
-      labels_end = gate_state.index("When using gate labels, remove the old gate label in the same update that adds the new gate label.\n")
-      fail_check("forge label vocabulary mismatch") unless labels_start && labels_end && labels_start < labels_end
-      fail_check("forge label vocabulary mismatch") unless gate_state[labels_start...labels_end] == FORGE_LABEL_BLOCK
+      statuses = markdown_lines(status_block).each_with_object([]) do |entry, identifiers|
+        match = entry[:context] == :prose && entry[:line].match(/\A[-*+] ([^:]+):\s+.+\z/)
+        identifiers << match[1] if match
+      end
+      fail_check("lifecycle status vocabulary mismatch") unless statuses == LIFECYCLE_STATUS_IDENTIFIERS
+      forge_labels = markdown_lines(gate_state).each_with_object([]) do |entry, identifiers|
+        match = entry[:context] == :prose && entry[:line].match(/\A[-*+] `([^`]+)`\z/)
+        identifiers << match[1] if match
+      end
+      fail_check("forge label vocabulary mismatch") unless forge_labels == FORGE_LABEL_IDENTIFIERS
 
       coordination = normalized_read("docs/coordination-records.md")
       recommended_fields = section(coordination, "## Recommended Fields", "## Recommended Record Shape")
@@ -817,6 +726,8 @@ module FourEyesDocs
 
     def check_review_efficiency_and_policy!
       playbook = normalized_read("docs/playbook.md")
+      enforcement = section(playbook, "## Documentation Enforcement Boundary", "## Review Efficiency")
+      require_unique_operative_line_in_section!(playbook, enforcement, DOCUMENTATION_ENFORCEMENT_RULE, "documentation enforcement boundary missing")
       check_exact_rule_body!(playbook, "## Push Authorization", "## Workflow Revision And Artifact Identity", PUSH_AUTHORIZATION_RULES, "push authorization")
       check_exact_rule_body!(playbook, "## Policy Transition And Trust Boundary", "## Right-Sizing Slices", POLICY_TRANSITION_RULES, "policy transition")
       check_exact_rule_body!(playbook, "## Review Efficiency", "## Phase Review", REVIEW_EFFICIENCY_RULES, "review efficiency")
@@ -920,9 +831,7 @@ module FourEyesDocs
       end
       REMOTE_PUSH_FIELD_OCCURRENCES.each do |relative, expected|
         fail_check("remote push field occurrence mismatch in #{relative}") unless occurrences[relative] == expected
-      end
-      REMOTE_PUSH_OPTION_OCCURRENCES.each do |relative, expected|
-        fail_check("remote push option occurrence mismatch in #{relative}") unless option_occurrences[relative] == expected
+        fail_check("remote push option occurrence mismatch in #{relative}") unless option_occurrences[relative] == REMOTE_PUSH_OPTION_OCCURRENCES.fetch(relative, 0)
       end
       unexpected = occurrences.keys - REMOTE_PUSH_FIELD_OCCURRENCES.keys
       fail_check("unexpected remote push field occurrence") unless unexpected.empty?
@@ -1037,15 +946,7 @@ module FourEyesDocs
       lifecycle_finish = playbook.index(ROLE_BEGIN, lifecycle_start)
       fail_check("worktree lifecycle section boundary missing") unless lifecycle_finish
       lifecycle = playbook[lifecycle_start...lifecycle_finish]
-      WORKTREE_REQUIRED_RULES.each do |line|
-        require_unique_operative_line_in_section!(playbook, lifecycle, line, "worktree lifecycle rule missing")
-      end
-      actual_rules = lifecycle.lines.map(&:chomp).each_with_object([]) do |line, rules|
-        next if line.empty? || line.match?(/\A\#{1,6}(?:[ \t]|\z)/)
-
-        rules << line
-      end
-      fail_check("unchecked worktree lifecycle rule") unless actual_rules == WORKTREE_REQUIRED_RULES
+      fail_check("worktree lifecycle rules mismatch") unless Digest::SHA256.hexdigest(lifecycle) == WORKTREE_LIFECYCLE_SHA256
 
       readme = normalized_read("README.md")
       default_workflow = default_workflow_source
@@ -1134,13 +1035,41 @@ module FourEyesDocs
       end
       fail_check("private worktree evidence example count mismatch") unless blocks.length == 2
 
-      blocks.zip(PRIVATE_WORKTREE_EXAMPLE_LINES).each do |block, expected_fields|
+      expected_prefixes = PRIVATE_WORKTREE_EVIDENCE_LINES.map { |line| line.split(": ", 2).first }
+      paths = []
+      blocks.each do |block|
         lines = block[:body].lines.map(&:chomp)
-        expected_lines = ["Private worktree lifecycle evidence", ""] + expected_fields
-        fail_check("private worktree evidence example mismatch") unless lines.length == expected_lines.length
-        path = expected_fields.find { |line| line.start_with?("- Resolution path: ") }.split(": ", 2).last
-        fail_check("private worktree evidence state mismatch: #{path}") unless lines == expected_lines
+        fields = lines.drop(2)
+        prefixes = fields.map { |line| line.split(": ", 2).first }
+        fail_check("private worktree evidence example mismatch") unless prefixes == expected_prefixes
+
+        record = fields.to_h { |line| line.split(": ", 2) }
+        fail_check("private worktree evidence example mismatch") if record.values.any? { |value| value.nil? || value.empty? }
+        path = record.fetch("- Resolution path")
+        expected = PRIVATE_WORKTREE_EXAMPLE_EXPECTATIONS[path]
+        fail_check("private worktree evidence state mismatch: #{path}") unless expected
+        expected.each do |field, value|
+          fail_check("private worktree evidence state mismatch: #{path}") unless record.fetch(field) == value
+        end
+        subject = record.fetch("- Expected branch/ref or reviewed SHA")
+        valid_subject = if path == "merged"
+                          subject.match?(/\Arefs\/heads\/phase\/\S+ at [0-9a-f]{40}\z/)
+                        else
+                          subject.match?(/\A[0-9a-f]{40}\z/)
+                        end
+        fail_check("private worktree evidence state mismatch: #{path}") unless valid_subject
+        if path == "merged"
+          fields = {
+            "- Base SHA" => /\A[0-9a-f]{40}\z/,
+            "- Stored primary fingerprint" => /\AHEAD=[0-9a-f]{40}; staged=[0-9a-f]{64}; unstaged=[0-9a-f]{64}; untracked=[0-9a-f]{64}\z/,
+            "- Remote identity/name/full ref" => /\A\S+ \| \S+ \| refs\/heads\/phase\/\S+\z/,
+            "- Blocker" => /\Anone\z/
+          }
+          fail_check("private worktree evidence state mismatch: #{path}") unless fields.all? { |field, pattern| record.fetch(field).match?(pattern) }
+        end
+        paths << path
       end
+      fail_check("private worktree evidence example paths mismatch") unless paths.sort == PRIVATE_WORKTREE_EXAMPLE_EXPECTATIONS.keys.sort
     end
 
     def section(content, start_heading, end_heading = nil)
@@ -1300,12 +1229,19 @@ module FourEyesDocs
     end
 
     def markdown_lines(content)
+      cache_key = content.dup.freeze
+      @markdown_cache.fetch(cache_key) do
+        @markdown_cache[cache_key] = parse_markdown_lines(cache_key)
+      end
+    end
+
+    def parse_markdown_lines(source)
       entries = []
       offset = 0
       fence = nil
       in_comment = false
 
-      content.each_line do |raw_line|
+      source.each_line do |raw_line|
         line = raw_line.delete_suffix("\n")
         entry = {
           offset: offset,
@@ -1329,10 +1265,10 @@ module FourEyesDocs
           entry[:fence] = opening
           fence = opening
         elsif indented_code_line?(line)
-          content = line.lstrip
-          if container_prefixed_heading?(content)
+          indented_content = line.lstrip
+          if container_prefixed_heading?(indented_content)
             fail_check("ambiguous indented heading is not allowed in checked workflow Markdown")
-          elsif raw_html_after_containers?(content)
+          elsif raw_html_after_containers?(indented_content)
             fail_check("raw HTML blocks are not allowed in checked workflow Markdown")
           end
           entry[:context] = :indented_code
@@ -1358,7 +1294,7 @@ module FourEyesDocs
         offset = entry[:finish]
       end
 
-      entries
+      entries.each(&:freeze).freeze
     end
 
     def block_comment_open_after_line?(line)
@@ -1566,79 +1502,82 @@ module FourEyesDocs
 
   class SelfTest
     def initialize(source_root)
-      @source_root = source_root
+      @source_root = File.realpath(source_root)
       @checks = 0
       @passed_checks = []
     end
 
     def run!
+      setup_fixture
       with_fixture { |root| Checker.new(root).check! }
       pass("valid repository")
 
+      assert_failure("source-root mutation refused", "outside the fixture root") do
+        write(@source_root, "README.md", "not written")
+      end
+
+      with_fixture do |root|
+        assert_failure("path traversal refused", "outside the fixture root") do
+          write(root, "../outside-fixture", "not written")
+        end
+      end
+
+      with_fixture do |root|
+        outside = Dir.mktmpdir("fe-link-")
+        link = File.join(root, "link")
+        File.symlink(outside, link)
+        begin
+          assert_failure("link refused", "contains a symlink") do
+            write(root, "link/outside.txt", "changed")
+          end
+          raise "symlink escaped" if File.exist?(File.join(outside, "outside.txt"))
+        ensure
+          File.unlink(link) if File.symlink?(link)
+          FileUtils.remove_entry(outside) if File.directory?(outside)
+        end
+      end
+
+      baseline_readme = nil
+      begin
+        with_fixture do |root|
+          baseline_readme = read(root, "README.md")
+          append(root, "README.md", "intentional failed-case mutation\n")
+          raise "intentional in-fixture failure"
+        end
+      rescue RuntimeError => error
+        raise unless error.message == "intentional in-fixture failure"
+      end
+      with_fixture do |root|
+        raise "failed case was not restored" unless read(root, "README.md") == baseline_readme
+      end
+      pass("failed case restores shared fixture")
+
+      with_fixture do |root|
+        checker = Checker.new(root)
+        original = read(root, "docs/templates.md")
+        cached = checker.send(:markdown_lines, original)
+        raise "Markdown cache miss for identical content" unless checker.send(:markdown_lines, original).equal?(cached)
+
+        append(root, "docs/templates.md", "\nCache mutation.\n")
+        changed = read(root, "docs/templates.md")
+        reparsed = checker.send(:markdown_lines, changed)
+        fresh = Checker.new(root).send(:markdown_lines, changed)
+        raise "Markdown cache survived changed content" if reparsed.equal?(cached)
+        raise "cached and uncached Markdown parses differ" unless reparsed == fresh
+      end
+      pass("Markdown cache is content-bound across mutation")
+
       expect_failure("derived-file drift", "generated Role Contracts differ") do |root|
         append(root, "docs/role-contracts.md", "drift\n")
-      end
-
-      expect_failure("derived-file trailing-byte drift", "generated Role Contracts differ") do |root|
-        append(root, "docs/role-contracts.md", "\n")
-      end
-
-      Checker::RULE_GROUPS.each do |group|
-        expect_failure("missing #{group} rule group", "missing role-contract rule group: #{group}") do |root|
-          replace(root, "docs/playbook.md", "\n## #{group}\n", "\n## Removed #{group}\n")
-          Checker.new(root).write_derived!
-        end
       end
 
       expect_failure("duplicate Role Contracts marker pair", "marked Role Contracts source missing or malformed") do |root|
         append(root, "docs/playbook.md", "\n#{Checker::ROLE_BEGIN}# Competing Role Contracts source\n#{Checker::ROLE_END}\n")
       end
 
-      expect_failure("stray Role Contracts marker", "marked Role Contracts source missing or malformed") do |root|
-        append(root, "docs/playbook.md", "\n#{Checker::ROLE_BEGIN}")
-      end
-
       expect_failure("empty role-contract rule group", "empty role-contract rule group: Authority") do |root|
         content = read(root, "docs/playbook.md")
         content.sub!(/\n## Authority\n.*?(?=\n## Orchestrator\n)/m, "\n## Authority\n") || raise("Authority fixture missing")
-        write(root, "docs/playbook.md", content)
-        Checker.new(root).write_derived!
-      end
-
-      expect_failure("bullet in intervening role-contract group", "empty role-contract rule group: Authority") do |root|
-        content = read(root, "docs/playbook.md")
-        replacement = "\n## Authority\n\n## Unrelated\n\n- Borrowed bullet.\n"
-        content.sub!(/\n## Authority\n.*?(?=\n## Orchestrator\n)/m, replacement) || raise("Authority fixture missing")
-        write(root, "docs/playbook.md", content)
-        Checker.new(root).write_derived!
-      end
-
-      expect_failure("commented role-contract rule group", "missing role-contract rule group: Authority") do |root|
-        replace(root, "docs/playbook.md", "\n## Authority\n", "\n<!--\n## Authority\n-->\n")
-        Checker.new(root).write_derived!
-      end
-
-      expect_failure("reopened comment hides role-contract rule group", "invalid HTML comment structure") do |root|
-        content = read(root, "docs/playbook.md")
-        match = /\n## Authority\n.*?(?=\n## Orchestrator\n)/m.match(content) || raise("Authority fixture missing")
-        content.sub!(match[0], "\n<!-- first\n--> <!-- second#{match[0]}-->\n")
-        write(root, "docs/playbook.md", content)
-        Checker.new(root).write_derived!
-      end
-
-      expect_failure("raw HTML hides role-contract rule group", "raw HTML blocks are not allowed") do |root|
-        content = read(root, "docs/playbook.md")
-        match = /\n## Authority\n.*?(?=\n## Orchestrator\n)/m.match(content) || raise("Authority fixture missing")
-        content.sub!(match[0], "\n<script>#{match[0]}</script>\n")
-        write(root, "docs/playbook.md", content)
-        Checker.new(root).write_derived!
-      end
-
-      expect_failure("fenced role-contract rule group body", "empty role-contract rule group: Authority") do |root|
-        content = read(root, "docs/playbook.md")
-        match = /\n## Authority\n(.*?)(?=\n## Orchestrator\n)/m.match(content) || raise("Authority fixture missing")
-        replacement = "\n## Authority\n```text\n#{match[1]}```\n"
-        content.sub!(match[0], replacement)
         write(root, "docs/playbook.md", content)
         Checker.new(root).write_derived!
       end
@@ -1653,72 +1592,21 @@ module FourEyesDocs
         Checker.new(root).write_derived!
       end
 
-      expect_failure("commented bootstrap total record", "pre-change bootstrap total record missing") do |root|
-        replace(root, "README.md", Checker::PRE_BOOTSTRAP_RECORD_RULE, "<!--\n#{Checker::PRE_BOOTSTRAP_RECORD_RULE}\n-->")
-      end
-
-      expect_failure("mismatched current bootstrap budget", "current bootstrap budget record missing") do |root|
-        replace(root, "README.md", Checker::POST_BOOTSTRAP_RECORD_RULE, Checker::POST_BOOTSTRAP_RECORD_RULE.sub("12,000", "14,000"))
+      expect_failure("within-cap bootstrap byte drift", "current bootstrap report mismatch") do |root|
+        replace(root, "README.md", "## Default Workflow\n", "## Default Workflow\n\n")
       end
 
       expect_failure("omitted current bootstrap budget", "current bootstrap budget record missing") do |root|
         replace(root, "README.md", "#{Checker::POST_BOOTSTRAP_RECORD_RULE}\n", "")
       end
 
-      expect_failure("relocated current bootstrap budget", "current bootstrap budget record missing") do |root|
-        replace(root, "README.md", "#{Checker::POST_BOOTSTRAP_RECORD_RULE}\n", "")
-        append(root, "README.md", "\n#{Checker::POST_BOOTSTRAP_RECORD_RULE}\n")
-      end
-
       expect_failure("orchestrator prompt mismatch", "orchestrator loading prompt mismatch") do |root|
         replace(root, "README.md", Checker::LOADING_SENTENCE, "Load everything first.")
-      end
-
-      expect_failure("relocated README loading prompt", "orchestrator loading prompt mismatch in README.md") do |root|
-        replace(root, "README.md", Checker::LOADING_SENTENCE, "Load every workflow document first.")
-        append(root, "README.md", "\n#{Checker::LOADING_SENTENCE}\n")
-      end
-
-      expect_failure("relocated template loading prompt", "orchestrator loading prompt mismatch in docs/templates.md") do |root|
-        replace(root, "docs/templates.md", Checker::LOADING_SENTENCE, "Load every workflow document first.")
-        append(root, "docs/templates.md", "\n#{Checker::LOADING_SENTENCE}\n")
-      end
-
-      expect_failure("README loading prompt moved outside fence", "orchestrator loading prompt mismatch in README.md") do |root|
-        replace(root, "README.md", Checker::LOADING_SENTENCE, "Load the supplied task context first.")
-        replace(root, "README.md", "\n```\n\n## Example Agent Mix", "\n```\n\n#{Checker::LOADING_SENTENCE}\n\n## Example Agent Mix")
-      end
-
-      expect_failure("template loading prompt moved outside fence", "orchestrator loading prompt mismatch in docs/templates.md") do |root|
-        replace(root, "docs/templates.md", Checker::LOADING_SENTENCE, "Load the supplied task context first.")
-        replace(root, "docs/templates.md", "\n```\n\n## Local Plan Template", "\n```\n\n#{Checker::LOADING_SENTENCE}\n\n## Local Plan Template")
-      end
-
-      expect_failure("extended template loading prompt", "orchestrator loading prompt mismatch in docs/templates.md") do |root|
-        replace(root, "docs/templates.md", Checker::LOADING_SENTENCE, "#{Checker::LOADING_SENTENCE} Also load every workflow document.")
       end
 
       expect_failure("operative loading expansion", "default loading instructions mismatch") do |root|
         block = Checker::DEFAULT_LOADING_BLOCK
         replace(root, "README.md", block, "#{block.chomp}\n- Four Eyes Playbook\n\n")
-      end
-
-      expect_failure("commented default loading block", "default loading instructions mismatch") do |root|
-        block = "#{Checker::DEFAULT_LOADING_BLOCK}#{Checker::LOAD_ON_DEMAND_RULE}"
-        replace(root, "README.md", block, "<!--\n#{block}\n-->")
-      end
-
-      expect_failure("omitted README loading block", "default loading instructions mismatch") do |root|
-        replace(root, "README.md", Checker::DEFAULT_LOADING_BLOCK, "")
-      end
-
-      expect_failure("relocated README loading block", "default loading instructions mismatch") do |root|
-        replace(root, "README.md", Checker::DEFAULT_LOADING_BLOCK, "")
-        append(root, "README.md", "\n#{Checker::DEFAULT_LOADING_BLOCK}")
-      end
-
-      expect_failure("mismatched README loading block", "default loading instructions mismatch") do |root|
-        replace(root, "README.md", "- Four Eyes Role Contracts", "- every workflow document")
       end
 
       expect_failure("field-order drift", "workflow field order mismatch") do |root|
@@ -1730,198 +1618,72 @@ module FourEyesDocs
         write(root, path, content)
       end
 
-      expect_failure("Reviewer 2 field omission", "Reviewer 2 field block mismatch") do |root|
-        replace(root, "examples/coordination-record.md", "Direct Reviewer 2 authorization: none\n", "")
-      end
-
       expect_failure("Reviewer 2 option drift", "Reviewer 2 option block mismatch") do |root|
         content = read(root, "docs/templates.md")
         content.gsub!(Checker::REVIEWER2_HANDOFF_LINE, "Reviewer 2 handoff: direct Claude reviewer | manual external reviewer")
         write(root, "docs/templates.md", content)
       end
 
-      expect_failure("Reviewer 2 options replaced by concrete values", "Reviewer 2 option occurrence mismatch in README.md") do |root|
-        replace(
-          root,
-          "README.md",
-          "#{Checker::REVIEWER2_OPTION_LINES.join("\n")}\n",
-          "Reviewer 2 handoff: manual external reviewer\nDirect Reviewer 2 authorization: none\n"
-        )
+      with_fixture do |root|
+        replace(root, "docs/playbook.md", "1. Current baseline: PR transport with human-invoked external reviewers.", "1. Current baseline uses human-invoked external reviewers over PR transport.")
+        Checker.new(root).check!
       end
+      pass("automation ladder explanation may be reworded")
 
-      expect_failure("coordination field omission", "workflow field missing: Coordination record:") do |root|
-        replace(root, "docs/templates.md", "#{Checker::COORDINATION_RECORD_LINE}\n", "")
-      end
-
-      expect_failure("coordination field duplicate", "workflow field occurrence mismatch: Coordination record:") do |root|
-        replace(root, "docs/templates.md", "#{Checker::COORDINATION_RECORD_LINE}\n", "#{Checker::COORDINATION_RECORD_LINE}\n#{Checker::COORDINATION_RECORD_LINE}\n")
-      end
-
-      expect_failure("coordination field relocation", "workflow field missing: Coordination record:") do |root|
-        replace(root, "docs/templates.md", "#{Checker::COORDINATION_RECORD_LINE}\n", "")
-        append(root, "docs/templates.md", "\n#{Checker::COORDINATION_RECORD_LINE}\n")
-      end
-
-      expect_failure("coordination field order", "workflow field order mismatch") do |root|
-        first = "Review transport: pr | manual-relay\n"
-        second = "#{Checker::COORDINATION_RECORD_LINE}\n"
-        replace(root, "docs/templates.md", first + second, second + first)
+      expect_failure("automation ladder boundary omission", "automation ladder boundary mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::DIRECT_REVIEW_LADDER_BOUNDARY}\n", "")
       end
 
       expect_failure("coordination option drift", "invalid selected coordination record in README.md") do |root|
         replace(root, "README.md", "\n#{Checker::COORDINATION_RECORD_LINE}\n", "\nCoordination record: pr | local | github-issue\n")
       end
 
-      expect_failure("coordination rule omission", "coordination record rules mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::COORDINATION_REQUIRED_RULES[7]}\n", "")
+      [
+        ["coordination", Checker::COORDINATION_REQUIRED_RULES.first, "coordination record rules mismatch"],
+        ["local coordination", Checker::LOCAL_RECORD_REQUIRED_RULES.first, "local coordination record rules mismatch"],
+        ["repository revision", Checker::REVISION_LOADING_REQUIRED_RULES.first, "repository revision loading rules mismatch"],
+        ["review efficiency", Checker::REVIEW_EFFICIENCY_RULES.first, "review efficiency rules mismatch"],
+        ["push authorization", Checker::PUSH_AUTHORIZATION_RULES.first, "push authorization rules mismatch"],
+        ["policy transition", Checker::POLICY_TRANSITION_RULES.first, "policy transition rules mismatch"]
+      ].each do |name, line, error|
+        expect_omission_failure(name, "docs/playbook.md", line, error)
       end
 
-      expect_failure("coordination rule relocation", "coordination record rules mismatch") do |root|
-        rule = Checker::COORDINATION_REQUIRED_RULES[7]
-        replace(root, "docs/playbook.md", "#{rule}\n", "")
-        append(root, "docs/playbook.md", "\n#{rule}\n")
+      expect_failure("documentation enforcement boundary omission", "documentation enforcement boundary missing") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::DOCUMENTATION_ENFORCEMENT_RULE}\n", "")
       end
 
-      expect_failure("coordination rule order", "coordination record rules mismatch") do |root|
-        first = "#{Checker::COORDINATION_REQUIRED_RULES[0]}\n"
-        second = "#{Checker::COORDINATION_REQUIRED_RULES[1]}\n"
-        replace(root, "docs/playbook.md", first + second, second + first)
+      expect_omission_failure("phase-branch merge", "docs/playbook.md", Checker::PHASE_BRANCH_MERGE_RULE, "phase-branch merge rule mismatch")
+
+      [
+        ["value", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: maybe\n", "field value"],
+        ["option", "examples/coordination-record.md", "Remote push: allowed\n", "#{Checker::REMOTE_PUSH_OPTION_LINE}\n", "option occurrence"],
+        ["count", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: allowed\nRemote push: allowed\n", "field occurrence"],
+        ["default", "docs/templates.md", "#{Checker::REMOTE_PUSH_DEFAULT_LINE}\n", "", "default occurrence"],
+        ["slice field", "docs/templates.md", "#{Checker::REMOTE_PUSH_SLICE_OPTION_LINE}\n", "   - remote push: allowed | disallowed\n", "slice field occurrence"]
+      ].each do |name, path, from, to, error|
+        expect_failure(name, "push #{error} mismatch") do |root|
+          replace(root, path, from, to)
+        end
       end
 
-      expect_failure("coordination unchecked extension", "coordination record rules mismatch") do |root|
-        rule = Checker::COORDINATION_REQUIRED_RULES.last
-        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n26. Unchecked coordination rule.\n")
-      end
-
-      expect_failure("local record rule omission", "local coordination record rules mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::LOCAL_RECORD_REQUIRED_RULES[1]}\n", "")
-      end
-
-      expect_failure("local record rule relocation", "local coordination record rules mismatch") do |root|
-        rule = Checker::LOCAL_RECORD_REQUIRED_RULES[1]
-        replace(root, "docs/playbook.md", "#{rule}\n", "")
-        append(root, "docs/playbook.md", "\n#{rule}\n")
-      end
-
-      expect_failure("local record rule order", "local coordination record rules mismatch") do |root|
-        first = "#{Checker::LOCAL_RECORD_REQUIRED_RULES[0]}\n"
-        second = "#{Checker::LOCAL_RECORD_REQUIRED_RULES[1]}\n"
-        replace(root, "docs/playbook.md", first + second, second + first)
-      end
-
-      expect_failure("local record unchecked extension", "local coordination record rules mismatch") do |root|
-        rule = Checker::LOCAL_RECORD_REQUIRED_RULES.last
-        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n10. Unchecked local-record rule.\n")
-      end
-
-      expect_failure("repository revision rule omission", "repository revision loading rules mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::REVISION_LOADING_REQUIRED_RULES[1]}\n", "")
-      end
-
-      expect_failure("repository revision rule relocation", "repository revision loading rules mismatch") do |root|
-        rule = Checker::REVISION_LOADING_REQUIRED_RULES[1]
-        replace(root, "docs/playbook.md", "#{rule}\n", "")
-        append(root, "docs/playbook.md", "\n#{rule}\n")
-      end
-
-      expect_failure("repository revision rule order", "repository revision loading rules mismatch") do |root|
-        first = "#{Checker::REVISION_LOADING_REQUIRED_RULES[0]}\n"
-        second = "#{Checker::REVISION_LOADING_REQUIRED_RULES[1]}\n"
-        replace(root, "docs/playbook.md", first + second, second + first)
-      end
-
-      expect_failure("repository revision unchecked extension", "repository revision loading rules mismatch") do |root|
-        rule = Checker::REVISION_LOADING_REQUIRED_RULES.last
-        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n6. Unchecked revision-loading rule.\n")
-      end
-
-      expect_failure("review-efficiency rule omission", "review efficiency rules mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::REVIEW_EFFICIENCY_RULES[9]}\n", "")
-      end
-
-      expect_failure("review-efficiency rule order", "review efficiency rules mismatch") do |root|
-        first = "#{Checker::REVIEW_EFFICIENCY_RULES[0]}\n"
-        second = "#{Checker::REVIEW_EFFICIENCY_RULES[1]}\n"
-        replace(root, "docs/playbook.md", first + second, second + first)
-      end
-
-      expect_failure("review-efficiency unnumbered extension", "review efficiency rules mismatch") do |root|
-        rule = Checker::REVIEW_EFFICIENCY_RULES.last
-        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\nUnchecked review guidance.\n")
-      end
-
-      expect_failure("push-authorization rule relocation", "push authorization rules mismatch") do |root|
-        rule = Checker::PUSH_AUTHORIZATION_RULES[4]
-        replace(root, "docs/playbook.md", "#{rule}\n", "")
-        append(root, "docs/playbook.md", "\n#{rule}\n")
-      end
-
-      expect_failure("push-authorization unchecked extension", "push authorization rules mismatch") do |root|
-        rule = Checker::PUSH_AUTHORIZATION_RULES.last
-        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n11. Unchecked push rule.\n")
-      end
-
-      expect_failure("policy-transition duplicate", "policy transition rules mismatch") do |root|
-        rule = Checker::POLICY_TRANSITION_RULES[2]
-        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n#{rule}\n")
-      end
-
-      expect_failure("remote-push default omission", "remote push default occurrence mismatch") do |root|
-        replace(root, "docs/templates.md", "#{Checker::REMOTE_PUSH_DEFAULT_LINE}\n", "")
-      end
-
-      expect_failure("remote-push option order drift", "remote push field occurrence mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::REMOTE_PUSH_OPTION_LINE}\n", "Remote push: allowed | disallowed\n")
-      end
-
-      expect_failure("remote-push selected value drift", "remote push field value mismatch") do |root|
-        replace(root, "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: maybe\n")
-      end
-
-      expect_failure("remote-push selected duplicate", "remote push field occurrence mismatch") do |root|
-        replace(root, "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: allowed\nRemote push: allowed\n")
-      end
-
-      expect_failure("remote-push selected order drift", "worktree field block mismatch") do |root|
-        replace(root, "examples/coordination-record.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree\nRemote push: allowed\n", "Remote push: allowed\nWorktree reference: phase-execution/EXAMPLE-retry-worktree\n")
-      end
-
-      expect_failure("remote-push default order drift", "remote push default order mismatch") do |root|
-        revision = "Workflow revision: <full repository commit SHA>\n"
-        push = "#{Checker::REMOTE_PUSH_DEFAULT_LINE}\n"
-        replace(root, "docs/templates.md", push + revision, revision + push)
-      end
-
-      expect_failure("remote-push slice field value drift", "remote push slice field occurrence mismatch") do |root|
-        replace(root, "docs/templates.md", "#{Checker::REMOTE_PUSH_SLICE_OPTION_LINE}\n", "   - remote push: allowed | disallowed\n")
-      end
-
-      expect_failure("remote-push slice field order drift", "remote push slice field order mismatch") do |root|
-        reference = "   - worktree reference: none | <ownership-category>/<opaque worktree reference>\n"
-        push = "#{Checker::REMOTE_PUSH_SLICE_OPTION_LINE}\n"
-        replace(root, "docs/templates.md", reference + push, push + reference)
+      expect_failure("order", "remote push field order mismatch", :check_remote_push_fields!) do |root|
+        replace(
+          root,
+          "examples/coordination-record.md",
+          "Worktree reference: phase-execution/EXAMPLE-retry-worktree\nRemote push: allowed\n",
+          "Remote push: allowed\nWorktree reference: phase-execution/EXAMPLE-retry-worktree\n"
+        )
       end
 
       expect_failure("local commit authority narrowed", "local commit authority changed") do |root|
         replace(root, "docs/playbook.md", "This intentionally allows local commits to the named phase branch before review.", "Local commits require remote-push approval before review.")
       end
 
-      expect_failure("phase-branch local commit grant bundled with push", "phase-branch local commit grant mismatch") do |root|
-        replace(root, "docs/playbook.md", Checker::PHASE_LOCAL_COMMIT_RULE, "When phase branch mode is `on`, local commits also require `Remote push: allowed`.")
-      end
-
-      expect_failure("README exact-human push path removed", "README push rule mismatch") do |root|
-        replace(root, "README.md", "pushes it only when Push Authorization permits it", "pushes it only when the authoritative record allows it")
-      end
-
-      expect_failure("role-contract exact-human push path removed", "role-contract push gate mismatch") do |root|
+      expect_failure("role-contract exact-human push path removed", "role-contract push gate mismatch", :check_review_efficiency_and_policy!) do |root|
         line = "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push follows Push Authorization: the pre-authorized path requires the authoritative coordination record to say `Remote push: allowed`, and exact human approval remains available."
         replace(root, "docs/playbook.md", line, "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push requires `Remote push: allowed`.")
         Checker.new(root).write_derived!
-      end
-
-      expect_failure("ledger gate semantics omission", "ledger gate semantics missing") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::LEDGER_GATE_RULE}\n", "")
       end
 
       expect_failure("read-only transition semantics omission", "read-only transition semantics mismatch") do |root|
@@ -1929,59 +1691,29 @@ module FourEyesDocs
       end
 
       expect_failure("lifecycle ready status omission", "lifecycle status vocabulary mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::LIFECYCLE_STATUS_LINES[1]}\n", "")
+        replace(root, "docs/playbook.md", "- Ready: every dependency is terminal and the phase is waiting to start or for an authorized transition\n", "")
       end
 
-      expect_failure("lifecycle backlog status addition", "lifecycle status vocabulary mismatch") do |root|
-        replace(root, "docs/playbook.md", "Lifecycle status values:\n", "Lifecycle status values:\n\n- Backlog: idea not started")
+      with_fixture do |root|
+        replace(root, "docs/playbook.md", "- Ready: every dependency is terminal and the phase is waiting to start or for an authorized transition", "- Ready: dependencies are terminal and execution may begin when its gate permits")
+        Checker.new(root).check!
       end
+      pass("lifecycle explanation may be reworded")
 
       expect_failure("unknown lifecycle status addition", "lifecycle status vocabulary mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n- Draft: not a real lifecycle status\n")
-      end
-
-      expect_failure("alternate-marker lifecycle status addition", "lifecycle status vocabulary mismatch") do |root|
-        replace(root, "docs/playbook.md", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n* Draft: not a real lifecycle status\n")
+        replace(root, "docs/playbook.md", "- Merged, Completed, Abandoned, Retained, or Handed Off: verified terminal resolution\n", "- Merged, Completed, Abandoned, Retained, or Handed Off: verified terminal resolution\n- Draft: not a real lifecycle status\n")
       end
 
       expect_failure("non-contract forge state label", "forge label vocabulary mismatch") do |root|
         replace(root, "docs/playbook.md", "- `waiting:external-eval`\n", "- `waiting:external-eval`\n- `state:applied-awaiting-verification`\n")
       end
 
-      expect_failure("alternate-marker forge state label", "forge label vocabulary mismatch") do |root|
-        replace(root, "docs/playbook.md", "- `waiting:external-eval`\n", "- `waiting:external-eval`\n* `state:foo`\n")
-      end
-
-      expect_failure("pre-cleanup status vocabulary drift", "pre-cleanup status vocabulary mismatch") do |root|
-        replace(root, "docs/templates.md", Checker::PRE_CLEANUP_STATUS_LINE, "- <review | approval | blocked>")
-      end
-
-      expect_failure("pre-cleanup gate vocabulary omission", "pre-cleanup gate vocabulary mismatch") do |root|
-        replace(root, "docs/templates.md", "#{Checker::PRE_CLEANUP_GATE_LINE}\n", "")
-      end
-
-      expect_failure("synthesis status gate drift", "synthesis status and gate semantics mismatch") do |root|
-        replace(root, "examples/orchestrator-synthesis.md", "#{Checker::SYNTHESIS_BLOCKED_RULE}\n", "")
-      end
-
       expect_failure("independent absolute path in public coordination template", "private path guidance exposed in public coordination record") do |root|
         replace(root, "docs/templates.md", Checker::PUBLIC_PLAN_REFERENCE_TEMPLATE, "#{Checker::PUBLIC_PLAN_REFERENCE_TEMPLATE}\nPrivate evidence: /srv/four-eyes/evidence")
       end
 
-      expect_failure("independent absolute path in public coordination example", "private path exposed in public coordination example") do |root|
-        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: /srv/four-eyes/evidence")
-      end
-
       expect_failure("Windows absolute path in public coordination example", "private path exposed in public coordination example") do |root|
         replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: C:\\four-eyes\\evidence")
-      end
-
-      expect_failure("punctuation-adjacent absolute path in public coordination example", "private path exposed in public coordination example") do |root|
-        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: path=/srv/four-eyes/evidence")
-      end
-
-      expect_failure("named-home path in public coordination example", "private path exposed in public coordination example") do |root|
-        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: ~reviewer/four-eyes/evidence")
       end
 
       expect_failure("non-terminal closeout option", "closeout terminal options mismatch") do |root|
@@ -1996,83 +1728,8 @@ module FourEyesDocs
         replace(root, "docs/templates.md", "#{Checker::TEMPORARY_ARTIFACT_CLEANUP_RULE}\n", "")
       end
 
-      expect_failure("closeout forge field omission", "closeout forge resolution fields mismatch") do |root|
-        replace(root, "docs/templates.md", "#{Checker::FORGE_RESOLUTION_TEMPLATE_LINES.first}\n", "")
-      end
-
-      expect_failure("abandoned PR closure missing", "abandoned forge resolution evidence mismatch") do |root|
-        replace(root, "examples/closeout.md", "#{Checker::ABANDONED_FORGE_RESOLUTION_LINES.first}\n", "")
-      end
-
-      expect_failure("merged commit confirmation missing", "merged forge resolution evidence mismatch") do |root|
-        replace(root, "examples/closeout.md", "#{Checker::MERGED_FORGE_RESOLUTION_LINES[1]}\n", "")
-      end
-
-      expect_failure("merged reviewed-head ancestry missing", "merged forge resolution evidence mismatch") do |root|
-        replace(root, "examples/closeout.md", "#{Checker::MERGED_FORGE_RESOLUTION_LINES.last}\n", "")
-      end
-
-      expect_failure("combined handoff option drift", "handoff mode options mismatch") do |root|
-        content = read(root, "docs/templates.md")
-        content.gsub!(Checker::HANDOFF_MODE_LINE, "Handoff mode: reviewer1-subagent + direct reviewer2 | reviewer1-subagent + manual reviewer2")
-        write(root, "docs/templates.md", content)
-      end
-
-      expect_failure("automation ladder drift", "automation ladder mismatch") do |root|
-        replace(root, "docs/playbook.md", Checker::AUTOMATION_LADDER_LINES.fetch(2), "3. Future: orchestrator invokes Reviewer 2.")
-      end
-
-      expect_failure("Autonomy field-order drift", "workflow field order mismatch") do |root|
-        path = "docs/templates.md"
-        content = read(root, path)
-        first = "Review tier: skip | light | full\n"
-        second = "Autonomy mode: review-approved-auto-execute | manual\n"
-        content.sub!(first + second, second + first) || raise("Autonomy field pair missing")
-        write(root, path, content)
-      end
-
-      expect_failure("conflicting duplicate workflow field", "workflow field occurrence mismatch: Autonomy mode:") do |root|
-        replace(
-          root,
-          "docs/templates.md",
-          "Autonomy mode: review-approved-auto-execute | manual\n",
-          "Autonomy mode: review-approved-auto-execute | manual\nAutonomy mode: manual\n"
-        )
-      end
-
-      expect_failure("workflow field moved outside orchestrator prompt", "workflow field missing: Autonomy mode:") do |root|
-        replace(root, "docs/templates.md", "Autonomy mode: review-approved-auto-execute | manual\n", "")
-        replace(root, "docs/templates.md", "\n```\n\n## Local Plan Template", "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Local Plan Template")
-      end
-
-      expect_failure("workflow field moved outside coordination-record prompt", "workflow field missing: Autonomy mode:") do |root|
-        path = "docs/templates.md"
-        content = read(root, path)
-        section_start = content.index("## Coordination Record Template") || raise("Coordination Record fixture missing")
-        field_start = content.index("Autonomy mode: review-approved-auto-execute | manual\n", section_start) || raise("Coordination Record Autonomy fixture missing")
-        content.slice!(field_start, "Autonomy mode: review-approved-auto-execute | manual\n".length)
-        anchor = "\n```\n\n## Reviewer Prompt"
-        content.sub!(anchor, "\n```\n\nAutonomy mode: review-approved-auto-execute | manual\n\n## Reviewer Prompt") || raise("Coordination Record close fixture missing")
-        write(root, path, content)
-      end
-
       expect_failure("worktree field omission", "workflow field missing: Worktree mode:") do |root|
         replace(root, "docs/templates.md", "#{Checker::WORKTREE_OPTION_LINES.join("\n")}\n", "")
-      end
-
-      expect_failure("worktree field order drift", "workflow field order mismatch") do |root|
-        block = "#{Checker::WORKTREE_OPTION_LINES.join("\n")}\n"
-        reversed = "#{Checker::WORKTREE_OPTION_LINES.reverse.join("\n")}\n"
-        replace(root, "docs/templates.md", block, reversed)
-      end
-
-      expect_failure("worktree field anchor drift", "worktree field anchor mismatch") do |root|
-        block = "#{Checker::WORKTREE_OPTION_LINES.join("\n")}\n"
-        replace(root, "docs/coordination-records.md", block, "Remote note: local only\n#{block}")
-      end
-
-      expect_failure("worktree option drift", "worktree option block mismatch") do |root|
-        replace(root, "docs/coordination-records.md", Checker::WORKTREE_MODE_LINE, "Worktree mode: off | on")
       end
 
       expect_failure("invalid selected worktree mode", "invalid selected worktree mode") do |root|
@@ -2083,91 +1740,31 @@ module FourEyesDocs
         replace(root, "examples/coordination-record.md", "Phase branch mode: on", "Phase branch mode: off")
       end
 
-      with_fixture do |root|
-        replace(root, "examples/coordination-record.md", "Worktree mode: on", "Worktree mode: off")
-        replace(root, "examples/coordination-record.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
-        Checker.new(root).check!
-        pass("phase-on worktree-off exception shape")
-      end
-
-      expect_failure("worktree-off reference mismatch", "worktree-off reference mismatch") do |root|
-        replace(root, "examples/coordination-record.md", "Worktree mode: on", "Worktree mode: off")
-      end
-
       expect_failure("missing executable worktree reference", "executable worktree reference missing") do |root|
         replace(root, "examples/coordination-record.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
       end
 
-      expect_failure("non-ready worktree reference", "non-executable worktree reference mismatch") do |root|
-        replace(root, "examples/multi-slice-issues.md", "Phase branch: none\nWorktree mode: on\nWorktree reference: none", "Phase branch: none\nWorktree mode: on\nWorktree reference: phase-execution/not-ready")
-      end
-
-      expect_failure("worktree default omission", "worktree default field mismatch") do |root|
-        replace(root, "docs/templates.md", "#{Checker::WORKTREE_DEFAULT_LINES.first}\n", "")
-      end
-
-      expect_failure("worktree default duplicate", "worktree default field occurrence mismatch") do |root|
-        append(root, "README.md", "\n#{Checker::WORKTREE_DEFAULT_LINES.first}\n")
-      end
-
-      expect_failure("worktree slice field omission", "worktree slice field mismatch") do |root|
-        replace(root, "docs/templates.md", "#{Checker::WORKTREE_SLICE_LINES.first}\n", "")
-      end
-
-      expect_failure("unexpected worktree field block", "unexpected worktree field occurrence") do |root|
-        append(root, "README.md", "\nPhase branch: none\nWorktree mode: off\nWorktree reference: none\nRemote push: disallowed\n")
-      end
-
-      Checker::WORKTREE_REQUIRED_RULES.each_with_index do |line, index|
-        expect_failure("worktree lifecycle rule #{index + 1} omission", "worktree lifecycle rule missing") do |root|
-          replace(root, "docs/playbook.md", "#{line}\n", "")
+      [0, 29, -1].each_with_index do |rule_index, sample|
+        expect_failure("worktree lifecycle sample #{sample + 1}", "worktree lifecycle rules mismatch") do |root|
+          remove_worktree_rule(root, rule_index)
         end
       end
 
-      expect_failure("unchecked worktree lifecycle addition", "unchecked worktree lifecycle rule") do |root|
+      expect_failure("unchecked worktree lifecycle addition", "worktree lifecycle rules mismatch") do |root|
         replace(root, "docs/playbook.md", "\n### Mode And Location\n", "\n### Mode And Location\n\n- Unreviewed lifecycle expansion.\n")
       end
 
-      [
-        ["prose", "Unreviewed operative prose."],
-        ["numbered", "1. Unreviewed numbered rule."],
-        ["asterisk", "* Unreviewed asterisk rule."],
-        ["plus", "+ Unreviewed plus rule."],
-        ["indented", "    - Unreviewed indented rule."]
-      ].each do |name, addition|
-        expect_failure("unchecked #{name} lifecycle addition", "unchecked worktree lifecycle rule") do |root|
-          replace(root, "docs/playbook.md", "\n### Mode And Location\n", "\n### Mode And Location\n\n#{addition}\n")
-        end
-      end
-
-      expect_failure("default workflow worktree omission", "default workflow worktree rule missing") do |root|
+      expect_failure("default workflow worktree omission", "default workflow worktree rule missing", :check_worktree_contract!) do |root|
         replace(root, "README.md", "#{Checker::DEFAULT_WORKTREE_RULE}\n", "")
       end
 
-      expect_failure("role-contract worktree omission", "role-contract worktree rule missing") do |root|
+      expect_failure("role-contract worktree omission", "role-contract worktree rule missing", :check_worktree_contract!) do |root|
         replace(root, "docs/playbook.md", "#{Checker::ROLE_WORKTREE_RULE}\n", "")
         Checker.new(root).write_derived!
       end
 
-      expect_failure("merged worktree closeout omission", "worktree closeout example field mismatch") do |root|
-        replace(root, "examples/closeout.md", "- Resolution path: merged\n", "")
-      end
-
       expect_failure("worktree closeout field omission", "worktree closeout example field mismatch") do |root|
         replace(root, "examples/closeout.md", "- Owner/category: orchestrator/phase-execution\n", "")
-      end
-
-      expect_failure("worktree closeout field order", "worktree closeout example field mismatch") do |root|
-        replace(
-          root,
-          "examples/closeout.md",
-          "- Checkout kind: named branch\n- Remote subject: bound\n",
-          "- Remote subject: bound\n- Checkout kind: named branch\n"
-        )
-      end
-
-      expect_failure("worktree closeout trailing field", "worktree closeout example trailing field") do |root|
-        replace(root, "examples/closeout.md", "- Blocker: none\n```", "- Blocker: none\n- Path: private/path\n```")
       end
 
       expect_failure("worktree closeout path-state mismatch", "worktree closeout path state mismatch: merged") do |root|
@@ -2183,28 +1780,10 @@ module FourEyesDocs
         )
       end
 
-      expect_failure("private worktree path in public closeout", "private worktree evidence exposed in public closeout") do |root|
-        replace(
-          root,
-          "examples/closeout.md",
-          "## Private Lifecycle Evidence Example\n",
-          "- Canonical path: /private/path\n\n## Private Lifecycle Evidence Example\n"
-        )
-      end
-
       expect_failure("private worktree evidence template omission", "private worktree evidence template mismatch") do |root|
         full_block = "#{Checker::PRIVATE_WORKTREE_EVIDENCE_LINES.join("\n")}\n"
         short_block = "#{Checker::PRIVATE_WORKTREE_EVIDENCE_LINES[0...-1].join("\n")}\n"
         replace(root, "docs/templates.md", full_block, short_block)
-      end
-
-      expect_failure("private worktree evidence template trailing field", "private worktree evidence template mismatch") do |root|
-        replace(
-          root,
-          "docs/templates.md",
-          "- Blocker: <none | exact blocker>\n```",
-          "- Blocker: <none | exact blocker>\n- Extra: <not allowed>\n```"
-        )
       end
 
       expect_failure("private worktree evidence example omission", "private worktree evidence example mismatch") do |root|
@@ -2220,47 +1799,23 @@ module FourEyesDocs
         )
       end
 
+      expect_failure("reviewer cleanup owner mismatch", "private worktree evidence state mismatch: reviewer detached") do |root|
+        replace(root, "examples/closeout.md", "Reviewer 2/reviewer-verification | Reviewer 2", "Reviewer 2/reviewer-verification | orchestrator")
+      end
+
       [
-        [
-          "reviewer cleanup owner mismatch",
-          "- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | Reviewer 2\n",
-          "- Owner/category and cleanup owner: Reviewer 2/reviewer-verification | orchestrator\n",
-          "private worktree evidence state mismatch: reviewer detached"
-        ],
-        [
-          "merged abbreviated reviewed head",
-          "- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
-          "- Expected branch/ref or reviewed SHA: refs/heads/phase/EXAMPLE-retry-behavior at abc1234\n",
-          "private worktree evidence state mismatch: merged"
-        ],
-        [
-          "merged remote state mismatch",
-          "- Expected/live remote state: absent/absent\n",
-          "- Expected/live remote state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
-          "private worktree evidence state mismatch: merged"
-        ],
-        [
-          "merged local transition mismatch",
-          "- Previous/new local expected state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/absent\n",
-          "- Previous/new local expected state: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
-          "private worktree evidence state mismatch: merged"
-        ],
-        [
-          "merged dirty cleanup mismatch",
-          "- Local ref post-delete check: absent\n- Clean status: clean\n- Removal result: removed normally\n",
-          "- Local ref post-delete check: absent\n- Clean status: dirty\n- Removal result: removed normally\n",
-          "private worktree evidence state mismatch: merged"
-        ],
-        [
-          "reviewer retained-checkout mismatch",
-          "- Local ref post-delete check: not applicable\n- Clean status: clean\n- Removal result: removed normally\n- Retained-checkout absence check: passed\n",
-          "- Local ref post-delete check: not applicable\n- Clean status: clean\n- Removal result: removed normally\n- Retained-checkout absence check: failed\n",
-          "private worktree evidence state mismatch: reviewer detached"
-        ]
-      ].each do |name, original, replacement, error|
-        expect_failure(name, error) do |root|
-          replace(root, "examples/closeout.md", original, replacement)
+        ["detached base SHA", "- Base SHA: not applicable\n", "- Base SHA: #{'1' * 40}\n", "reviewer detached"],
+        ["detached fingerprint", "- Stored primary fingerprint: not applicable\n", "- Stored primary fingerprint: HEAD=#{'1' * 40}\n", "reviewer detached"],
+        ["detached local ref", "- Local ref pre-delete check: not applicable\n", "- Local ref pre-delete check: exact match\n", "reviewer detached"],
+        ["detached remote tuple", "- Remote identity/name/full ref: none/none/none\n", "- Remote identity/name/full ref: example.invalid/four-eyes | origin | refs/heads/phase/example\n", "reviewer detached"]
+      ].each do |name, from, to, path|
+        expect_failure("#{name} mismatch", "private worktree evidence state mismatch: #{path}") do |root|
+          replace(root, "examples/closeout.md", from, to)
         end
+      end
+
+      expect_failure("merged abbreviated reviewed head", "private worktree evidence state mismatch: merged") do |root|
+        replace(root, "examples/closeout.md", "refs/heads/phase/EXAMPLE-retry-behavior at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "refs/heads/phase/EXAMPLE-retry-behavior at abc1234")
       end
 
       expect_failure("public worktree record rule omission", "public worktree record rule missing") do |root|
@@ -2275,128 +1830,20 @@ module FourEyesDocs
         append(root, "README.md", "\n## Default Workflow\n\nDuplicate workflow.\n")
       end
 
-      expect_failure("Markdown-equivalent duplicate section heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
-        append(root, "docs/templates.md", "\n## New Orchestrator Prompt \n\nDuplicate prompt.\n")
-      end
-
       expect_failure("Setext duplicate section heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
         append(root, "docs/templates.md", "\nNew Orchestrator Prompt\n-----------------------\n\nDuplicate prompt.\n")
-      end
-
-      expect_failure("Setext H1 does not hide adjacent duplicate H2", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
-        append(root, "docs/templates.md", "\nContainer Heading\n===\nNew Orchestrator Prompt\n---\n")
       end
 
       expect_failure("unordered-list continuation cannot hide duplicate H2", "ambiguous indented heading") do |root|
         append(root, "docs/templates.md", "\n- item\n    ## New Orchestrator Prompt\n")
       end
 
-      expect_failure("ordered-list continuation cannot hide duplicate H2", "ambiguous indented heading") do |root|
-        append(root, "docs/templates.md", "\n1. item\n    ## New Orchestrator Prompt\n")
-      end
-
       expect_failure("same-line list item cannot hide duplicate H2", "list-contained headings") do |root|
         append(root, "docs/templates.md", "\n- ## New Orchestrator Prompt\n")
       end
 
-      expect_failure("list-contained Setext H2 is rejected", "indented Setext headings") do |root|
-        append(root, "docs/templates.md", "\n- New Orchestrator Prompt\n  ---\n")
-      end
-
-      expect_failure("tight unordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
-        append(root, "docs/templates.md", "\n- item\n    > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("loose unordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
-        append(root, "docs/templates.md", "\n- item\n\n    > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("ordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
-        append(root, "docs/templates.md", "\n1. item\n    > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("nested ordered-list blockquote cannot hide duplicate H2", "ambiguous indented heading") do |root|
-        append(root, "docs/templates.md", "\n1. outer\n    1. inner\n        > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("list blockquote Setext cannot hide duplicate H2", "ambiguous indented heading") do |root|
-        append(root, "docs/templates.md", "\n- item\n    > New Orchestrator Prompt\n    > ---\n")
-      end
-
-      expect_failure("list blockquote cannot hide duplicate Default Workflow", "ambiguous indented heading") do |root|
-        append(root, "README.md", "\n- item\n    > ## Default Workflow\n")
-      end
-
       expect_failure("bare blockquote cannot hide duplicate H2", "container-prefixed headings") do |root|
         append(root, "docs/templates.md", "\n> ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("repeated blockquote cannot hide duplicate H2", "container-prefixed headings") do |root|
-        append(root, "docs/templates.md", "\n> > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("minimum unordered continuation cannot hide blockquote H2", "container-prefixed headings") do |root|
-        append(root, "docs/templates.md", "\n- item\n  > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("loose minimum unordered continuation cannot hide blockquote H2", "container-prefixed headings") do |root|
-        append(root, "docs/templates.md", "\n- item\n\n  > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("minimum ordered continuation cannot hide blockquote H2", "container-prefixed headings") do |root|
-        append(root, "docs/templates.md", "\n1. item\n   > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("minimum continuation cannot hide blockquote Setext H2", "container-prefixed headings") do |root|
-        append(root, "docs/templates.md", "\n- item\n  > New Orchestrator Prompt\n  > ---\n")
-      end
-
-      expect_failure("mixed minimum containers cannot hide duplicate H2", "container-prefixed headings") do |root|
-        append(root, "docs/templates.md", "\n- item\n  > 1. > ## New Orchestrator Prompt\n")
-      end
-
-      expect_failure("minimum continuation cannot hide duplicate Default Workflow", "container-prefixed headings") do |root|
-        append(root, "README.md", "\n- item\n  > ## Default Workflow\n")
-      end
-
-      expect_failure("unordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n- item\n    <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("ordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n1. item\n    <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("nested continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n- outer\n    - inner\n        <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("tabbed continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n- item\n\t<h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("minimum unordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n- item\n  <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("minimum ordered continuation cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n1. item\n   <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("same-line list cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n- <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("blockquote cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n> <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("mixed containers cannot hide raw HTML H2", "raw HTML blocks are not allowed") do |root|
-        append(root, "docs/templates.md", "\n- > <h2>New Orchestrator Prompt</h2>\n")
-      end
-
-      expect_failure("list continuation cannot hide raw HTML Default Workflow", "raw HTML blocks are not allowed") do |root|
-        append(root, "README.md", "\n- item\n    <h2>Default Workflow</h2>\n")
       end
 
       expect_failure("list continuation cannot hide generic raw HTML", "raw HTML blocks are not allowed") do |root|
@@ -2415,40 +1862,16 @@ module FourEyesDocs
       end
       pass("fenced raw HTML remains literal")
 
-      expect_failure("intervening peer section", "section order mismatch: ## New Orchestrator Prompt") do |root|
-        replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n## Unrelated Peer Section\n\n## Local Plan Template\n")
-      end
-
-      expect_failure("empty intervening level-two heading", "section order mismatch: ## New Orchestrator Prompt") do |root|
-        replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n##\n\n## Local Plan Template\n")
-      end
-
-      expect_failure("comment-bearing empty level-two heading", "inline HTML comments are not allowed") do |root|
-        replace(root, "docs/templates.md", "\n## Local Plan Template\n", "\n## <!-- empty -->\n\n## Local Plan Template\n")
-      end
-
       expect_failure("formatted duplicate level-two heading", "unsupported inline syntax in level-two heading") do |root|
         append(root, "docs/templates.md", "\n## *New Orchestrator Prompt*\n")
-      end
-
-      expect_failure("inline-code comment markers cannot hide duplicate heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
-        append(root, "docs/templates.md", "\n`<!--`\n## New Orchestrator Prompt\n`-->`\n")
       end
 
       expect_failure("invalid backtick fence hides duplicate section heading", "multiline or unclosed inline code spans are not allowed") do |root|
         append(root, "docs/templates.md", "\n```invalid`info\n## New Orchestrator Prompt\n```\n")
       end
 
-      expect_failure("invalid backtick fence hides duplicate Default Workflow", "multiline or unclosed inline code spans are not allowed") do |root|
-        append(root, "README.md", "\n```invalid`info\n## Default Workflow\n```\n")
-      end
-
       expect_failure("commented required section heading", "section missing or duplicated: ## New Orchestrator Prompt") do |root|
         replace(root, "docs/templates.md", "## New Orchestrator Prompt\n", "<!--\n## New Orchestrator Prompt\n-->\n")
-      end
-
-      expect_failure("commented Default Workflow heading", "README Default Workflow section missing or duplicated") do |root|
-        replace(root, "README.md", "## Default Workflow\n", "<!--\n## Default Workflow\n-->\n")
       end
 
       with_fixture do |root|
@@ -2469,46 +1892,11 @@ module FourEyesDocs
       pass("commented heading lookalike ignored")
 
       with_fixture do |root|
-        append(root, "docs/templates.md", "\n~~~valid`tilde-info\n## New Orchestrator Prompt\n~~~\n")
-        Checker.new(root).check!
-      end
-      pass("tilde fence with backtick info hides heading")
-
-      with_fixture do |root|
-        append(root, "docs/templates.md", "\n~~~text <!-- valid fence info\n## New Orchestrator Prompt\n~~~\n")
-        Checker.new(root).check!
-      end
-      pass("comment-like fence info hides heading")
-
-      with_fixture do |root|
         replace(root, "README.md", "\n## Use It For\n", "\nUnexpected Peer Section\n-----------------------\n\nNot part of Default Workflow.\n\n## Use It For\n")
         source = Checker.new(root).send(:default_workflow_source)
         raise "Setext heading did not bound Default Workflow" if source.include?("Unexpected Peer Section")
       end
       pass("Setext heading bounds Default Workflow")
-
-      with_fixture do |root|
-        replacement = "\nContainer Heading\n===\nUnexpected Peer\n---\n\n## Use It For\n"
-        replace(root, "README.md", "\n## Use It For\n", replacement)
-        readme = read(root, "README.md")
-        start = readme.index("## Default Workflow\n") || raise("Default Workflow heading missing")
-        finish = readme.index("Unexpected Peer\n---\n", start) || raise("Setext H2 boundary missing")
-        expected = readme[start...finish]
-        source = Checker.new(root).send(:default_workflow_source)
-        raise "Setext H1/H2 boundary bytes differ" unless source == expected
-        raise "Setext H1 bytes missing from Default Workflow" unless source.end_with?("Container Heading\n===\n")
-      end
-      pass("Setext H1 bytes precede adjacent Default Workflow H2 boundary")
-
-      with_fixture do |root|
-        baseline_bytes = Checker.new(root).send(:default_workflow_source).bytesize
-        replacement = "\nUnexpected Peer\nSection\n-------\n\nNot part of Default Workflow.\n\n## Use It For\n"
-        replace(root, "README.md", "\n## Use It For\n", replacement)
-        source = Checker.new(root).send(:default_workflow_source)
-        raise "multiline Setext heading leaked into Default Workflow" if source.include?("Unexpected Peer") || source.include?("Section\n-------")
-        raise "multiline Setext changed Default Workflow byte count" unless source.bytesize == baseline_bytes
-      end
-      pass("multiline Setext heading preserves Default Workflow bytes")
 
       with_fixture do |root|
         baseline_bytes = Checker.new(root).send(:default_workflow_source).bytesize
@@ -2547,8 +1935,9 @@ module FourEyesDocs
         playbook = read(root, "docs/playbook.md")
         playbook.sub!("# Four Eyes Role Contracts\n", "# Four Eyes Role Contracts\n\nUTF-8 fixture: café 😀\n") || raise("Role Contracts fixture missing")
         write(root, "docs/playbook.md", playbook)
-        Checker.new(root).write_derived!
-        Checker.new(root).check!
+        checker = Checker.new(root)
+        checker.write_derived!
+        checker.send(:check_derived!)
       end
       pass("multibyte Role Contracts extraction")
 
@@ -2568,34 +1957,144 @@ module FourEyesDocs
         append(root, "README.md", "\nUse a task issue as the required workflow state record.\n")
       end
 
+      expect_failure("retired reviewer adapter", "retired coordination policy present") do |root|
+        append(root, "README.md", "\nClaude Reviewer 2 Adapter\n")
+      end
+
       Checker::STALE_PHRASES.each do |phrase|
         expect_failure("stale phrase: #{phrase}", "stale phrase present") do |root|
           append(root, "README.md", "\n#{phrase}\n")
         end
       end
 
+      verify_source_unchanged!
+      pass("source checkout remains unchanged")
       puts "check-docs self-test: #{@checks} checks passed"
     rescue StandardError => error
       @passed_checks.each { |name| warn "PASS: #{name}" }
       warn "FAIL: #{error.message}"
       raise
+    ensure
+      teardown_fixture
     end
 
     private
 
-    def with_fixture
-      Dir.mktmpdir("four-eyes-check-docs-") do |tmp|
-        %w[AGENTS.md README.md docs examples].each do |entry|
-          FileUtils.cp_r(File.join(@source_root, entry), File.join(tmp, entry))
-        end
-        yield tmp
+    def expect_omission_failure(name, path, line, error)
+      expect_failure("#{name} rule omission", error) do |root|
+        replace(root, path, "#{line}\n", "")
       end
     end
 
-    def expect_failure(name, message)
+    def remove_worktree_rule(root, index)
+      content = read(root, "docs/playbook.md")
+      start = content.index("## Worktree Lifecycle\n") || raise("worktree lifecycle fixture missing")
+      finish = content.index(Checker::ROLE_BEGIN, start) || raise("worktree lifecycle boundary missing")
+      rules = content[start...finish].lines.reject { |line| line.strip.empty? || line.start_with?("#") }
+      replace(root, "docs/playbook.md", rules.fetch(index), "")
+    end
+
+    def with_fixture
+      restore_fixture!
+      yield @fixture_root
+    ensure
+      restore_fixture! if @fixture_root
+    end
+
+    def setup_fixture
+      @source_snapshot = source_snapshot
+      @fixture_root = File.realpath(Dir.mktmpdir("four-eyes-check-docs-"))
+      raise CheckError, "self-test fixture must be outside source checkout" if beneath?(@fixture_root, @source_root)
+
+      %w[AGENTS.md README.md docs examples].each do |entry|
+        FileUtils.cp_r(File.join(@source_root, entry), File.join(@fixture_root, entry))
+      end
+      @fixture_snapshot = fixture_snapshot
+    end
+
+    def teardown_fixture
+      return unless @fixture_root
+
+      source_error = begin
+        verify_source_unchanged!
+        nil
+      rescue StandardError => error
+        error
+      end
+      FileUtils.remove_entry(@fixture_root) if File.directory?(@fixture_root)
+      @fixture_root = nil
+      raise source_error if source_error
+    end
+
+    def source_snapshot
+      source_paths.each_with_object({}) do |relative, snapshot|
+        candidate = File.join(@source_root, relative)
+        snapshot[relative] = File.symlink?(candidate) ? "L#{File.readlink(candidate)}" : "F#{File.binread(candidate)}"
+      end
+    end
+
+    def source_paths
+      stdout = IO.popen(["git", "-C", @source_root, "ls-files", "-coz", "--exclude-standard"], "rb", &:read)
+      raise CheckError, "source list failed" unless $?.success?
+
+      stdout.split("\0").sort
+    end
+
+    def fixture_snapshot
+      Dir.chdir(@fixture_root) do
+        Dir.glob("**/*", File::FNM_DOTMATCH).sort.each_with_object({}) do |relative, snapshot|
+          candidate = File.join(@fixture_root, relative)
+          raise CheckError, "fixture has a symlink" if File.symlink?(candidate)
+
+          snapshot[relative] = File.binread(candidate) if File.file?(candidate)
+        end
+      end
+    end
+
+    def restore_fixture!
+      current = fixture_snapshot
+      (current.keys - @fixture_snapshot.keys).each do |relative|
+        target = fixture_path(@fixture_root, relative)
+        File.delete(target)
+      end
+      @fixture_snapshot.each do |relative, content|
+        target = fixture_path(@fixture_root, relative)
+        File.binwrite(target, content) unless File.file?(target) && File.binread(target) == content
+      end
+      raise CheckError, "self-test fixture restoration failed" unless fixture_snapshot == @fixture_snapshot
+    end
+
+    def verify_source_unchanged!
+      raise CheckError, "self-test modified the source checkout" unless source_snapshot == @source_snapshot
+    end
+
+    def beneath?(path, root)
+      path == root || path.start_with?("#{root}#{File::SEPARATOR}")
+    end
+
+    def fixture_path(root, relative)
+      canonical_root = File.realpath(root)
+      raise CheckError, "self-test mutation target is outside the fixture root" unless canonical_root == @fixture_root
+
+      target = File.expand_path(relative, canonical_root)
+      raise CheckError, "self-test mutation target is outside the fixture root" unless beneath?(target, canonical_root) && target != canonical_root
+
+      current = canonical_root
+      target.delete_prefix("#{canonical_root}#{File::SEPARATOR}").split(File::SEPARATOR).each do |component|
+        current = File.join(current, component)
+        raise CheckError, "target contains a symlink" if File.symlink?(current)
+      end
+
+      parent = File.realpath(File.dirname(target))
+      raise CheckError, "self-test mutation target is outside the fixture root" unless beneath?(parent, canonical_root)
+
+      target
+    end
+
+    def expect_failure(name, message, check = :check!)
       with_fixture do |root|
         yield root
-        assert_failure(name, message) { Checker.new(root).check! }
+        assert_failure(name, message) { Checker.new(root).send(check) }
       end
     end
 
@@ -2614,15 +2113,15 @@ module FourEyesDocs
     end
 
     def read(root, path)
-      File.binread(File.join(root, path))
+      File.binread(fixture_path(root, path))
     end
 
     def write(root, path, content)
-      File.binwrite(File.join(root, path), content)
+      File.binwrite(fixture_path(root, path), content)
     end
 
     def append(root, path, content)
-      File.open(File.join(root, path), "ab") { |file| file.write(content) }
+      File.open(fixture_path(root, path), "ab") { |file| file.write(content) }
     end
 
     def replace(root, path, from, to)

@@ -665,6 +665,12 @@ Review cost is per review run. Batch related changes with shared scope, risk, ve
 - delta re-review sends the exact delta plus that reviewer's own prior findings while binding the current complete artifact
 - every changed Full-tier artifact returns to both expected slots, but normal delta inspection stays focused unless semantic risk requires a wider reread; Light permits one bounded same-reviewer delta before escalation
 
+## Documentation Enforcement Boundary
+
+- Use exact mechanical enforcement when silent drift could change authority, a gate, artifact identity, reviewer isolation, terminal or cleanup behavior, a public/private boundary, or canonical generated output.
+- Use structural validation for required headings, identifiers, fields, ordering, allowed values, and state coherence when explanatory wording does not carry authority.
+- Leave visible explanatory and cosmetic prose to normal review when its drift cannot silently change workflow behavior.
+
 ## Review Efficiency
 
 1. Review rounds are capped in exactly two buckets: plan and implementation.
