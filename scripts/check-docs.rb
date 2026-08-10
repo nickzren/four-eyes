@@ -319,6 +319,15 @@ module FourEyesDocs
       "- Waiting External Eval: executed, waiting for CI, logs, users, cloud evaluation, or another external system",
       "- Merged, Completed, Abandoned, Retained, or Handed Off: verified terminal resolution"
     ].freeze
+    LIFECYCLE_STATUS_BLOCK = "Lifecycle status values:\n\n#{LIFECYCLE_STATUS_LINES.join("\n")}\n\n"
+    FORGE_LABEL_INTRO = "For a `github-issue` record whose forge lacks custom states, use labels or issue-title prefixes. For `pr` or `local`, write the state directly in that coordination record."
+    FORGE_LABEL_LINES = [
+      "- `gate:review`",
+      "- `gate:human-approval`",
+      "- `waiting:external-eval`",
+      "- `gate:blocker-resolution`"
+    ].freeze
+    FORGE_LABEL_BLOCK = "#{FORGE_LABEL_INTRO}\n\n#{FORGE_LABEL_LINES.join("\n")}\n\n"
     PRE_CLEANUP_STATUS_LINE = "- <ready | review | blocked>"
     PRE_CLEANUP_GATE_LINE = "- <human approval | review | blocker resolution>"
     SYNTHESIS_BLOCKED_RULE = "- The orchestrator will use Status `review` with Gate `review` while another review is required, or Status `blocked` with Gate `blocker resolution` while an in-scope blocker remains; it will fix the phase branch, push the update, and request the required review."
@@ -675,11 +684,11 @@ module FourEyesDocs
       gate_start = gate_state.index("Gate values name the condition controlling the next transition:\n")
       fail_check("lifecycle status vocabulary mismatch") unless status_start && gate_start && status_start < gate_start
       status_block = gate_state[status_start...gate_start]
-      actual_status_lines = markdown_lines(status_block).each_with_object([]) do |entry, lines|
-        lines << entry[:line] if entry[:context] == :prose && entry[:line].start_with?("- ")
-      end
-      fail_check("lifecycle status vocabulary mismatch") unless actual_status_lines == LIFECYCLE_STATUS_LINES
-      fail_check("non-contract forge state label") if gate_state.lines.any? { |line| line.start_with?("- `state:") }
+      fail_check("lifecycle status vocabulary mismatch") unless status_block == LIFECYCLE_STATUS_BLOCK
+      labels_start = gate_state.index(FORGE_LABEL_INTRO)
+      labels_end = gate_state.index("When using gate labels, remove the old gate label in the same update that adds the new gate label.\n")
+      fail_check("forge label vocabulary mismatch") unless labels_start && labels_end && labels_start < labels_end
+      fail_check("forge label vocabulary mismatch") unless gate_state[labels_start...labels_end] == FORGE_LABEL_BLOCK
 
       coordination = normalized_read("docs/coordination-records.md")
       recommended_fields = section(coordination, "## Recommended Fields", "## Recommended Record Shape")
@@ -737,10 +746,10 @@ module FourEyesDocs
     end
 
     def absolute_local_path?(content)
-      boundary = %r{(?:\A|[\s`"'(<])}
+      boundary = %r{(?:\A|[^A-Za-z0-9._~/\\-])}
       posix = %r{#{boundary}/(?!/)[A-Za-z0-9._-]}
       windows = %r{#{boundary}[A-Za-z]:[\\/][^\s`"'<>)]}
-      home = %r{#{boundary}~[\\/][^\s`"'<>)]}
+      home = %r{#{boundary}~[A-Za-z0-9._-]*[\\/][^\s`"'<>)]}
       content.match?(posix) || content.match?(windows) || content.match?(home)
     end
 
@@ -1639,8 +1648,16 @@ module FourEyesDocs
         replace(root, "docs/playbook.md", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n- Draft: not a real lifecycle status\n")
       end
 
-      expect_failure("non-contract forge state label", "non-contract forge state label") do |root|
+      expect_failure("alternate-marker lifecycle status addition", "lifecycle status vocabulary mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n", "#{Checker::LIFECYCLE_STATUS_LINES.last}\n* Draft: not a real lifecycle status\n")
+      end
+
+      expect_failure("non-contract forge state label", "forge label vocabulary mismatch") do |root|
         replace(root, "docs/playbook.md", "- `waiting:external-eval`\n", "- `waiting:external-eval`\n- `state:applied-awaiting-verification`\n")
+      end
+
+      expect_failure("alternate-marker forge state label", "forge label vocabulary mismatch") do |root|
+        replace(root, "docs/playbook.md", "- `waiting:external-eval`\n", "- `waiting:external-eval`\n* `state:foo`\n")
       end
 
       expect_failure("pre-cleanup status vocabulary drift", "pre-cleanup status vocabulary mismatch") do |root|
@@ -1665,6 +1682,14 @@ module FourEyesDocs
 
       expect_failure("Windows absolute path in public coordination example", "private path exposed in public coordination example") do |root|
         replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: C:\\four-eyes\\evidence")
+      end
+
+      expect_failure("punctuation-adjacent absolute path in public coordination example", "private path exposed in public coordination example") do |root|
+        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: path=/srv/four-eyes/evidence")
+      end
+
+      expect_failure("named-home path in public coordination example", "private path exposed in public coordination example") do |root|
+        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "#{Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE}\nPrivate evidence: ~reviewer/four-eyes/evidence")
       end
 
       expect_failure("non-terminal closeout option", "closeout terminal options mismatch") do |root|
