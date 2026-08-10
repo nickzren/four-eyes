@@ -240,7 +240,7 @@ Reviewers return verdicts to the orchestrator or human relay and never edit coor
 
 ## Source Plan
 
-Local plan path: `<absolute path>`
+Local plan reference: <repository-relative path, opaque reference, or "none">
 Plan status: local-only temporary | not required because <reason>
 Status: todo | ready | in progress | review | waiting external eval | blocked | merged | completed | abandoned | retained | handed off
 Current gate: none | dependencies | review | human approval | external evaluation | blocker resolution | human handoff
@@ -263,7 +263,7 @@ Current gate: none | dependencies | review | human approval | external evaluatio
 - No destructive/costly/cloud-mutating action without explicit human approval.
 - Do not paste secrets, raw credentials, token values, sensitive resource names, or raw plan output into the coordination record.
 - Keep local plan files uncommitted and remove them after closeout.
-- Use `/tmp/...` for raw evidence unless another approved evidence path is required.
+- Keep raw evidence in the approved private evidence location and record only its opaque reference publicly.
 - Implement only the stated acceptance criteria; no opportunistic refactor or unrelated files.
 
 ## Current Plan / Proposed Slice
@@ -546,7 +546,10 @@ Do not close yet because:
 Pre-cleanup resolution record
 
 Coordination status before cleanup:
-- <review | approval | blocked>
+- <ready | review | blocked>
+
+Current gate before cleanup:
+- <human approval | review | blocker resolution>
 
 Authorized resolution:
 - <merged cleanup | abandoned cleanup | retain | hand off>
@@ -602,6 +605,10 @@ Branch resolution:
 - Local tip SHA before cleanup: <sha or none>
 - Remote tip SHA before cleanup: <sha or none>
 - PR: <link/id or none>
+- PR final state: <merged | closed | open | none>
+- Merge commit: <full SHA or none>
+- Reviewed head: <full SHA or none>
+- Reviewed head ancestral to target: <yes | no | not applicable>
 - Reason: <merge cleanup | abandoned because... | kept because... | handoff blocker...>
 - Revisit trigger if kept: <follow-up record or date>
 

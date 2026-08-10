@@ -309,6 +309,39 @@ module FourEyesDocs
     ].freeze
     LEDGER_GATE_RULE = "`Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field."
     LEDGER_EXAMPLE_RULE = "`Status` records lifecycle progress; `Gate` records what controls the next transition. `waiting external eval` is non-terminal. The independent Retry classification phase may proceed, while Retry metrics remains unready because it depends on a non-terminal phase."
+    READ_ONLY_NO_DIFF_RULE = "If execution is read-only and creates no material diff, use Status `completed` when verification is complete and no further action remains, Status `waiting external eval` with Gate `external evaluation` when an external result is pending, or Status `ready` with Gate `human approval` when an explicit human action is required."
+    LIFECYCLE_STATUS_LINES = [
+      "- Todo: local plan exists or task is ready to prepare",
+      "- Ready: every dependency is terminal and the phase is waiting to start or for an authorized transition",
+      "- In Progress: orchestrator actively working",
+      "- Review: implementation or plan is waiting for expected reviewer slots",
+      "- Blocked: blocked by reviewer finding, missing evidence, external decision, unresolved ownership, or prior slice",
+      "- Waiting External Eval: executed, waiting for CI, logs, users, cloud evaluation, or another external system",
+      "- Merged, Completed, Abandoned, Retained, or Handed Off: verified terminal resolution"
+    ].freeze
+    PRE_CLEANUP_STATUS_LINE = "- <ready | review | blocked>"
+    PRE_CLEANUP_GATE_LINE = "- <human approval | review | blocker resolution>"
+    SYNTHESIS_BLOCKED_RULE = "- The orchestrator will use Status `review` with Gate `review` while another review is required, or Status `blocked` with Gate `blocker resolution` while an in-scope blocker remains; it will fix the phase branch, push the update, and request the required review."
+    PUBLIC_PLAN_REFERENCE_TEMPLATE = "Local plan reference: <repository-relative path, opaque reference, or \"none\">"
+    PUBLIC_PLAN_REFERENCE_EXAMPLE = "Local plan reference: tmp/example-execution-plan.md"
+    FORGE_RESOLUTION_TEMPLATE_LINES = [
+      "- PR final state: <merged | closed | open | none>",
+      "- Merge commit: <full SHA or none>",
+      "- Reviewed head: <full SHA or none>",
+      "- Reviewed head ancestral to target: <yes | no | not applicable>"
+    ].freeze
+    MERGED_FORGE_RESOLUTION_LINES = [
+      "- PR final state: merged",
+      "- Merge commit: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "- Reviewed head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "- Reviewed head ancestral to target: yes"
+    ].freeze
+    ABANDONED_FORGE_RESOLUTION_LINES = [
+      "- PR final state: closed",
+      "- Merge commit: none",
+      "- Reviewed head: none",
+      "- Reviewed head ancestral to target: not applicable"
+    ].freeze
     TWO_STAGE_CLOSEOUT_RULE = "Record and verify pre-cleanup branch and worktree facts first. Perform only the authorized worktree, pull-request, and branch resolution, then record and verify the final closeout results in the authoritative coordination record. Remove temporary plans and local state records only after that final record is verified."
     COORDINATION_TERMINAL_OPTIONS_LINE = "- merged | completed | abandoned | retained | handed off"
     TEMPORARY_ARTIFACT_CLEANUP_RULE = "Temporary artifacts after this final record is recorded and verified:"
@@ -635,6 +668,13 @@ module FourEyesDocs
       check_exact_rule_section!(playbook, "## Repository Revision Loading", "## Right-Sizing Slices", REVISION_LOADING_REQUIRED_RULES, "repository revision loading")
       coordination_contract = section(playbook, "## Coordination Record Contract", "## Local Coordination Record")
       require_unique_operative_line_in_section!(playbook, coordination_contract, LEDGER_GATE_RULE, "ledger gate semantics missing")
+      standard_flow = section(playbook, "## Standard Task Flow", "## Orchestrator Next-Action Rule")
+      require_unique_operative_line_in_section!(playbook, standard_flow, READ_ONLY_NO_DIFF_RULE, "read-only transition semantics mismatch")
+      gate_state = section(playbook, "## Gate State", "## Gate Rule")
+      LIFECYCLE_STATUS_LINES.each do |line|
+        require_unique_operative_line_in_section!(playbook, gate_state, line, "lifecycle status vocabulary mismatch")
+      end
+      fail_check("lifecycle status vocabulary mismatch") if gate_state.lines.any? { |line| line.start_with?("- Backlog:") }
 
       coordination = normalized_read("docs/coordination-records.md")
       recommended_fields = section(coordination, "## Recommended Fields", "## Recommended Record Shape")
@@ -649,10 +689,37 @@ module FourEyesDocs
       pre_cleanup = templates.index("## Pre-Cleanup Resolution Record")
       closeout = templates.index("## Closeout")
       fail_check("pre-cleanup and closeout template order mismatch") unless pre_cleanup && closeout && pre_cleanup < closeout
+      pre_cleanup_template = section(templates, "## Pre-Cleanup Resolution Record", "## Closeout")
+      require_unique_line_in_section!(templates, pre_cleanup_template, PRE_CLEANUP_STATUS_LINE, "pre-cleanup status vocabulary mismatch")
+      require_unique_line_in_section!(templates, pre_cleanup_template, PRE_CLEANUP_GATE_LINE, "pre-cleanup gate vocabulary mismatch")
       closeout_template = section(templates, "## Closeout", "## Private Worktree Lifecycle Evidence")
       require_unique_line_in_section!(templates, closeout_template, COORDINATION_TERMINAL_OPTIONS_LINE, "closeout terminal options mismatch")
       require_unique_line_in_section!(templates, closeout_template, TEMPORARY_ARTIFACT_CLEANUP_RULE, "closeout temporary-artifact order mismatch")
+      FORGE_RESOLUTION_TEMPLATE_LINES.each do |line|
+        require_unique_line_in_section!(templates, closeout_template, line, "closeout forge resolution fields mismatch")
+      end
       fail_check("non-terminal status present in closeout template") if closeout_template.include?("waiting external eval")
+
+      synthesis = normalized_read("examples/orchestrator-synthesis.md")
+      require_unique_line_in_section!(synthesis, synthesis, SYNTHESIS_BLOCKED_RULE, "synthesis status and gate semantics mismatch")
+
+      coordination_prompt = unique_text_prompt(section(templates, "## Coordination Record Template", "## Reviewer Prompt"), "coordination record template missing")
+      require_unique_line_in_section!(coordination_prompt, coordination_prompt, PUBLIC_PLAN_REFERENCE_TEMPLATE, "public plan reference mismatch")
+      fail_check("private path guidance exposed in public coordination record") if coordination_prompt.include?("Local plan path:") || coordination_prompt.match?(%r{(?:^|[`[:space:]])/(?:Users|home|tmp|var|private|Volumes)/})
+
+      coordination_example = normalized_read("examples/coordination-record.md")
+      require_unique_line_in_section!(coordination_example, coordination_example, PUBLIC_PLAN_REFERENCE_EXAMPLE, "public plan reference example mismatch")
+      fail_check("private path exposed in public coordination example") if coordination_example.match?(%r{(?:^|[`[:space:]])/(?:Users|home|tmp|var|private|Volumes)/})
+
+      closeout_example = normalized_read("examples/closeout.md")
+      merged_example = section(closeout_example, "## Merged PR And Worktree Example", "## Non-Terminal Waiting Example")
+      MERGED_FORGE_RESOLUTION_LINES.each do |line|
+        fail_check("merged forge resolution evidence mismatch") unless exact_line_positions(merged_example, line).length == 1
+      end
+      abandoned_example = section(closeout_example, "## Abandoned Worktree Example", "## Kept Branch Example")
+      ABANDONED_FORGE_RESOLUTION_LINES.each do |line|
+        fail_check("abandoned forge resolution evidence mismatch") unless exact_line_positions(abandoned_example, line).length == 1
+      end
     end
 
     def check_exact_rule_section!(content, start_heading, end_heading, expected, label)
@@ -1543,6 +1610,38 @@ module FourEyesDocs
         replace(root, "docs/playbook.md", "#{Checker::LEDGER_GATE_RULE}\n", "")
       end
 
+      expect_failure("read-only transition semantics omission", "read-only transition semantics mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::READ_ONLY_NO_DIFF_RULE}\n", "")
+      end
+
+      expect_failure("lifecycle ready status omission", "lifecycle status vocabulary mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::LIFECYCLE_STATUS_LINES[1]}\n", "")
+      end
+
+      expect_failure("lifecycle backlog status addition", "lifecycle status vocabulary mismatch") do |root|
+        replace(root, "docs/playbook.md", "Lifecycle status values:\n", "Lifecycle status values:\n\n- Backlog: idea not started")
+      end
+
+      expect_failure("pre-cleanup status vocabulary drift", "pre-cleanup status vocabulary mismatch") do |root|
+        replace(root, "docs/templates.md", Checker::PRE_CLEANUP_STATUS_LINE, "- <review | approval | blocked>")
+      end
+
+      expect_failure("pre-cleanup gate vocabulary omission", "pre-cleanup gate vocabulary mismatch") do |root|
+        replace(root, "docs/templates.md", "#{Checker::PRE_CLEANUP_GATE_LINE}\n", "")
+      end
+
+      expect_failure("synthesis status gate drift", "synthesis status and gate semantics mismatch") do |root|
+        replace(root, "examples/orchestrator-synthesis.md", "#{Checker::SYNTHESIS_BLOCKED_RULE}\n", "")
+      end
+
+      expect_failure("public plan reference template uses absolute path", "public plan reference mismatch") do |root|
+        replace(root, "docs/templates.md", Checker::PUBLIC_PLAN_REFERENCE_TEMPLATE, "Local plan path: `<absolute path>`")
+      end
+
+      expect_failure("public plan reference example uses absolute path", "public plan reference example mismatch") do |root|
+        replace(root, "examples/coordination-record.md", Checker::PUBLIC_PLAN_REFERENCE_EXAMPLE, "Local plan reference: `/Users/example/repo/tmp/plan.md`")
+      end
+
       expect_failure("non-terminal closeout option", "closeout terminal options mismatch") do |root|
         replace(root, "docs/templates.md", Checker::COORDINATION_TERMINAL_OPTIONS_LINE, "- completed | waiting external eval | merged")
       end
@@ -1553,6 +1652,22 @@ module FourEyesDocs
 
       expect_failure("temporary-artifact closeout ordering omission", "closeout temporary-artifact order mismatch") do |root|
         replace(root, "docs/templates.md", "#{Checker::TEMPORARY_ARTIFACT_CLEANUP_RULE}\n", "")
+      end
+
+      expect_failure("closeout forge field omission", "closeout forge resolution fields mismatch") do |root|
+        replace(root, "docs/templates.md", "#{Checker::FORGE_RESOLUTION_TEMPLATE_LINES.first}\n", "")
+      end
+
+      expect_failure("abandoned PR closure missing", "abandoned forge resolution evidence mismatch") do |root|
+        replace(root, "examples/closeout.md", "#{Checker::ABANDONED_FORGE_RESOLUTION_LINES.first}\n", "")
+      end
+
+      expect_failure("merged commit confirmation missing", "merged forge resolution evidence mismatch") do |root|
+        replace(root, "examples/closeout.md", "#{Checker::MERGED_FORGE_RESOLUTION_LINES[1]}\n", "")
+      end
+
+      expect_failure("merged reviewed-head ancestry missing", "merged forge resolution evidence mismatch") do |root|
+        replace(root, "examples/closeout.md", "#{Checker::MERGED_FORGE_RESOLUTION_LINES.last}\n", "")
       end
 
       expect_failure("combined handoff option drift", "handoff mode options mismatch") do |root|

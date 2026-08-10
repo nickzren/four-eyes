@@ -45,9 +45,9 @@ Temporary artifacts after this final local record is verified:
 ```text
 Pre-cleanup resolution record
 
-- Reviewed head: abc1234
-- Local tip SHA: abc1234
-- Remote tip SHA: abc1234
+- Bound reviewed head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Local tip SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Remote tip SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 - PR: <PR link>
 - Authorized resolution: merged cleanup
 
@@ -59,9 +59,13 @@ Resulting coordination status:
 Branch resolution:
 - Merged and deleted after approved merge.
 - Branch: phase/EXAMPLE-retry-behavior
-- Local tip SHA before cleanup: abc1234
-- Remote tip SHA before cleanup: abc1234
+- Local tip SHA before cleanup: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Remote tip SHA before cleanup: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 - PR: <PR link>
+- PR final state: merged
+- Merge commit: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+- Reviewed head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- Reviewed head ancestral to target: yes
 - Reason: post-merge cleanup authorized.
 
 Worktree resolution:
@@ -102,6 +106,10 @@ Branch resolution:
 - Local tip SHA before cleanup: def5678
 - Remote tip SHA before cleanup: def5678
 - PR: <PR link>
+- PR final state: closed
+- Merge commit: none
+- Reviewed head: none
+- Reviewed head ancestral to target: not applicable
 - Reason: superseded work; no preservation required.
 
 Worktree resolution:
@@ -126,6 +134,10 @@ Branch resolution:
 - Local tip SHA before cleanup: abc1234
 - Remote tip SHA before cleanup: abc1234
 - PR: <PR link>
+- PR final state: open
+- Merge commit: none
+- Reviewed head: none
+- Reviewed head ancestral to target: not applicable
 - Reason: waiting for upstream API decision.
 - Next owner: <owner>
 - Revisit trigger: EXAMPLE-123 or 2026-07-01.
@@ -158,6 +170,10 @@ Branch resolution:
 - Local tip SHA before cleanup: fedcba9
 - Remote tip SHA before cleanup: fedcba9
 - PR: <PR link>
+- PR final state: open
+- Merge commit: none
+- Reviewed head: none
+- Reviewed head ancestral to target: not applicable
 - Reason: explicit human decision required.
 ```
 

@@ -12,7 +12,7 @@ Review tier: full
 
 ## Source Plan
 
-Local plan path: `/path/to/repo/tmp/example-execution-plan.md`
+Local plan reference: tmp/example-execution-plan.md
 Plan status: local-only temporary
 Status: review
 Current gate: review

@@ -60,7 +60,7 @@ Exact approval phrase:
 - Approved: merge phase/EXAMPLE-retry-behavior into main, verify, close the coordination record, and delete the phase branch.
 
 If blocked:
-- The orchestrator will keep the coordination record at Review or Blocked, fix the phase branch, push the update, and request delta review.
+- The orchestrator will use Status `review` with Gate `review` while another review is required, or Status `blocked` with Gate `blocker resolution` while an in-scope blocker remains; it will fix the phase branch, push the update, and request the required review.
 
 Still out of scope:
 - No merge to `main`, deploys, data changes, unrelated refactors, or other slices.

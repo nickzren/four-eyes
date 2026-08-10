@@ -681,7 +681,7 @@ Use this flow when phase branch mode is off, or when pre-implementation review i
 13. Orchestrator commits only the intended tracked changes when phase branch mode authorizes branch commits, when the human approves the commit, or when the approved workflow explicitly calls for it.
 14. Orchestrator records a terminal status only after verification, or records an explicit non-terminal waiting state.
 
-If execution is read-only and creates no material diff, the orchestrator may move directly to Waiting External Eval, Approval, or Done according to the approved workflow and verification state.
+If execution is read-only and creates no material diff, use Status `completed` when verification is complete and no further action remains, Status `waiting external eval` with Gate `external evaluation` when an external result is pending, or Status `ready` with Gate `human approval` when an explicit human action is required.
 
 In multi-phase mode, steps 5-7 run independently for each ready phase.
 
@@ -765,10 +765,10 @@ The current gate must be visible in the authoritative coordination record, not o
 
 Lifecycle status values:
 
-- Backlog: idea not started
 - Todo: local plan exists or task is ready to prepare
+- Ready: every dependency is terminal and the phase is waiting to start or for an authorized transition
 - In Progress: orchestrator actively working
-- Review: waiting for expected reviewer slots
+- Review: implementation or plan is waiting for expected reviewer slots
 - Blocked: blocked by reviewer finding, missing evidence, external decision, unresolved ownership, or prior slice
 - Waiting External Eval: executed, waiting for CI, logs, users, cloud evaluation, or another external system
 - Merged, Completed, Abandoned, Retained, or Handed Off: verified terminal resolution
