@@ -41,9 +41,9 @@ Abandoned branch cleanup: yes | ask | no
 
 If phase branch mode is off or phase branch flow is `pre-review`, do not execute the plan yet.
 
-If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit and push only the named phase branch if remote push is allowed, run verification, set Status `review` and Gate `review`, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid.
+If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit only the named phase branch, push it only when the authoritative coordination record says `Remote push: allowed`, run verification, set Status `review` and Gate `review`, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid.
 
-Default review transport to `pr` for remote implementation work. Selecting `pr` pre-authorizes creating or updating only the recorded phase pull request, maintaining its bounded description, requesting expected reviewers, and submitting expected reviewer verdicts. It never authorizes merge, unrelated pull request changes, or repository settings.
+Default to `pr` for remote phase-branch implementation. Use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value. Selecting `pr` pre-authorizes creating or updating only the recorded phase pull request, maintaining its bounded description, requesting expected reviewers, and submitting expected reviewer verdicts. It never authorizes merge, unrelated pull request changes, or repository settings.
 
 Before requesting review, use the canonical artifact and repository commands in the Playbook. Record the exact transport-specific artifact identity in the coordination record and every filled reviewer prompt. Unknown, mixed, malformed, or mismatched identity is could-not-review and holds the gate. Recompute the live repository fingerprint and artifact after all slots return and immediately before the next gated action.
 
@@ -67,7 +67,7 @@ Set the current gate in the authoritative coordination record. Record a sanitize
 
 Record autonomy mode. Default missing autonomy mode to `review-approved-auto-execute` unless a manual condition applies. When it applies, reviewer approval authorizes only the in-scope local execution defined by the Playbook.
 
-Record phase branch mode. When it is `on`, the orchestrator may create, commit to, and push only the named phase branch without per-commit approval when the push has no gated side effect. Existing human gates remain.
+Record phase branch mode. When it is `on`, the orchestrator may create and commit to only the named phase branch without per-commit approval. It may push only when the authoritative coordination record says `Remote push: allowed` and the push has no gated side effect. Existing human gates remain.
 
 When phase branch flow is `implementation-first`, reviewers review the completed phase branch diff and verification evidence, not the plan before implementation — except when a temporary local plan defines unclear work: have the expected reviewers confirm that plan before implementing it.
 
@@ -107,6 +107,7 @@ Review transport default: pr | manual-relay
 Coordination record default: pr | github-issue | local
 Worktree mode default: on | off
 Worktree reference default: none
+Remote push default: disallowed
 Workflow revision: <full repository commit SHA>
 Post-merge branch cleanup default: yes
 Abandoned branch cleanup default: ask
@@ -349,6 +350,7 @@ Review only against the coordination record, plan, current implementation diff i
 If the local plan file is not accessible, require its full public-safe contents in the manual-relay artifact. A summary or hash-only inaccessible artifact is could-not-review.
 If execution already created a material diff, inspect the exact transport-identified artifact before protected-branch push, apply, deploy, merge, or closeout.
 Echo the provided identity exactly. Missing, malformed, mismatched, or inaccessible identity is `Review status: could-not-review` and no approval.
+For a delta round, state `Delta inspection: normal | wider`. Inspect the exact delta, affected context, your own prior findings, and relevant verification. Select `wider` when scope, risk, authority, gates, identity mechanics, or shared behavior changed.
 Never edit coordination metadata.
 For a commit-bound `(Phase branch mode: on, Worktree mode: on)` implementation review, the packet or forge artifact is authoritative. If you create a detached worktree at the reviewed SHA to run local checks, use a distinct owned path, verify detached HEAD at that exact SHA, remove it normally before returning, and verify the path is absent from a retained checkout's worktree list. Dirty state or failed cleanup requires `Review status: could-not-review` and `Verdict: not issued`. If you create no worktree, you have no worktree cleanup obligation.
 
@@ -406,7 +408,7 @@ Non-blocking feedback:
 - <finding and decision>
 
 Nit resolution:
-- <deferred without artifact change with reason/follow-up | implemented and delta-reviewed | none>
+- <deferred no-action with reason | deferred actionable follow-up in closeout | implemented and delta-reviewed | none>
 
 Required changes before <next gated action>:
 - <none | addressed changes | still blocking>

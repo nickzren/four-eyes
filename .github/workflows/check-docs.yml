@@ -1,0 +1,50 @@
+name: Check workflow docs
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out reviewed commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Validate workflow docs
+        run: |
+          ruby -w -c scripts/check-docs.rb
+          ruby scripts/check-docs.rb
+          ruby scripts/check-docs.rb --self-test
+
+      - name: Check committed range whitespace
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            git diff --check "$merge_base..$HEAD_SHA"
+            exit 0
+          fi
+
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            if git rev-parse "$HEAD_SHA^" >/dev/null 2>&1; then
+              BEFORE_SHA=$(git rev-parse "$HEAD_SHA^")
+            else
+              BEFORE_SHA=$(git hash-object -t tree /dev/null)
+            fi
+          fi
+          git diff --check "$BEFORE_SHA..$HEAD_SHA"

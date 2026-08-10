@@ -33,11 +33,12 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - `Light`: routine low-risk reversible work. Use one opposite-family reviewer, one initial review, and at most one bounded same-reviewer fix and delta when scope and risk stay unchanged; then escalate.
 - `Full`: broad or high-risk work. Use two independent reviewers and bounded fix/re-review. Full is mandatory for security, infrastructure, data/schema, production, deploy, destructive, costly, or irreversible work.
 - The human or reviewed plan sets the tier. The orchestrator may escalate but cannot downgrade it.
+- Plan and implementation review each stop after three panel rounds unless the human grants more. Defer accepted nits by default; bind approval to the complete artifact and focus normal delta inspection unless semantic risk widens.
 
 ## Human Gate
 
 - Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned coordination record; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
-- Phase branch mode may pre-authorize commits and pushes only to the recorded phase branch when pushes have no gated side effects.
+- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push also requires the authoritative coordination record to say `Remote push: allowed`.
 - PR transport may pre-authorize only bounded operations on the recorded phase PR. It never authorizes merge, unrelated PR changes, or repository settings changes.
 - Authorized coordination bookkeeping and local verification do not need repeated human approval.
 
@@ -59,7 +60,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Branch
 
-- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed and pushed there before review when phase branch mode authorizes it.
+- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed there before review when phase branch mode authorizes it, and pushed only when the authoritative coordination record says `Remote push: allowed`.
 - With phase branch mode on, default to one owned phase worktree, keep the primary checkout fixed, verify baseline, and remove it before branch deletion; the packet remains the review artifact, only a repo-backed reviewer that creates a detached worktree must remove it before verdict, and the contract has no named integration dependency.
 - Review the complete phase artifact before merge. Merge to `main` or another protected branch always remains a human gate.
 - Every agent-created phase branch must resolve as merged and deleted, abandoned under its explicit cleanup gate, intentionally kept with owner and revisit trigger, or handed to the human with the blocker recorded.

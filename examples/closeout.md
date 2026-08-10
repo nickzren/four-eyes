@@ -29,6 +29,10 @@ Next human action:
 Remaining work:
 - None.
 
+Nit disposition:
+- Deferred no-action nit: none.
+- Deferred actionable follow-up: none.
+
 Sensitive-data note:
 - No secrets, raw logs, or sensitive identifiers were committed or posted.
 
