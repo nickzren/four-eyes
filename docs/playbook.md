@@ -196,7 +196,9 @@ Abandoned branch cleanup: yes | ask | no
 
 Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`.
 
-When phase branch mode is `on`, the orchestrator may create the phase branch, commit to it, and push updates to that exact branch without asking the human for every commit or push, if all of these are true:
+When phase branch mode is `on`, the orchestrator may create the recorded phase branch and commit in-scope work to it without asking the human for every local commit.
+
+The pre-authorized remote-push path permits updates to that exact branch without asking the human for every push only if all of these are true:
 
 - the branch name, base branch, and merge target are recorded in the plan or coordination record
 - the work stays inside the approved phase scope
@@ -205,6 +207,8 @@ When phase branch mode is `on`, the orchestrator may create the phase branch, co
 - branch pushes do not deploy, mutate live systems, publish releases, or trigger hard-to-reverse external actions
 - verification commands are run before review
 - reviewers review the branch diff and verification evidence before merge approval
+
+Exact human approval for a specifically identified push remains an independent authorization path under Push Authorization.
 
 Phase branch mode is implementation-first by default: the orchestrator completes the phase on the branch, then reviewers review the branch diff once. Require pre-implementation review only when the plan, risk class, or human explicitly asks for it.
 
@@ -698,7 +702,7 @@ Use this flow when phase branch mode is enabled:
 1. Orchestrator confirms the phase scope, base branch, phase branch, merge target, verification, and stop conditions. If a temporary local plan defines unclear work, expected reviewers confirm the plan before implementation starts.
 2. Orchestrator creates the phase branch from the base branch.
 3. Orchestrator implements the whole phase on that branch.
-4. Orchestrator commits only the named phase branch and pushes it only when the authoritative coordination record says `Remote push: allowed`.
+4. Orchestrator commits only the named phase branch and pushes it only when Push Authorization permits it.
 5. Orchestrator runs verification and updates the coordination record with the current round, workflow revision, transport-specific artifact identity, phase branch, diff summary, and reviewer prompts.
 6. If review transport is `pr`, the orchestrator opens or updates the PR and uses the exact identified PR artifact. If Reviewer 1 can run as a named isolated internal subagent, the orchestrator creates or reuses it. The human sends every manual external reviewer prompt. An exactly authorized direct Reviewer 2 instead receives only its sealed packet and own prior findings through the platform's native isolated invocation tool.
 7. Reviewers inspect the exact artifact and verification evidence independently, then return verdicts through the selected transport. The orchestrator holds internal and relayed verdicts under the embargo until every expected slot has returned or has a terminal record.
@@ -1032,7 +1036,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Human Gate
 
 - Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned coordination record; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
-- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push also requires the authoritative coordination record to say `Remote push: allowed`.
+- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push follows Push Authorization: the pre-authorized path requires the authoritative coordination record to say `Remote push: allowed`, and exact human approval remains available.
 - PR transport may pre-authorize only bounded operations on the recorded phase PR. It never authorizes merge, unrelated PR changes, or repository settings changes.
 - Authorized coordination bookkeeping and local verification do not need repeated human approval.
 
@@ -1054,7 +1058,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Branch
 
-- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed there before review when phase branch mode authorizes it, and pushed only when the authoritative coordination record says `Remote push: allowed`.
+- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed there before review when phase branch mode authorizes it, and pushed only when Push Authorization permits it.
 - With phase branch mode on, default to one owned phase worktree, keep the primary checkout fixed, verify baseline, and remove it before branch deletion; the packet remains the review artifact, only a repo-backed reviewer that creates a detached worktree must remove it before verdict, and the contract has no named integration dependency.
 - Review the complete phase artifact before merge. Merge to `main` or another protected branch always remains a human gate.
 - Every agent-created phase branch must resolve as merged and deleted, abandoned under its explicit cleanup gate, intentionally kept with owner and revisit trigger, or handed to the human with the blocker recorded.

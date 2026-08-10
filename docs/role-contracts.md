@@ -38,7 +38,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 ## Human Gate
 
 - Human approval remains mandatory for merge to a protected branch; protected-branch push; publish, deploy, or apply; live, cloud, database, production, or other external-system action; external posting outside the assigned coordination record; destructive, costly, privileged, or hard-to-reverse action; scope change; closeout unless already authorized; and any plan-marked gate.
-- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push also requires the authoritative coordination record to say `Remote push: allowed`.
+- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push follows Push Authorization: the pre-authorized path requires the authoritative coordination record to say `Remote push: allowed`, and exact human approval remains available.
 - PR transport may pre-authorize only bounded operations on the recorded phase PR. It never authorizes merge, unrelated PR changes, or repository settings changes.
 - Authorized coordination bookkeeping and local verification do not need repeated human approval.
 
@@ -60,7 +60,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 ## Branch
 
-- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed there before review when phase branch mode authorizes it, and pushed only when the authoritative coordination record says `Remote push: allowed`.
+- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed there before review when phase branch mode authorizes it, and pushed only when Push Authorization permits it.
 - With phase branch mode on, default to one owned phase worktree, keep the primary checkout fixed, verify baseline, and remove it before branch deletion; the packet remains the review artifact, only a repo-backed reviewer that creates a detached worktree must remove it before verdict, and the contract has no named integration dependency.
 - Review the complete phase artifact before merge. Merge to `main` or another protected branch always remains a human gate.
 - Every agent-created phase branch must resolve as merged and deleted, abandoned under its explicit cleanup gate, intentionally kept with owner and revisit trigger, or handed to the human with the blocker recorded.

@@ -41,7 +41,7 @@ Abandoned branch cleanup: yes | ask | no
 
 If phase branch mode is off or phase branch flow is `pre-review`, do not execute the plan yet.
 
-If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit only the named phase branch, push it only when the authoritative coordination record says `Remote push: allowed`, run verification, set Status `review` and Gate `review`, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid.
+If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit only the named phase branch, push it only when Push Authorization permits it, run verification, set Status `review` and Gate `review`, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid.
 
 Default to `pr` for remote phase-branch implementation. Use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value. Selecting `pr` pre-authorizes creating or updating only the recorded phase pull request, maintaining its bounded description, requesting expected reviewers, and submitting expected reviewer verdicts. It never authorizes merge, unrelated pull request changes, or repository settings.
 
@@ -67,7 +67,7 @@ Set the current gate in the authoritative coordination record. Record a sanitize
 
 Record autonomy mode. Default missing autonomy mode to `review-approved-auto-execute` unless a manual condition applies. When it applies, reviewer approval authorizes only the in-scope local execution defined by the Playbook.
 
-Record phase branch mode. When it is `on`, the orchestrator may create and commit to only the named phase branch without per-commit approval. It may push only when the authoritative coordination record says `Remote push: allowed` and the push has no gated side effect. Existing human gates remain.
+Record phase branch mode. When it is `on`, the orchestrator may create and commit to only the named phase branch without per-commit approval. It may push only when Push Authorization permits it and the push has no gated side effect. Existing human gates remain.
 
 When phase branch flow is `implementation-first`, reviewers review the completed phase branch diff and verification evidence, not the plan before implementation — except when a temporary local plan defines unclear work: have the expected reviewers confirm that plan before implementing it.
 

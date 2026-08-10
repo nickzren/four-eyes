@@ -22,7 +22,7 @@ Reviewers return verdicts to the orchestrator or human relay. The orchestrator a
 3. If the work is multi-phase, the orchestrator creates one parent ledger with dependencies, status, branch or PR, gate, and next action.
 4. Reviewers confirm a defining plan before implementation using the same isolated handoff as later reviews.
 5. For each implementation phase, the orchestrator creates a phase branch and dedicated worktree while the primary checkout stays fixed and coordination-only.
-6. In that worktree, the orchestrator verifies the baseline, implements the whole phase, commits the phase branch, pushes it only when the authoritative coordination record says `Remote push: allowed`, and runs verification.
+6. In that worktree, the orchestrator verifies the baseline, implements the whole phase, commits the phase branch, pushes it only when Push Authorization permits it, and runs verification.
 7. The orchestrator opens or updates the pull request and prepares the reviewer handoff.
 8. Reviewer 1 may run as a named isolated internal subagent. Reviewer 2 stays human-relayed by default; direct review requires exact human-approved model, call, cost, and isolation bounds.
 9. Reviewers inspect the exact revision-bound artifact independently and return one verdict for the numbered round.
@@ -74,7 +74,7 @@ Optional direct Reviewer 2 removes the copy/paste step only when the platform su
 
 Use one branch and one dedicated worktree per independently mergeable implementation phase. The primary checkout remains on the recorded base and coordination-only.
 
-The orchestrator may commit to the recorded phase branch without per-commit approval. It may push only when the authoritative coordination record says `Remote push: allowed`; human approval remains required before merge to a protected branch.
+The orchestrator may commit to the recorded phase branch without per-commit approval. It may push only when Push Authorization permits it; human approval remains required before merge to a protected branch.
 
 Every workflow-owned worktree and branch must resolve at closeout. Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`.
 
