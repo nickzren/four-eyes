@@ -831,9 +831,7 @@ module FourEyesDocs
       end
       REMOTE_PUSH_FIELD_OCCURRENCES.each do |relative, expected|
         fail_check("remote push field occurrence mismatch in #{relative}") unless occurrences[relative] == expected
-      end
-      REMOTE_PUSH_OPTION_OCCURRENCES.each do |relative, expected|
-        fail_check("remote push option occurrence mismatch in #{relative}") unless option_occurrences[relative] == expected
+        fail_check("remote push option occurrence mismatch in #{relative}") unless option_occurrences[relative] == REMOTE_PUSH_OPTION_OCCURRENCES.fetch(relative, 0)
       end
       unexpected = occurrences.keys - REMOTE_PUSH_FIELD_OCCURRENCES.keys
       fail_check("unexpected remote push field occurrence") unless unexpected.empty?
@@ -1525,14 +1523,14 @@ module FourEyesDocs
       end
 
       with_fixture do |root|
-        outside = Dir.mktmpdir("four-eyes-link-")
+        outside = Dir.mktmpdir("fe-link-")
         link = File.join(root, "link")
         File.symlink(outside, link)
         begin
-          assert_failure("fixture symlink refused", "contains a symlink") do
+          assert_failure("link refused", "contains a symlink") do
             write(root, "link/outside.txt", "changed")
           end
-          raise "symlink write escaped" if File.exist?(File.join(outside, "outside.txt"))
+          raise "symlink escaped" if File.exist?(File.join(outside, "outside.txt"))
         ensure
           File.unlink(link) if File.symlink?(link)
           FileUtils.remove_entry(outside) if File.directory?(outside)
@@ -1658,17 +1656,18 @@ module FourEyesDocs
       expect_omission_failure("phase-branch merge", "docs/playbook.md", Checker::PHASE_BRANCH_MERGE_RULE, "phase-branch merge rule mismatch")
 
       [
-        ["selected value", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: maybe\n", "field value"],
-        ["selected occurrence", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: allowed\nRemote push: allowed\n", "field occurrence"],
+        ["value", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: maybe\n", "field value"],
+        ["option", "examples/coordination-record.md", "Remote push: allowed\n", "#{Checker::REMOTE_PUSH_OPTION_LINE}\n", "option occurrence"],
+        ["count", "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: allowed\nRemote push: allowed\n", "field occurrence"],
         ["default", "docs/templates.md", "#{Checker::REMOTE_PUSH_DEFAULT_LINE}\n", "", "default occurrence"],
         ["slice field", "docs/templates.md", "#{Checker::REMOTE_PUSH_SLICE_OPTION_LINE}\n", "   - remote push: allowed | disallowed\n", "slice field occurrence"]
       ].each do |name, path, from, to, error|
-        expect_failure("remote-push #{name} drift", "remote push #{error} mismatch") do |root|
+        expect_failure(name, "push #{error} mismatch") do |root|
           replace(root, path, from, to)
         end
       end
 
-      expect_failure("remote-push executable order drift", "remote push field order mismatch", :check_remote_push_fields!) do |root|
+      expect_failure("order", "remote push field order mismatch", :check_remote_push_fields!) do |root|
         replace(
           root,
           "examples/coordination-record.md",
