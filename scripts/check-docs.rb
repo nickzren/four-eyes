@@ -247,7 +247,7 @@ module FourEyesDocs
       "- Never run `git worktree prune` in the normal lifecycle. A stale entry is an out-of-band, human-gated repair.",
       "- Cleanup removes only the exact path in the ownership record and only when its live branch or detached SHA matches that record. Never remove another agent's worktree.",
       "- Cleanup failure keeps the coordination record open and records the opaque reference, branch, owner/category, path privately, observed state, and blocker.",
-      "- Worktree mode on with phase branch mode on pre-authorizes compliant named-branch creation and normal worktree removal. Phase branch mode separately authorizes branch creation, commits, allowed pushes, and approved merged-branch cleanup. Every existing human gate remains."
+      "- Worktree mode on with phase branch mode on pre-authorizes compliant named-branch creation and normal worktree removal. Phase branch mode separately authorizes branch creation, local commits, and approved merged-branch cleanup; remote push also requires Push Authorization. Every existing human gate remains."
     ].freeze
     COORDINATION_FIELD_OCCURRENCES = {
       "README.md" => 1,
@@ -307,6 +307,78 @@ module FourEyesDocs
       "4. The workflow revision is the full repository commit SHA carried by coordination records, packets, and verdicts.",
       "5. External document synchronization, source-body markers, readback checks, and a standing synchronization issue are not required."
     ].freeze
+    REVIEW_EFFICIENCY_RULES = [
+      "1. Review rounds are capped in exactly two buckets: plan and implementation.",
+      "2. Each bucket allows at most three panel rounds: one initial review plus two subsequent panel rounds.",
+      "3. A round recorded with `Review stage: delta` counts inside the bucket whose artifact it revises and never starts a new cap.",
+      "4. A panel round starts when its first reviewer slot is dispatched.",
+      "5. Every numbered round counts against its bucket, including rounds ending in error, timeout, or could-not-review.",
+      "6. At the cap the orchestrator stops and returns the current findings to the human.",
+      "7. At the cap the human chooses exactly one of: authorize a stated positive number of additional rounds; descope and authorize a stated positive number of rounds to review the changed artifact; override a blocker with recorded risk; or abandon.",
+      "8. Additional rounds increment the exhausted bucket. They never reset it and never expand model, call, or cost authorization.",
+      "9. A round cap never converts a blocker into a nit. Blockers remain blockers at and after the cap.",
+      "10. Accepted nits are deferred by default without changing the artifact.",
+      "11. Implement an accepted nit immediately only when the human requires it, an acceptance criterion requires it, or an existing gate requires it.",
+      "12. Record every deferred no-action nit in the coordination record closeout with its reason.",
+      "13. Record every deferred actionable nit as a follow-up in the coordination record closeout.",
+      "14. `Review transport: pr` authorizes no issue creation.",
+      "15. `Coordination record: github-issue` retains its existing authority to create, update, and close exactly one parent coordination issue plus explicitly accepted durable follow-ups.",
+      "16. Any other external follow-up record requires exact human authorization naming the records, normally bundled into merge approval.",
+      "17. Both full-tier reviewers bind approval to the complete current artifact identity in every round.",
+      "18. A normal delta round inspects the exact delta, its affected context, that reviewer's own prior findings, and the verification relevant to that delta.",
+      "19. Require a wider reread when the delta changes scope, risk, authority, gates, identity mechanics, or shared behavior.",
+      "20. Review scope is semantic, not filename-based. A validator change is not automatically a low-risk delta.",
+      "21. A validator change affecting authority, gates, identity, or cleanup receives focused inspection of the changed code plus its affected call sites and tests."
+    ].freeze
+    PUSH_AUTHORIZATION_RULES = [
+      "1. Remote push has two authorization paths: either `Phase branch mode: on` together with an authoritative `Remote push: allowed`, or exact human approval for a specifically identified push.",
+      "2. A missing `Remote push` value, or `Remote push: disallowed`, blocks the pre-authorized path. The exact-human-approval path remains available.",
+      "3. Local commits to the recorded phase branch remain pre-authorized by phase branch mode alone. Only remote push authority is narrowed.",
+      "4. Reviewing an existing unchanged pull request requires no push authorization. Other bounded pull request operations continue under `Review transport: pr`.",
+      "5. Plan-level and per-slice values select the intended push state. They are never authoritative for execution.",
+      "6. The current authoritative coordination record governs execution: the pre-PR execution-state record until the pull request record takes over, then the pull request record.",
+      "7. Before execution, copy the plan-selected value into the execution-state record and verify exact agreement.",
+      "8. Any disagreement among a plan-selected value, a per-slice value, and the authoritative record blocks push until the human resolves it.",
+      "9. `Remote push default: disallowed` states the value a new record starts from. It is not itself an authorization.",
+      "10. Option order in any recorded field carries no meaning and never conveys a default."
+    ].freeze
+    POLICY_TRANSITION_RULES = [
+      "1. A workflow remains governed by the workflow revision it recorded. `main` advancing never rebinds it, and no new approval is required merely because the tip moved.",
+      "2. The push authorization rules apply to workflows that bind the revision containing them. A workflow pinned to an earlier revision retains its recorded policy until closeout.",
+      "3. Offline and `manual-relay` work remain valid. No rule requires reaching the remote in order to load policy.",
+      "4. New policy governs only agents that load it. Four Eyes cannot prevent deliberate operation from an obsolete checkout or an obsolete policy revision, and does not claim to.",
+      "5. Revision selection is orchestrator-attested, appears in review evidence, and is open to human challenge at any gate."
+    ].freeze
+    PHASE_BRANCH_MERGE_RULE = "Every reviewed phase-branch pull request uses a commit-preserving merge. Squash is outside the normal phase-branch workflow and requires an explicitly reviewed alternative closeout procedure."
+    REVIEW_TRANSPORT_DEFAULT_RULE = "Default to `pr` for remote phase-branch implementation. Use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value."
+    REMOTE_PUSH_OPTION_LINE = "Remote push: disallowed | allowed"
+    REMOTE_PUSH_DEFAULT_LINE = "Remote push default: disallowed"
+    REMOTE_PUSH_SLICE_OPTION_LINE = "   - remote push: disallowed | allowed"
+    REMOTE_PUSH_FIELD_OCCURRENCES = {
+      "docs/playbook.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/coordination-records.md" => 1,
+      "examples/coordination-record.md" => 1,
+      "examples/multi-slice-issues.md" => 2
+    }.freeze
+    REMOTE_PUSH_OPTION_OCCURRENCES = {
+      "docs/playbook.md" => 1,
+      "docs/templates.md" => 2,
+      "docs/coordination-records.md" => 1
+    }.freeze
+    PHASE_LOCAL_COMMIT_RULE = "When phase branch mode is `on`, the orchestrator may create the recorded phase branch and commit in-scope work to it without asking the human for every local commit."
+    PHASE_PREAUTHORIZED_PUSH_RULE = "The pre-authorized remote-push path permits updates to that exact branch without asking the human for every push only if all of these are true:"
+    PHASE_PUSH_CONDITIONS = [
+      "- the branch name, base branch, and merge target are recorded in the plan or coordination record",
+      "- the work stays inside the approved phase scope",
+      "- pushes go only to the named phase branch",
+      "- the authoritative coordination record says `Remote push: allowed`",
+      "- branch pushes do not deploy, mutate live systems, publish releases, or trigger hard-to-reverse external actions",
+      "- verification commands are run before review",
+      "- reviewers review the branch diff and verification evidence before merge approval"
+    ].freeze
+    PHASE_EXACT_HUMAN_PUSH_RULE = "Exact human approval for a specifically identified push remains an independent authorization path under Push Authorization."
+    ROLE_REVIEW_EFFICIENCY_RULE = "- Plan and implementation review each stop after three panel rounds unless the human grants more. Defer accepted nits by default; bind approval to the complete artifact and focus normal delta inspection unless semantic risk widens."
     LEDGER_GATE_RULE = "`Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field."
     LEDGER_EXAMPLE_RULE = "`Status` records lifecycle progress; `Gate` records what controls the next transition. `waiting external eval` is non-terminal. The independent Retry classification phase may proceed, while Retry metrics remains unready because it depends on a non-terminal phase."
     READ_ONLY_NO_DIFF_RULE = "If execution is read-only and creates no material diff, use Status `completed` when verification is complete and no further action remains, Status `waiting external eval` with Gate `external evaluation` when an external result is pending, or Status `ready` with Gate `human approval` when an explicit human action is required."
@@ -402,7 +474,12 @@ module FourEyesDocs
       "Do not post to the tracker unless explicitly instructed.",
       "unless explicitly instructed to post to the tracker",
       "Do not post to Linear or another tracker unless explicitly instructed.",
-      "Do not post directly to the tracker unless explicitly instructed."
+      "Do not post directly to the tracker unless explicitly instructed.",
+      "Prefer squash merge for phase branches unless the repo has a different convention or the reviewed plan names commits that must remain reachable. When commit preservation is required, prohibit squash, use a commit-preserving merge, and verify every named commit is an ancestor of the merge target before deleting the branch.",
+      "Default to `pr` when the repo has a remote and CI or branch protection. Use `manual-relay` for local, no-remote, or simple work where a PR adds overhead.",
+      "Remote push: allowed | disallowed",
+      "The orchestrator may commit and push the recorded phase branch without per-commit approval when pushes are side-effect-free. Human approval remains required before merge to a protected branch.",
+      "- Phase branch commits and pushes may be pre-authorized only by phase branch mode."
     ].freeze
     RETIRED_POLICY_PATTERNS = [
       /\bLinear\b/i,
@@ -429,7 +506,9 @@ module FourEyesDocs
       check_field_order!
       check_reviewer2_handoff!
       check_coordination_contract!
+      check_review_efficiency_and_policy!
       check_worktree_contract!
+      check_remote_push_fields!
       check_links!
       check_stale_phrases!
       check_retired_policy!
@@ -674,7 +753,7 @@ module FourEyesDocs
       playbook = normalized_read("docs/playbook.md")
       check_exact_rule_section!(playbook, "## Coordination Record Contract", "## Local Coordination Record", COORDINATION_REQUIRED_RULES, "coordination record")
       check_exact_rule_section!(playbook, "## Local Coordination Record", "## Repository Revision Loading", LOCAL_RECORD_REQUIRED_RULES, "local coordination record")
-      check_exact_rule_section!(playbook, "## Repository Revision Loading", "## Right-Sizing Slices", REVISION_LOADING_REQUIRED_RULES, "repository revision loading")
+      check_exact_rule_section!(playbook, "## Repository Revision Loading", "## Policy Transition And Trust Boundary", REVISION_LOADING_REQUIRED_RULES, "repository revision loading")
       coordination_contract = section(playbook, "## Coordination Record Contract", "## Local Coordination Record")
       require_unique_operative_line_in_section!(playbook, coordination_contract, LEDGER_GATE_RULE, "ledger gate semantics missing")
       standard_flow = section(playbook, "## Standard Task Flow", "## Orchestrator Next-Action Rule")
@@ -736,6 +815,70 @@ module FourEyesDocs
       end
     end
 
+    def check_review_efficiency_and_policy!
+      playbook = normalized_read("docs/playbook.md")
+      check_exact_rule_body!(playbook, "## Push Authorization", "## Workflow Revision And Artifact Identity", PUSH_AUTHORIZATION_RULES, "push authorization")
+      check_exact_rule_body!(playbook, "## Policy Transition And Trust Boundary", "## Right-Sizing Slices", POLICY_TRANSITION_RULES, "policy transition")
+      check_exact_rule_body!(playbook, "## Review Efficiency", "## Phase Review", REVIEW_EFFICIENCY_RULES, "review efficiency")
+
+      github_boundary = section(playbook, "## GitHub Boundary", "## Close Discipline")
+      require_unique_operative_line_in_section!(playbook, github_boundary, PHASE_BRANCH_MERGE_RULE, "phase-branch merge rule mismatch")
+      review_transport = section(playbook, "## Review Transport", "## Review Tier")
+      require_unique_operative_line_in_section!(playbook, review_transport, REVIEW_TRANSPORT_DEFAULT_RULE, "review transport default mismatch")
+
+      local_commit_rule = "This intentionally allows local commits to the named phase branch before review. The review gate is before protected-branch push, merge, apply, deploy, or closeout."
+      phase_branch = section(playbook, "## Phase Branch Mode", "## Push Authorization")
+      require_unique_operative_line_in_section!(playbook, phase_branch, local_commit_rule, "local commit authority changed")
+      require_unique_operative_line_in_section!(playbook, phase_branch, PHASE_LOCAL_COMMIT_RULE, "phase-branch local commit grant mismatch")
+      require_unique_operative_line_in_section!(playbook, phase_branch, PHASE_PREAUTHORIZED_PUSH_RULE, "phase-branch pre-authorized push rule mismatch")
+      PHASE_PUSH_CONDITIONS.each do |line|
+        require_unique_operative_line_in_section!(playbook, phase_branch, line, "phase-branch push condition mismatch")
+      end
+      require_unique_operative_line_in_section!(playbook, phase_branch, PHASE_EXACT_HUMAN_PUSH_RULE, "phase-branch exact-human push rule mismatch")
+      expected_push_block = "#{PHASE_PREAUTHORIZED_PUSH_RULE}\n\n#{PHASE_PUSH_CONDITIONS.join("\n")}\n\n#{PHASE_EXACT_HUMAN_PUSH_RULE}"
+      fail_check("phase-branch push authorization block mismatch") unless phase_branch.scan(expected_push_block).length == 1
+
+      consequential = [
+        ["## Roles", "## Autonomy Mode", "- local commit when phase branch mode is not enabled; remote push when neither the pre-authorized path nor exact human approval applies"],
+        ["## Autonomy Mode", "## Phase Branch Mode", "Auto-execute alone does not authorize commit, push, publish, merge, deploy, apply, live/external mutation, destructive/costly action, closeout unless already authorized, scope change, commands outside the pre-authorized classes or reviewed plan, or work outside the assigned coordination record. Local commit requires phase branch mode or explicit human approval. Remote push follows Push Authorization below, including its independent exact-human-approval path. Bounded PR writes require `Review transport: pr`. Merge and protected-branch push remain separate human gates."],
+        ["## Phase Branch Flow", "## Standard Task Flow", "4. Orchestrator commits only the named phase branch and pushes it only when Push Authorization permits it."],
+        ["## Phase Branch Flow", "## Standard Task Flow", "8. After the embargo lifts, the orchestrator posts carried verdicts verbatim, recomputes repository and artifact identity, synthesizes feedback, fixes blockers on the same phase branch, commits locally when phase branch mode authorizes it, pushes only when Push Authorization permits it, and requests the required delta review."],
+        ["## Safety Boundaries", "## GitHub Boundary", "- Phase branch commits may be pre-authorized by phase branch mode. Remote pushes require Push Authorization."]
+      ]
+      consequential.each do |start_heading, end_heading, line|
+        require_unique_operative_line_in_section!(playbook, section(playbook, start_heading, end_heading), line, "push-authority surface mismatch")
+      end
+
+      readme = normalized_read("README.md")
+      default_workflow = default_workflow_source
+      require_unique_operative_line_in_section!(readme, default_workflow, "6. In that worktree, the orchestrator verifies the baseline, implements the whole phase, commits the phase branch, pushes it only when Push Authorization permits it, and runs verification.", "README push rule mismatch")
+      readme_transport = section(readme, "## Review Transport", "## Coordination Records")
+      require_unique_operative_line_in_section!(readme, readme_transport, REVIEW_TRANSPORT_DEFAULT_RULE, "README review transport default mismatch")
+      readme_prompt = unique_text_prompt(section(readme, "## Run Your First Review", "## Example Agent Mix"), "README orchestrator prompt missing")
+      prompt_line = "Act as orchestrator. Use phase branch and worktree mode for implementation phases. Keep the primary checkout fixed and coordination-only. Default to `pr` for remote phase-branch implementation; use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value. Infer practical phases when needed and keep their dependencies and gates in one parent ledger."
+      require_unique_line_in_section!(readme, readme_prompt, prompt_line, "README fenced review transport default mismatch")
+
+      templates = normalized_read("docs/templates.md")
+      orchestrator_prompt = unique_text_prompt(section(templates, "## New Orchestrator Prompt", "## Local Plan Template"), "orchestrator prompt missing")
+      template_worktree = "If phase branch mode is on and phase branch flow is `implementation-first`, default worktree mode to `on`. Create the phase branch and its dedicated worktree from the recorded base, keep the primary checkout fixed and coordination-only, validate ownership and baseline, implement only in the phase worktree, commit only the named phase branch, push it only when Push Authorization permits it, run verification, set Status `review` and Gate `review`, then return reviewer prompts for the branch diff. Worktree mode `off` while phase branch mode remains `on` requires explicit human approval; worktree mode `on` with phase branch mode `off` is invalid."
+      require_unique_line_in_section!(templates, orchestrator_prompt, template_worktree, "template worktree push authorization mismatch")
+      template_transport = "#{REVIEW_TRANSPORT_DEFAULT_RULE} Selecting `pr` pre-authorizes creating or updating only the recorded phase pull request, maintaining its bounded description, requesting expected reviewers, and submitting expected reviewer verdicts. It never authorizes merge, unrelated pull request changes, or repository settings."
+      require_unique_line_in_section!(templates, orchestrator_prompt, template_transport, "template review transport default mismatch")
+      template_push = "Record phase branch mode. When it is `on`, the orchestrator may create and commit to only the named phase branch without per-commit approval. It may push only when Push Authorization permits it and the push has no gated side effect. Existing human gates remain."
+      require_unique_line_in_section!(templates, orchestrator_prompt, template_push, "template push authorization mismatch")
+      coordination = normalized_read("docs/coordination-records.md")
+      integration = section(coordination, "## GitHub Integration")
+      require_unique_operative_line_in_section!(coordination, integration, PHASE_BRANCH_MERGE_RULE, "coordination merge rule mismatch")
+
+      role_contracts = normalized_read("docs/role-contracts.md")
+      tier = section(role_contracts, "## Tier", "## Human Gate")
+      require_unique_operative_line_in_section!(role_contracts, tier, ROLE_REVIEW_EFFICIENCY_RULE, "role-contract review efficiency rule missing")
+      human_gate = section(role_contracts, "## Human Gate", "## Artifact")
+      require_unique_operative_line_in_section!(role_contracts, human_gate, "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push follows Push Authorization: the pre-authorized path requires the authoritative coordination record to say `Remote push: allowed`, and exact human approval remains available.", "role-contract push gate mismatch")
+      branch = section(role_contracts, "## Branch", "## Loading")
+      require_unique_operative_line_in_section!(role_contracts, branch, "- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed there before review when phase branch mode authorizes it, and pushed only when Push Authorization permits it.", "role-contract branch push rule mismatch")
+    end
+
     def check_exact_rule_section!(content, start_heading, end_heading, expected, label)
       bounded = section(content, start_heading, end_heading)
       actual = markdown_lines(bounded).each_with_object([]) do |entry, rules|
@@ -743,6 +886,69 @@ module FourEyesDocs
         rules << line if entry[:context] == :prose && line.match?(/\A\d+\. /)
       end
       fail_check("#{label} rules mismatch") unless actual == expected
+    end
+
+    def check_exact_rule_body!(content, start_heading, end_heading, expected, label)
+      bounded = section(content, start_heading, end_heading)
+      expected_body = "#{start_heading}\n\n#{expected.join("\n")}\n\n"
+      fail_check("#{label} rules mismatch") unless bounded == expected_body
+    end
+
+    def check_remote_push_fields!
+      occurrences = Hash.new(0)
+      option_occurrences = Hash.new(0)
+      fields = Hash.new { |hash, key| hash[key] = [] }
+      defaults = Hash.new { |hash, key| hash[key] = [] }
+      slice_fields = Hash.new { |hash, key| hash[key] = [] }
+      allowed_lines = [REMOTE_PUSH_OPTION_LINE, "Remote push: disallowed", "Remote push: allowed"]
+
+      markdown_paths.each do |relative|
+        lines = normalized_read(relative).lines.map(&:chomp)
+        lines.each_with_index do |line, index|
+          next if line == "Remote push: allowed | disallowed"
+
+          fields[relative] << [line, index, lines] if line.start_with?("Remote push:")
+          defaults[relative] << line if line.start_with?("Remote push default:")
+          slice_fields[relative] << [line, index, lines] if line.start_with?("   - remote push:")
+        end
+      end
+
+      fields.each do |relative, entries|
+        fail_check("unexpected remote push field in #{relative}") unless REMOTE_PUSH_FIELD_OCCURRENCES.key?(relative)
+        occurrences[relative] = entries.length
+        option_occurrences[relative] = entries.count { |line, _index, _lines| line == REMOTE_PUSH_OPTION_LINE }
+      end
+      REMOTE_PUSH_FIELD_OCCURRENCES.each do |relative, expected|
+        fail_check("remote push field occurrence mismatch in #{relative}") unless occurrences[relative] == expected
+      end
+      REMOTE_PUSH_OPTION_OCCURRENCES.each do |relative, expected|
+        fail_check("remote push option occurrence mismatch in #{relative}") unless option_occurrences[relative] == expected
+      end
+      unexpected = occurrences.keys - REMOTE_PUSH_FIELD_OCCURRENCES.keys
+      fail_check("unexpected remote push field occurrence") unless unexpected.empty?
+
+      fields.each do |relative, entries|
+        entries.each do |line, index, lines|
+          fail_check("remote push field value mismatch in #{relative}") unless allowed_lines.include?(line)
+          fail_check("remote push field order mismatch in #{relative}") unless index.positive? && lines[index - 1]&.start_with?("Worktree reference:")
+          fail_check("remote push field order mismatch in #{relative}") unless lines[index + 1]&.start_with?("Merge target:")
+        end
+      end
+
+      fail_check("remote push default occurrence mismatch") unless defaults.keys == ["docs/templates.md"] && defaults["docs/templates.md"] == [REMOTE_PUSH_DEFAULT_LINE]
+      fail_check("remote push slice field occurrence mismatch") unless slice_fields.keys == ["docs/templates.md"] && slice_fields["docs/templates.md"].length == 1
+      slice_line, slice_index, slice_lines = slice_fields["docs/templates.md"].first
+      fail_check("remote push slice field occurrence mismatch") unless slice_line == REMOTE_PUSH_SLICE_OPTION_LINE
+      fail_check("remote push slice field order mismatch") unless slice_index.positive? && slice_lines[slice_index - 1] == "   - worktree reference: none | <ownership-category>/<opaque worktree reference>"
+      fail_check("remote push slice field order mismatch") unless slice_lines[slice_index + 1] == "   - merge target:"
+
+      templates = normalized_read("docs/templates.md")
+      local_plan = section(templates, "## Local Plan Template", "## Coordination Record Template")
+      plan_lines = local_plan.lines.map(&:chomp)
+      default_index = plan_lines.index(REMOTE_PUSH_DEFAULT_LINE)
+      fail_check("remote push default missing") unless default_index
+      fail_check("remote push default order mismatch") unless plan_lines[default_index - 1] == "Worktree reference default: none"
+      fail_check("remote push default order mismatch") unless plan_lines[default_index + 1]&.start_with?("Workflow revision:")
     end
 
     def absolute_local_path?(content)
@@ -1362,6 +1568,7 @@ module FourEyesDocs
     def initialize(source_root)
       @source_root = source_root
       @checks = 0
+      @passed_checks = []
     end
 
     def run!
@@ -1626,6 +1833,91 @@ module FourEyesDocs
       expect_failure("repository revision unchecked extension", "repository revision loading rules mismatch") do |root|
         rule = Checker::REVISION_LOADING_REQUIRED_RULES.last
         replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n6. Unchecked revision-loading rule.\n")
+      end
+
+      expect_failure("review-efficiency rule omission", "review efficiency rules mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::REVIEW_EFFICIENCY_RULES[9]}\n", "")
+      end
+
+      expect_failure("review-efficiency rule order", "review efficiency rules mismatch") do |root|
+        first = "#{Checker::REVIEW_EFFICIENCY_RULES[0]}\n"
+        second = "#{Checker::REVIEW_EFFICIENCY_RULES[1]}\n"
+        replace(root, "docs/playbook.md", first + second, second + first)
+      end
+
+      expect_failure("review-efficiency unnumbered extension", "review efficiency rules mismatch") do |root|
+        rule = Checker::REVIEW_EFFICIENCY_RULES.last
+        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\nUnchecked review guidance.\n")
+      end
+
+      expect_failure("push-authorization rule relocation", "push authorization rules mismatch") do |root|
+        rule = Checker::PUSH_AUTHORIZATION_RULES[4]
+        replace(root, "docs/playbook.md", "#{rule}\n", "")
+        append(root, "docs/playbook.md", "\n#{rule}\n")
+      end
+
+      expect_failure("push-authorization unchecked extension", "push authorization rules mismatch") do |root|
+        rule = Checker::PUSH_AUTHORIZATION_RULES.last
+        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n11. Unchecked push rule.\n")
+      end
+
+      expect_failure("policy-transition duplicate", "policy transition rules mismatch") do |root|
+        rule = Checker::POLICY_TRANSITION_RULES[2]
+        replace(root, "docs/playbook.md", "#{rule}\n", "#{rule}\n#{rule}\n")
+      end
+
+      expect_failure("remote-push default omission", "remote push default occurrence mismatch") do |root|
+        replace(root, "docs/templates.md", "#{Checker::REMOTE_PUSH_DEFAULT_LINE}\n", "")
+      end
+
+      expect_failure("remote-push option order drift", "remote push field occurrence mismatch") do |root|
+        replace(root, "docs/playbook.md", "#{Checker::REMOTE_PUSH_OPTION_LINE}\n", "Remote push: allowed | disallowed\n")
+      end
+
+      expect_failure("remote-push selected value drift", "remote push field value mismatch") do |root|
+        replace(root, "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: maybe\n")
+      end
+
+      expect_failure("remote-push selected duplicate", "remote push field occurrence mismatch") do |root|
+        replace(root, "examples/coordination-record.md", "Remote push: allowed\n", "Remote push: allowed\nRemote push: allowed\n")
+      end
+
+      expect_failure("remote-push selected order drift", "worktree field block mismatch") do |root|
+        replace(root, "examples/coordination-record.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree\nRemote push: allowed\n", "Remote push: allowed\nWorktree reference: phase-execution/EXAMPLE-retry-worktree\n")
+      end
+
+      expect_failure("remote-push default order drift", "remote push default order mismatch") do |root|
+        revision = "Workflow revision: <full repository commit SHA>\n"
+        push = "#{Checker::REMOTE_PUSH_DEFAULT_LINE}\n"
+        replace(root, "docs/templates.md", push + revision, revision + push)
+      end
+
+      expect_failure("remote-push slice field value drift", "remote push slice field occurrence mismatch") do |root|
+        replace(root, "docs/templates.md", "#{Checker::REMOTE_PUSH_SLICE_OPTION_LINE}\n", "   - remote push: allowed | disallowed\n")
+      end
+
+      expect_failure("remote-push slice field order drift", "remote push slice field order mismatch") do |root|
+        reference = "   - worktree reference: none | <ownership-category>/<opaque worktree reference>\n"
+        push = "#{Checker::REMOTE_PUSH_SLICE_OPTION_LINE}\n"
+        replace(root, "docs/templates.md", reference + push, push + reference)
+      end
+
+      expect_failure("local commit authority narrowed", "local commit authority changed") do |root|
+        replace(root, "docs/playbook.md", "This intentionally allows local commits to the named phase branch before review.", "Local commits require remote-push approval before review.")
+      end
+
+      expect_failure("phase-branch local commit grant bundled with push", "phase-branch local commit grant mismatch") do |root|
+        replace(root, "docs/playbook.md", Checker::PHASE_LOCAL_COMMIT_RULE, "When phase branch mode is `on`, local commits also require `Remote push: allowed`.")
+      end
+
+      expect_failure("README exact-human push path removed", "README push rule mismatch") do |root|
+        replace(root, "README.md", "pushes it only when Push Authorization permits it", "pushes it only when the authoritative record allows it")
+      end
+
+      expect_failure("role-contract exact-human push path removed", "role-contract push gate mismatch") do |root|
+        line = "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push follows Push Authorization: the pre-authorized path requires the authoritative coordination record to say `Remote push: allowed`, and exact human approval remains available."
+        replace(root, "docs/playbook.md", line, "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push requires `Remote push: allowed`.")
+        Checker.new(root).write_derived!
       end
 
       expect_failure("ledger gate semantics omission", "ledger gate semantics missing") do |root|
@@ -2283,6 +2575,10 @@ module FourEyesDocs
       end
 
       puts "check-docs self-test: #{@checks} checks passed"
+    rescue StandardError => error
+      @passed_checks.each { |name| warn "PASS: #{name}" }
+      warn "FAIL: #{error.message}"
+      raise
     end
 
     private
@@ -2314,7 +2610,7 @@ module FourEyesDocs
 
     def pass(name)
       @checks += 1
-      puts "PASS #{name}"
+      @passed_checks << name
     end
 
     def read(root, path)

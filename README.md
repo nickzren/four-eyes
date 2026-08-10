@@ -22,12 +22,12 @@ Reviewers return verdicts to the orchestrator or human relay. The orchestrator a
 3. If the work is multi-phase, the orchestrator creates one parent ledger with dependencies, status, branch or PR, gate, and next action.
 4. Reviewers confirm a defining plan before implementation using the same isolated handoff as later reviews.
 5. For each implementation phase, the orchestrator creates a phase branch and dedicated worktree while the primary checkout stays fixed and coordination-only.
-6. In that worktree, the orchestrator verifies the baseline, implements the whole phase, commits and pushes only the phase branch, and runs verification.
+6. In that worktree, the orchestrator verifies the baseline, implements the whole phase, commits the phase branch, pushes it only when Push Authorization permits it, and runs verification.
 7. The orchestrator opens or updates the pull request and prepares the reviewer handoff.
 8. Reviewer 1 may run as a named isolated internal subagent. Reviewer 2 stays human-relayed by default; direct review requires exact human-approved model, call, cost, and isolation bounds.
 9. Reviewers inspect the exact revision-bound artifact independently and return one verdict for the numbered round.
 10. After all expected slots return or have terminal records, the orchestrator posts carried verdicts verbatim, rechecks identity and repository state, then synthesizes.
-11. Blocking findings or artifact-changing nits are fixed on the phase branch and receive the required delta review.
+11. Blocking findings are fixed on the phase branch and receive the required delta review. Accepted nits are deferred by default unless a human, acceptance criterion, or existing gate requires the change now.
 12. When reviewers approve, the human approves merge to `main` or another protected branch.
 13. The orchestrator merges, verifies, records closeout, resolves owned worktrees and branches, then removes temporary local artifacts.
 
@@ -74,7 +74,7 @@ Optional direct Reviewer 2 removes the copy/paste step only when the platform su
 
 Use one branch and one dedicated worktree per independently mergeable implementation phase. The primary checkout remains on the recorded base and coordination-only.
 
-The orchestrator may commit and push the recorded phase branch without per-commit approval when pushes are side-effect-free. Human approval remains required before merge to a protected branch.
+The orchestrator may commit to the recorded phase branch without per-commit approval. It may push only when Push Authorization permits it; human approval remains required before merge to a protected branch.
 
 Every workflow-owned worktree and branch must resolve at closeout. Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`.
 
@@ -82,9 +82,11 @@ Every workflow-owned worktree and branch must resolve at closeout. Default to `P
 
 Use `Review transport: pr | manual-relay`.
 
-Default to `pr` for remote implementation work. The pull request carries the immutable review artifact and becomes the coordination record after the local state copy is verified.
+Default to `pr` for remote phase-branch implementation. Use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value.
 
-Use `manual-relay` for local or no-remote work. Artifact identity, mutation checks, verdict embargo, stale approvals, and nit handling are defined in the [Playbook](docs/playbook.md).
+The pull request carries the immutable review artifact and becomes the coordination record after the local state copy is verified.
+
+Artifact identity, mutation checks, verdict embargo, stale approvals, and nit handling are defined in the [Playbook](docs/playbook.md).
 
 ## Coordination Records
 
@@ -127,7 +129,7 @@ Coordination record: pr | github-issue | local
 Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
 Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
 
-Act as orchestrator. Use phase branch and worktree mode for implementation phases. Keep the primary checkout fixed and coordination-only. Use PR transport for remote implementation work. Infer practical phases when needed and keep their dependencies and gates in one parent ledger.
+Act as orchestrator. Use phase branch and worktree mode for implementation phases. Keep the primary checkout fixed and coordination-only. Default to `pr` for remote phase-branch implementation; use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value. Infer practical phases when needed and keep their dependencies and gates in one parent ledger.
 
 Run or reuse internal Reviewer 1 when available. Return the filled Reviewer 2 prompt for human relay unless direct mode is explicitly authorized. Reviewers never edit coordination metadata.
 

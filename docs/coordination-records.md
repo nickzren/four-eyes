@@ -93,7 +93,7 @@ For `pr`, the local execution-state record remains authoritative until its publi
 
 For `github-issue`, create exactly one parent issue carrying the plan digest, ledger, pull requests, dependencies, current gate, and next action. Promotion is complete only after the issue and pull request backlink agree.
 
-Prefer squash merge for phase branches unless the repo has a different convention or the reviewed plan names commits that must remain reachable. When commit preservation is required, prohibit squash, use a commit-preserving merge, and verify every named commit is an ancestor of the merge target before deleting the branch.
+Every reviewed phase-branch pull request uses a commit-preserving merge. Squash is outside the normal phase-branch workflow and requires an explicitly reviewed alternative closeout procedure.
 
 Reviewers may submit review verdicts, but they do not edit coordination metadata or the ledger. The orchestrator posts carried verdicts verbatim after the verdict embargo and owns synthesis and closeout.
 

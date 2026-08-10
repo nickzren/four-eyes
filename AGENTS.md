@@ -28,7 +28,13 @@ This file is for agents editing the version-controlled Four Eyes repo. Agents us
 Before committing, run:
 
 ```bash
+ruby -w -c scripts/check-docs.rb
+ruby scripts/check-docs.rb --write-derived
+ruby scripts/check-docs.rb --self-test
+ruby scripts/check-docs.rb
 git diff --check
 ```
+
+The local bare `git diff --check` validates the uncommitted tree. CI deliberately validates the event's committed range instead.
 
 Also run a public-safety scan for private company names, real issue links, account IDs, credentials, real logs, and sensitive identifiers before publishing.
