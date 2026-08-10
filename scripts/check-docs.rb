@@ -655,11 +655,10 @@ module FourEyesDocs
       end
 
       playbook = normalized_read("docs/playbook.md")
-      check_exact_rule_section!(playbook, "## Coordination Record Contract", "## Local Coordination Record", COORDINATION_REQUIRED_RULES, "coordination record")
-      check_exact_rule_section!(playbook, "## Local Coordination Record", "## Repository Revision Loading", LOCAL_RECORD_REQUIRED_RULES, "local coordination record")
-      check_exact_rule_section!(playbook, "## Repository Revision Loading", "## Policy Transition And Trust Boundary", REVISION_LOADING_REQUIRED_RULES, "repository revision loading")
-      coordination_contract = section(playbook, "## Coordination Record Contract", "## Local Coordination Record")
-      require_unique_operative_line_in_section!(playbook, coordination_contract, LEDGER_GATE_RULE, "ledger gate semantics missing")
+      check_exact_rule_body!(playbook, "## Coordination Record Contract", "## Local Coordination Record", COORDINATION_REQUIRED_RULES + ["", LEDGER_GATE_RULE], "coordination record")
+      check_exact_rule_body!(playbook, "## Local Coordination Record", "## Repository Revision Loading", LOCAL_RECORD_REQUIRED_RULES, "local coordination record")
+      check_exact_rule_body!(playbook, "## Repository Revision Loading", "## Policy Transition And Trust Boundary", REVISION_LOADING_REQUIRED_RULES, "repository revision loading")
+      fail_check("ledger gate semantics missing") unless exact_line_positions(playbook, LEDGER_GATE_RULE).length == 1
       standard_flow = section(playbook, "## Standard Task Flow", "## Orchestrator Next-Action Rule")
       require_unique_operative_line_in_section!(playbook, standard_flow, READ_ONLY_NO_DIFF_RULE, "read-only transition semantics mismatch")
       gate_state = section(playbook, "## Gate State", "## Gate Rule")
@@ -788,15 +787,6 @@ module FourEyesDocs
       require_unique_operative_line_in_section!(role_contracts, human_gate, "- Phase branch mode may pre-authorize local commits only to the recorded phase branch. Remote push follows Push Authorization: the pre-authorized path requires the authoritative coordination record to say `Remote push: allowed`, and exact human approval remains available.", "role-contract push gate mismatch")
       branch = section(role_contracts, "## Branch", "## Loading")
       require_unique_operative_line_in_section!(role_contracts, branch, "- Use one recorded phase branch per independently mergeable phase. Implementation-first work may be committed there before review when phase branch mode authorizes it, and pushed only when Push Authorization permits it.", "role-contract branch push rule mismatch")
-    end
-
-    def check_exact_rule_section!(content, start_heading, end_heading, expected, label)
-      bounded = section(content, start_heading, end_heading)
-      actual = markdown_lines(bounded).each_with_object([]) do |entry, rules|
-        line = entry[:line]
-        rules << line if entry[:context] == :prose && line.match?(/\A\d+\. /)
-      end
-      fail_check("#{label} rules mismatch") unless actual == expected
     end
 
     def check_exact_rule_body!(content, start_heading, end_heading, expected, label)
@@ -1647,6 +1637,16 @@ module FourEyesDocs
         ["policy transition", Checker::POLICY_TRANSITION_RULES.first, "policy transition rules mismatch"]
       ].each do |name, line, error|
         expect_omission_failure(name, "docs/playbook.md", line, error)
+      end
+
+      [
+        ["coordination", "## Coordination Record Contract", "coordination record rules mismatch"],
+        ["local record", "## Local Coordination Record", "local coordination record rules mismatch"],
+        ["revision loading", "## Repository Revision Loading", "repository revision loading rules mismatch"]
+      ].each do |name, heading, error|
+        expect_failure("#{name} inserted prose", error) do |root|
+          replace(root, "docs/playbook.md", "#{heading}\n\n", "#{heading}\n\nExtra.\n\n")
+        end
       end
 
       expect_failure("documentation enforcement boundary omission", "documentation enforcement boundary missing") do |root|
