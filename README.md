@@ -65,7 +65,7 @@ Skip it for one-line fixes, tiny docs, formatting, and simple administration.
 
 1. Codex App or another primary agent acts as orchestrator.
 2. The orchestrator may create or reuse the isolated named Reviewer 1 subagent `reviewer1` for the parent workflow.
-3. The human sends every manual external Reviewer 2 prompt and pastes its verdict back.
+3. Start or reuse manual external Reviewer 2 exactly as defined in [Role Contracts](docs/role-contracts.md#reviewer); the human sends each prompt and relays each verdict.
 4. The orchestrator synthesizes, updates the coordination record, fixes blockers, and asks for human approval only at real gates.
 
 Optional direct Reviewer 2 removes the copy/paste step only when the platform supplies isolated fresh context and the human authorizes exact model, call, and cost bounds. Manual relay remains the default and fallback.
@@ -115,6 +115,29 @@ Review phases, not every bug. Split only when gates, rollback, owners, repos, de
 - [Templates](docs/templates.md)
 - [Coordination records](docs/coordination-records.md)
 - [Examples](examples/)
+
+## Use In Another Repository
+
+Add this pointer to the target repository's `AGENTS.md`:
+
+```markdown
+## Four Eyes
+
+Use Four Eyes for broad, multi-phase, production, infrastructure, security,
+schema, data, costly, destructive, or hard-to-reverse work.
+
+Policy: https://github.com/nickzren/four-eyes at <full 40-character commit SHA>
+Load first: README "Default Workflow" and docs/role-contracts.md
+Load on demand: docs/playbook.md, docs/templates.md, docs/coordination-records.md
+
+Skip for one-line fixes, tiny docs, formatting, and simple administration.
+```
+
+For Claude Code, add this target-repository `CLAUDE.md`:
+
+```markdown
+@AGENTS.md
+```
 
 ## Run Your First Review
 
@@ -168,6 +191,8 @@ The current bootstrap is the README Default Workflow section plus generated Role
 ## Source Of Truth
 
 Load workflow policy from one recorded full commit SHA in this repository. Missing, abbreviated, mixed, or unresolvable revisions hold the gate.
+
+Agents working in another repository read these documents from a local clone pinned at that SHA or from the same SHA on the forge. Do not copy the policy documents into the target repository.
 
 `scripts/check-docs.rb` validates documentation and regenerates Role Contracts. It never invokes reviewers or executes the workflow.
 
