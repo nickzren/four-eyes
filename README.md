@@ -124,7 +124,7 @@ Add this pointer to the target repository's `AGENTS.md`:
 ## Four Eyes
 
 Use Four Eyes for broad, multi-phase, production, infrastructure, security,
-schema, data, destructive, or hard-to-reverse work.
+schema, data, costly, destructive, or hard-to-reverse work.
 
 Policy: https://github.com/nickzren/four-eyes at <full 40-character commit SHA>
 Load first: README "Default Workflow" and docs/role-contracts.md
