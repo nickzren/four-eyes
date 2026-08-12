@@ -31,7 +31,7 @@ Reviewers return verdicts to the orchestrator or human relay. The orchestrator a
 12. When reviewers approve, the human approves merge to `main` or another protected branch.
 13. The orchestrator merges, verifies, records closeout, resolves owned worktrees and branches, then removes temporary local artifacts.
 
-This default shows the Full review path. Light uses one opposite-family reviewer. Skip uses no reviewer.
+This default shows Full. Light uses one reviewer under the model-family rule. Skip uses no reviewer.
 
 Task input can be a user prompt, GitHub issue, pull request, local note, or existing plan. Temporary local plans remain uncommitted and are removed only after verified closeout.
 
@@ -101,7 +101,7 @@ Do not create one child issue per phase. Create child issues only for independen
 ## Review Tiers
 
 - Skip: tiny, low-risk work; verification plus the configured merge gate.
-- Light: default for routine low-risk reversible work; one opposite-family reviewer and at most one bounded same-reviewer fix/delta.
+- Light: default for routine low-risk reversible work; one reviewer satisfying the model-family rule and at most one bounded same-reviewer fix/delta.
 - Full: two independent reviewers for broad or high-risk work.
 
 The human or reviewed plan sets the tier. The orchestrator may escalate but never self-downgrade.
@@ -165,7 +165,7 @@ Do not merge to a protected branch. End with the current gate and exact next hum
 - Reviewer 1: named Codex subagent `reviewer1`
 - Reviewer 2: Claude Code, human-relayed by default
 
-For non-skip work, require at least one expected reviewer from a different model family than the author or orchestrator unless the human explicitly overrides the panel.
+For non-skip work, each family represented by the current orchestrator or a material current-artifact author needs another-family review unless the human records an override for that uncovered family.
 
 ## Loading
 

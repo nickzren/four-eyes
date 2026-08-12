@@ -55,7 +55,7 @@ The orchestrator owns coordination updates:
 Default Codex-led handoff:
 
 - Reviewer 1: named Codex subagent `reviewer1`, created by the orchestrator and reused across review rounds for the phase or parent workflow
-- Reviewer 2: external opposite-family reviewer, usually Claude Code, prompted by the human
+- Reviewer 2: external reviewer satisfying the model-family rule, usually Claude Code, prompted by the human
 
 Record these fields in order:
 
@@ -84,9 +84,9 @@ Hold every internal or relayed verdict until all expected slots for the round ha
 
 Before trusting a subagent handoff in a new tool or runtime, run a one-time isolation check: spawn a test reviewer subagent and confirm it cannot describe the parent orchestrator's current task unless that task is passed in the review packet. If the check fails or cannot be verified, use manual external reviewer handoff for that slot.
 
-Manual external Reviewer 2 should start as a fresh session for the parent workflow and may keep that session across phases and review rounds. A native direct invocation must create an isolated fresh-context session for each verdict request; continuity enters only through that reviewer's own prior findings in the packet. The repository cannot verify this platform property, so the platform and human own that trust boundary. Do not reuse reviewer context for unrelated workflows.
+The human may select any existing Claude Code session as manual external Reviewer 2 regardless of prior authorship, implementation, design, remedy proposals, reviews, historical peer output or synthesis, or unrelated work. Prior involvement and historical exposure alone are not `could-not-review`. Disclose relevant provenance and verify the exact artifact against canonical sources and evidence rather than treating prior proposals or conclusions as evidence. Do not provide current-round Reviewer 1 output, synthesis, hidden orchestrator reasoning, or combined conclusions before Reviewer 2 returns its verdict; current-round exposure is `could-not-review`. The session may continue across phases and rounds. A native direct invocation must still create isolated fresh context for each verdict request; continuity enters only through that reviewer's own prior findings in the packet. The repository cannot verify session history or platform isolation, so the human and platform own those trust boundaries.
 
-A same-family subagent gives isolated reviewer continuity, not model-family independence. For non-skip work, at least one expected reviewer should be from a different model family than the agent that authored or orchestrated the change, unless the human explicitly overrides the review panel.
+A same-family subagent gives context separation and continuity, not model-family diversity. For non-skip work, each family represented by the current orchestrator or an agent that materially authored the current reviewed artifact needs at least one expected reviewer from another family unless the human records an override for that uncovered family. Historical participation unrelated to the current artifact does not alter this check. The override may explicitly authorize the exact current implementer session as Light's sole reviewer.
 
 ## Roles
 
@@ -126,7 +126,7 @@ Responsibilities:
 
 ### Reviewer 2
 
-Usually a different model or agent family from the orchestrator, especially when Reviewer 1 is an orchestrator-created same-family subagent.
+Reviewer 2 normally satisfies the model-family rule, especially when Reviewer 1 is an orchestrator-created same-family subagent.
 
 Responsibilities are the same as Reviewer 1.
 
@@ -521,10 +521,10 @@ Review tier: skip | light | full
 ```
 
 - `skip`: tiny docs, typos, formatting, simple coordination/admin work, or other changes from the playbook skip list. Run verification when useful and keep the configured branch or merge gate.
-- `light`: the default for routine low-risk, reversible repo work. Use one reviewer from a different model family than the agent that authored the change. Allow one bounded fix and one delta review by that same reviewer only when scope and risk stay unchanged; this is not an open-ended autonomous fix loop. A scope or risk change, failed verification, could-not-review result, sensitive path, oversized diff, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
+- `light`: the default for routine low-risk, reversible repo work. Use one reviewer satisfying the model-family rule. Allow one bounded fix and one delta review by that same reviewer only when scope and risk stay unchanged; this is not an open-ended autonomous fix loop. A scope or risk change, failed verification, could-not-review result, sensitive path, oversized diff, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 - `full`: the normal Four Eyes gate: two independent reviewers, synthesis, bounded fix/re-review, and human approval for real-risk gates.
 
-In `light` tier, do not run a same-family internal Reviewer 1 subagent. The single reviewer must provide the cross-family check, so the human relays that external reviewer prompt.
+In `light` tier, do not run a same-family internal Reviewer 1 subagent. The single reviewer must satisfy the model-family rule, so the human relays that external reviewer prompt.
 
 The human or local plan sets the review tier. If the tier is missing, use `light` for routine low-risk repo work and `full` for high-risk or broad work, or ask the human. The orchestrator may escalate the tier but must not downgrade its own work without explicit human instruction.
 
@@ -854,7 +854,7 @@ Proceed when the expected reviewer slots for the selected tier are complete and 
 
 A Block from any expected reviewer holds the gate. The orchestrator must address it or the human must explicitly override it in the coordination record before execution.
 
-An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots bind approval to the changed complete artifact; normal delta inspection stays focused unless semantic risk requires a wider reread. `Light` may apply one bounded, in-scope, same-risk fix and send the changed artifact to the same cross-family reviewer once. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
+An error, timeout, could-not-review result, identity mismatch, unexplained repository drift, or unknown or mixed workflow revision also holds the gate. Any changed head or artifact invalidates every prior approval. In `full` tier, all expected slots bind approval to the changed complete artifact; normal delta inspection stays focused unless semantic risk requires a wider reread. `Light` may apply one bounded, in-scope, same-risk fix and send the changed artifact to the same reviewer satisfying the model-family rule once. A scope or risk change, second changed artifact, or unresolved delta verdict escalates to `full` or a human decision.
 
 Accepted nits are deferred by default. Resolve every accepted nit before the next gate in one of two ways:
 
@@ -1028,13 +1028,13 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Reproduce or confirm the transport-specific identity. If the artifact is inaccessible, incomplete, malformed, or mismatched, return `could-not-review` with `Verdict: not issued`.
 - Return one completed verdict: `Approve`, `Approve with nits`, or `Block`, with blocking findings, non-blocking findings, questions, and required changes before the next gated action.
 - Reviewer 1 may be a named same-family subagent reused within the parent workflow. That gives context isolation and continuity, not model-family independence.
-- Manual external Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds. Native direct Reviewer 2 starts in isolated fresh context for each request and receives only its own prior findings for continuity. The repository cannot verify that platform isolation; the platform and human own the trust boundary.
-- For non-skip work, at least one expected reviewer must be from a different model family than the authoring or orchestrating agent unless the human explicitly overrides the panel.
+- Human-selected manual Reviewer 2 may use any existing Claude Code session. Prior work or context alone, including historical peer output or synthesis, is not `could-not-review`. Disclose relevant provenance, verify canonical sources rather than prior conclusions, and embargo current-round Reviewer 1 output and synthesis until verdict; current-round exposure is `could-not-review`. Native direct Reviewer 2 remains fresh per request.
+- For non-skip work, each current-orchestrator or material current-artifact-author family needs a reviewer from another family unless the human records an override for that uncovered family.
 
 ## Tier
 
 - `Skip`: tiny docs, typo, formatting, or simple queue/admin work. Run verification and keep configured branch and merge gates.
-- `Light`: routine low-risk reversible work. Use one opposite-family reviewer, one initial review, and at most one bounded same-reviewer fix and delta when scope and risk stay unchanged; then escalate.
+- `Light`: routine low-risk reversible work. Use one reviewer satisfying the model-family rule, one initial review, and at most one bounded same-reviewer fix and delta; then escalate.
 - `Full`: broad or high-risk work. Use two independent reviewers and bounded fix/re-review. Full is mandatory for security, infrastructure, data/schema, production, deploy, destructive, costly, or irreversible work.
 - The human or reviewed plan sets the tier. The orchestrator may escalate but cannot downgrade it.
 - Plan and implementation review each stop after three panel rounds unless the human grants more. Defer accepted nits by default; bind approval to the complete artifact and focus normal delta inspection unless semantic risk widens.
