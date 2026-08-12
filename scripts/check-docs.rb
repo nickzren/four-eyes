@@ -366,7 +366,7 @@ module FourEyesDocs
     ].freeze
     STALE_PHRASES = [
       "launch only the isolated internal Reviewer 1 subagent. Return every external reviewer prompt to the human for relay.",
-      "External Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise",
+      "fresh session for the parent workflow",
       "unless explicitly instructed to comment in the tracker",
       "Do not post to the tracker unless explicitly instructed.",
       "unless explicitly instructed to post to the tracker",
@@ -526,7 +526,7 @@ module FourEyesDocs
       fail_check("bootstrap byte budget exceeded: #{post_bytes} > #{POST_BOOTSTRAP_BUDGET}") if post_bytes > POST_BOOTSTRAP_BUDGET
       saved = PRE_BOOTSTRAP_TOTAL - post_bytes
       reduction = saved.to_f * 100 / PRE_BOOTSTRAP_TOTAL
-      fail_check("current bootstrap report mismatch") unless [PRE_BOOTSTRAP_TOTAL, post_bytes, saved, format("%.2f", reduction)] == [92_036, 11_973, 80_063, "86.99"]
+      fail_check("current bootstrap report mismatch") unless [PRE_BOOTSTRAP_TOTAL, post_bytes, saved, format("%.2f", reduction)] == [92_036, 11_975, 80_061, "86.99"]
 
       { before: PRE_BOOTSTRAP_TOTAL, after: post_bytes, saved: saved, reduction: reduction }
     end

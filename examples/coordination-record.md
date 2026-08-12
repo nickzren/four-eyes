@@ -87,7 +87,7 @@ The orchestrator holds carried verdicts until both slots return or have terminal
 
 ## Review Request
 
-Please review independently before reading other reviewer output or orchestrator synthesis.
+Please review independently before reading current-round other reviewer output or orchestrator synthesis.
 
 Review the exact identified PR artifact and verification evidence before merge or closeout.
 

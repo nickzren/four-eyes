@@ -24,13 +24,13 @@ This is a compact, derived loading surface for active agents. It is not the defi
 - Reproduce or confirm the transport-specific identity. If the artifact is inaccessible, incomplete, malformed, or mismatched, return `could-not-review` with `Verdict: not issued`.
 - Return one completed verdict: `Approve`, `Approve with nits`, or `Block`, with blocking findings, non-blocking findings, questions, and required changes before the next gated action.
 - Reviewer 1 may be a named same-family subagent reused within the parent workflow. That gives context isolation and continuity, not model-family independence.
-- Manual external Reviewer 2 starts as a fresh session for the parent workflow unless the human explicitly chooses otherwise, and may continue across that parent's phases and review rounds. Native direct Reviewer 2 starts in isolated fresh context for each request and receives only its own prior findings for continuity. The repository cannot verify that platform isolation; the platform and human own the trust boundary.
-- For non-skip work, at least one expected reviewer must be from a different model family than the authoring or orchestrating agent unless the human explicitly overrides the panel.
+- Human-selected manual Reviewer 2 may use any existing Claude Code session. Prior work or context alone, including historical peer output or synthesis, is not `could-not-review`. Disclose relevant provenance, verify canonical sources rather than prior conclusions, and embargo current-round Reviewer 1 output and synthesis until verdict; current-round exposure is `could-not-review`. Native direct Reviewer 2 remains fresh per request.
+- For non-skip work, each current-orchestrator or material current-artifact-author family needs a reviewer from another family unless the human records an override for that uncovered family.
 
 ## Tier
 
 - `Skip`: tiny docs, typo, formatting, or simple queue/admin work. Run verification and keep configured branch and merge gates.
-- `Light`: routine low-risk reversible work. Use one opposite-family reviewer, one initial review, and at most one bounded same-reviewer fix and delta when scope and risk stay unchanged; then escalate.
+- `Light`: routine low-risk reversible work. Use one reviewer satisfying the model-family rule, one initial review, and at most one bounded same-reviewer fix and delta; then escalate.
 - `Full`: broad or high-risk work. Use two independent reviewers and bounded fix/re-review. Full is mandatory for security, infrastructure, data/schema, production, deploy, destructive, costly, or irreversible work.
 - The human or reviewed plan sets the tier. The orchestrator may escalate but cannot downgrade it.
 - Plan and implementation review each stop after three panel rounds unless the human grants more. Defer accepted nits by default; bind approval to the complete artifact and focus normal delta inspection unless semantic risk widens.
