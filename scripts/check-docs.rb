@@ -75,12 +75,10 @@ module FourEyesDocs
       "docs/coordination-records.md" => 1
     }.freeze
     WORKTREE_DEFAULT_LINES = [
-      "Worktree mode default: on | off",
-      "Worktree reference default: none"
+      "Worktree mode default: on | off"
     ].freeze
     WORKTREE_SLICE_LINES = [
-      "   - worktree mode: inherit | on | off",
-      "   - worktree reference: none | <ownership-category>/<opaque worktree reference>"
+      "   - worktree mode: inherit | on | off"
     ].freeze
     WORKTREE_CLOSEOUT_PREFIXES = [
       "- Reference:",
@@ -526,7 +524,6 @@ module FourEyesDocs
       fail_check("bootstrap byte budget exceeded: #{post_bytes} > #{POST_BOOTSTRAP_BUDGET}") if post_bytes > POST_BOOTSTRAP_BUDGET
       saved = PRE_BOOTSTRAP_TOTAL - post_bytes
       reduction = saved.to_f * 100 / PRE_BOOTSTRAP_TOTAL
-      fail_check("current bootstrap report mismatch") unless [PRE_BOOTSTRAP_TOTAL, post_bytes, saved, format("%.2f", reduction)] == [92_036, 11_975, 80_061, "86.99"]
 
       { before: PRE_BOOTSTRAP_TOTAL, after: post_bytes, saved: saved, reduction: reduction }
     end
@@ -838,7 +835,7 @@ module FourEyesDocs
       fail_check("remote push slice field occurrence mismatch") unless slice_fields.keys == ["docs/templates.md"] && slice_fields["docs/templates.md"].length == 1
       slice_line, slice_index, slice_lines = slice_fields["docs/templates.md"].first
       fail_check("remote push slice field occurrence mismatch") unless slice_line == REMOTE_PUSH_SLICE_OPTION_LINE
-      fail_check("remote push slice field order mismatch") unless slice_index.positive? && slice_lines[slice_index - 1] == "   - worktree reference: none | <ownership-category>/<opaque worktree reference>"
+      fail_check("remote push slice field order mismatch") unless slice_index.positive? && slice_lines[slice_index - 1] == "   - worktree mode: inherit | on | off"
       fail_check("remote push slice field order mismatch") unless slice_lines[slice_index + 1] == "   - merge target:"
 
       templates = normalized_read("docs/templates.md")
@@ -846,7 +843,7 @@ module FourEyesDocs
       plan_lines = local_plan.lines.map(&:chomp)
       default_index = plan_lines.index(REMOTE_PUSH_DEFAULT_LINE)
       fail_check("remote push default missing") unless default_index
-      fail_check("remote push default order mismatch") unless plan_lines[default_index - 1] == "Worktree reference default: none"
+      fail_check("remote push default order mismatch") unless plan_lines[default_index - 1] == "Worktree mode default: on | off"
       fail_check("remote push default order mismatch") unless plan_lines[default_index + 1]&.start_with?("Workflow revision:")
     end
 
@@ -914,6 +911,9 @@ module FourEyesDocs
 
       templates = normalized_read("docs/templates.md")
       local_plan = section(templates, "## Local Plan Template", "## Coordination Record Template")
+      if local_plan.lines.any? { |line| line.strip.match?(/\A(?:- )?(?:current review round|worktree reference(?: default)?):/i) }
+        fail_check("runtime state field in local plan")
+      end
       WORKTREE_DEFAULT_LINES.each do |line|
         require_unique_line_in_section!(templates, local_plan, line, "worktree default field mismatch")
         total = markdown_paths.sum { |relative| normalized_read(relative).lines.count { |candidate| candidate.chomp == line } }
@@ -924,11 +924,6 @@ module FourEyesDocs
         total = markdown_paths.sum { |relative| normalized_read(relative).lines.count { |candidate| candidate.chomp == line } }
         fail_check("worktree slice field occurrence mismatch") unless total == 1
       end
-      default_positions = WORKTREE_DEFAULT_LINES.map { |line| local_plan.index(line) }
-      slice_positions = WORKTREE_SLICE_LINES.map { |line| local_plan.index(line) }
-      fail_check("worktree default field order mismatch") unless default_positions == default_positions.sort
-      fail_check("worktree slice field order mismatch") unless slice_positions == slice_positions.sort
-
       playbook = normalized_read("docs/playbook.md")
       lifecycle_starts = heading_positions(playbook, "## Worktree Lifecycle")
       fail_check("worktree lifecycle section missing or duplicated") unless lifecycle_starts.length == 1
@@ -1499,7 +1494,7 @@ module FourEyesDocs
 
     def run!
       setup_fixture
-      with_fixture { |root| Checker.new(root).check! }
+      with_fixture { |root| assert_bootstrap_report(root, Checker.new(root).check!) }
       pass("valid repository")
 
       assert_failure("source-root mutation refused", "outside the fixture root") do
@@ -1582,8 +1577,17 @@ module FourEyesDocs
         Checker.new(root).write_derived!
       end
 
-      expect_failure("within-cap bootstrap byte drift", "current bootstrap report mismatch") do |root|
-        replace(root, "README.md", "## Default Workflow\n", "## Default Workflow\n\n")
+      [["README.md", "README.md", "## Default Workflow\n", "README bootstrap metrics follow changed bytes"],
+        ["docs/playbook.md", "docs/role-contracts.md", "\n## Authority\n", "Role Contracts metrics follow changed bytes"]].each do |source, member, anchor, name|
+        with_fixture do |root|
+          raise "bootstrap fixture anchor changed" unless read(root, source).scan(anchor).size == 1
+          before = read(root, member).gsub("\r\n", "\n").bytesize
+          replace(root, source, anchor, "#{anchor}\n")
+          Checker.new(root).write_derived! if source != member
+          raise "bootstrap fixture mutation failed" unless read(root, member).gsub("\r\n", "\n").bytesize == before + 1
+          assert_bootstrap_report(root, Checker.new(root).check!)
+        end
+        pass(name)
       end
 
       expect_failure("omitted current bootstrap budget", "current bootstrap budget record missing") do |root|
@@ -1742,6 +1746,24 @@ module FourEyesDocs
 
       expect_failure("missing executable worktree reference", "executable worktree reference missing") do |root|
         replace(root, "examples/coordination-record.md", "Worktree reference: phase-execution/EXAMPLE-retry-worktree", "Worktree reference: none")
+      end
+
+      ["Worktree reference default: none", "   - current review round: <positive integer>",
+        "   - worktree reference: none | <ownership-category>/<opaque worktree reference>"].each do |line|
+        expect_failure("retired plan field: #{line.strip}", "runtime state field in local plan") do |root|
+          anchor = "Cleanup: remove after closeout\n"
+          raise "plan fixture anchor changed" unless read(root, "docs/templates.md").scan(anchor).size == 1
+          replace(root, "docs/templates.md", anchor, "#{anchor}#{line}\n")
+        end
+      end
+
+      [["Worktree mode default: on | off", "default"],
+        ["   - worktree mode: inherit | on | off", "slice field"]].each do |line, field|
+        expect_failure("plan push #{field} predecessor", "remote push #{field} order mismatch", :check_remote_push_fields!) do |root|
+          anchor = "#{line}\n"
+          raise "plan fixture anchor changed" unless read(root, "docs/templates.md").scan(anchor).size == 1
+          replace(root, "docs/templates.md", anchor, "#{anchor}Unrelated line\n")
+        end
       end
 
       [0, 29, -1].each_with_index do |rule_index, sample|
@@ -2089,6 +2111,21 @@ module FourEyesDocs
       raise CheckError, "self-test mutation target is outside the fixture root" unless beneath?(parent, canonical_root)
 
       target
+    end
+
+    def assert_bootstrap_report(root, actual)
+      readme = read(root, "README.md").gsub("\r\n", "\n")
+      unless readme.scan(/^## Default Workflow$/).size == 1 && readme.scan(/^## Use It For$/).size == 1
+        raise "bootstrap oracle fixture anchors changed"
+      end
+      body = readme[/^## Default Workflow\n.*?(?=^## Use It For\n)/m] || raise("bootstrap oracle section missing")
+      after = body.bytesize + read(root, "docs/role-contracts.md").gsub("\r\n", "\n").bytesize
+      before = Checker::PRE_BOOTSTRAP_COMPONENTS.values.sum
+      saved = before - after
+      unless actual.values_at(:before, :after, :saved) == [before, after, saved] &&
+          format("%.2f", actual.fetch(:reduction)) == format("%.2f", 100.0 * saved / before)
+        raise "bootstrap arithmetic mismatch"
+      end
     end
 
     def expect_failure(name, message, check = :check!)

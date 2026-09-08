@@ -94,6 +94,8 @@ End your response to the human with:
 
 ## Local Plan Template
 
+Keep intended work and initial evidence in the plan. Record current review rounds, actual worktree references, gates, outcomes, and transitions in execution state; detailed lifecycle evidence remains private. Material changes still follow the [Plan Drift Rule](playbook.md#plan-drift-rule).
+
 ```text
 # <Task Title> Execution Plan
 
@@ -106,7 +108,6 @@ Phase branch flow default: implementation-first | pre-review
 Review transport default: pr | manual-relay
 Coordination record default: pr | github-issue | local
 Worktree mode default: on | off
-Worktree reference default: none
 Remote push default: disallowed
 Workflow revision: <full repository commit SHA>
 Post-merge branch cleanup default: yes
@@ -150,11 +151,9 @@ Out of scope:
    - phase branch mode: inherit | on | off
    - phase branch flow: inherit | implementation-first | pre-review
    - review transport: inherit | pr | manual-relay
-   - current review round: <positive integer>
    - base branch:
    - phase branch:
    - worktree mode: inherit | on | off
-   - worktree reference: none | <ownership-category>/<opaque worktree reference>
    - remote push: disallowed | allowed
    - merge target:
    - post-merge branch cleanup: yes | no
