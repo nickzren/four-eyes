@@ -271,10 +271,10 @@ Never auto-delete main, protected, release, or unscoped branches; tags; branches
 2. A missing `Remote push` value, or `Remote push: disallowed`, blocks the pre-authorized path. The exact-human-approval path remains available.
 3. Local commits to the recorded phase branch remain pre-authorized by phase branch mode alone. Only remote push authority is narrowed.
 4. Reviewing an existing unchanged pull request requires no push authorization. Other bounded pull request operations continue under `Review transport: pr`.
-5. Plan-level and per-slice values select the intended push state. They are never authoritative for execution.
-6. The current authoritative coordination record governs execution: the pre-PR execution-state record until the pull request record takes over, then the pull request record.
-7. Before execution, copy the plan-selected value into the execution-state record and verify exact agreement.
-8. Any disagreement among a plan-selected value, a per-slice value, and the authoritative record blocks push until the human resolves it.
+5. Plan and per-phase selections and parent defaults are inputs, never execution authorities. Resolve inheritance into explicit effective values for each phase. A phase selection is approved only when recorded in the review-approved plan whose digest binds that phase's authority, or exact human approval for that phase and value is recorded in that authority. An approved selection overrides an inherited default only for that phase and its recorded scope.
+6. The sole effective phase authority is the mode-specific record defined by Coordination Record Contract rule 5. A phase pull request in `github-issue` mode references its parent phase authority and cannot grant permission independently.
+7. Before execution, record the resolved phase values in that authority and verify agreement with inputs approved under rule 5. Any authority transfer preserves the existing effective phase permissions, records verified takeover, and marks superseded copies non-authoritative; it creates no grant.
+8. A missing effective grant or disagreement between effective phase inputs and their authority blocks push until the human resolves it. A different inherited default is not a disagreement when a phase override approved under rule 5 is recorded. Superseded copies cannot authorize execution.
 9. `Remote push default: disallowed` states the value a new record starts from. It is not itself an authorization.
 10. Option order in any recorded field carries no meaning and never conveys a default.
 
@@ -497,7 +497,7 @@ When review transport is `pr`:
 - reviewers review the PR diff directly and write their verdict before reading other reviews
 - verdict mapping is `Approve` -> approve, `Approve with nits` -> approve with comments, and `Block` -> request changes
 - reviewer bodies include the required reviewer header
-- the PR is the review artifact and, after verified state transfer, the coordination record
+- the PR is the review artifact; authority follows the selected mode in Coordination Record Contract
 - branch protection should dismiss stale approvals when the head changes
 - immediately before merge, the orchestrator compares the current forge head and canonical PR diff SHA-256 with every approval; all must match
 
@@ -599,21 +599,21 @@ If reviewers cannot access the local plan file, the orchestrator must provide th
 ## Coordination Record Contract
 
 1. Every non-trivial task records `Coordination record: pr | github-issue | local`.
-2. `pr` is the default for single-phase remote work; the pull request is the coordination record once it exists.
-3. `github-issue` uses exactly one parent issue carrying a compact phase ledger for multi-phase work or durable blockers.
+2. `pr` is the default for single-phase remote work; authority transfers to the pull request only after rule 6 verification.
+3. `github-issue` uses exactly one parent issue carrying a compact phase ledger; each phase's explicitly identified record within that issue is its authority, and phase pull requests reference it.
 4. `local` is the no-forge fallback; it provides resumability, not permanent audit. Work needing durable history uses `pr` or `github-issue`.
-5. Before the pull request exists, `pr` mode keeps a temporary local execution-state record at the recorded canonical path.
-6. When the pull request opens, copy the execution-state content into it, verify the copy landed and matches, and only then treat the pull request as authoritative. Until that verification passes, the local record remains authoritative.
+5. Each phase has one effective permission authority: in `pr` mode, the recorded local execution-state file until verified transfer to its pull request; in `github-issue` mode, its identified parent-issue phase record; in `local` mode, its recorded local file. Parent defaults and plan inputs are not execution authorities.
+6. In `pr` mode, prepare the pull request as non-authoritative, copy the local record's public-safe state and effective permissions, and verify content and cross-references before recording and verifying takeover in the old authority. Mark that old record superseded and name its successor. A failure before takeover preserves the old authority; uncertain takeover stops execution and hands off. The candidate never grants permission before verified takeover.
 7. Reviewers may submit verdicts through the selected review transport, including pull request reviews. A direct pull request verdict may change forge review status; it never changes the Four Eyes gate, ledger status, or closeout metadata. Reviewers never edit coordination metadata, status, the phase ledger, or closeout. The orchestrator owns every coordination update.
 8. Promote `pr` to `github-issue` when a second phase becomes committed, when a dependency or blocker exists outside the current pull request, or when deferred work must survive the current pull request's closeout. Continuing a single-phase pull request across sessions is not a promotion trigger.
-9. Promotion is check-act-verify-record: create the parent issue carrying the plan digest, phase ledger, current pull request, dependencies, and current gate; verify the issue content matches what was written; backlink the pull request to the issue; and switch authority to the parent issue only after both records agree. Any mismatch stops and hands off.
+9. Promotion is check-act-verify-record: prepare one non-authoritative parent issue with the plan digest, ledger, current pull request, dependencies, gate, and each phase's unchanged effective permissions; verify content and backlinks before recording and verifying takeover in the old authority. Mark superseded records non-authoritative and name the successor. A failure before takeover preserves the old authority; uncertain takeover stops execution and hands off. Transfer grants no new permission.
 10. Multi-phase work uses one parent ledger. Do not create a child issue for each committed execution slice.
 11. Create child issues only for independently owned, externally blocked, or durable follow-up work.
 12. Selecting `Coordination record: github-issue` pre-authorizes creating, updating, and closing exactly one parent coordination issue plus explicitly accepted durable follow-ups. It authorizes no unrelated issue operations.
 13. The parent ledger uses the fixed columns `Phase | Depends on | Status | Branch/PR | Gate | Next action`.
 14. Ledger status values are `todo`, `ready`, `in progress`, `review`, `waiting external eval`, `blocked`, and one terminal value.
-15. `waiting external eval` is not terminal. A phase whose dependencies are all terminal may proceed regardless of any unrelated phase waiting on external evaluation; a phase that depends on a waiting phase stays unready.
-16. A phase becomes `ready` only when every phase it depends on is terminal.
+15. `waiting external eval` is not terminal. Independent phases may advance while unrelated work waits; declared dependencies must satisfy rule 16. Readiness does not clear any review, permission, or human gate.
+16. A phase becomes `ready` only when every declared dependency has a verified terminal resolution and all its required results are available and verified. Record each required result and its accessible verification evidence in the phase's authority record. A terminal label alone is insufficient. Removing or replacing a dependency requires the existing scope-change and plan-review gates before advancement.
 17. Terminal values are `merged`, `completed`, `abandoned`, `retained`, and `handed off`. `blocked` is never terminal, and any failed cleanup remains `blocked`.
 18. `merged` requires the pull request merged and the reviewed head ancestral to the target.
 19. `completed` is the successful terminal value for work producing no merge, such as `local` mode. It requires the recorded verification evidence present and the working tree clean.
@@ -622,7 +622,7 @@ If reviewers cannot access the local plan file, the orchestrator must provide th
 22. `handed off` requires a recorded blocker, owner, next action, and recorded human acceptance of ownership. Without recorded acceptance the phase stays `blocked`.
 23. Record closeout evidence in the coordination record and verify it landed before removing any temporary plan or local state record.
 24. In `pr` mode, post the final closeout record to the pull request before removing the temporary plan and execution-state record.
-25. Parent completion requires every phase terminal, with each claimed resolution verified against real Git or forge state rather than the ledger's own claim.
+25. Parent closeout requires every phase terminal, with each claimed resolution verified against real Git or forge state. Record partial or abandoned outcomes as such; never call missing required results successful delivery.
 
 `Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field.
 
@@ -741,7 +741,7 @@ If execution is read-only and creates no material diff, use Status `completed` w
 
 In multi-phase mode, steps 5-7 run independently for each ready phase.
 
-In multi-phase mode, advancing the next ready phase is coordination work owned by the orchestrator. A phase becomes ready only when all dependencies are terminal. An implementation-first phase uses Status `in progress` and Gate `none` before it reaches Status `review` and Gate `review`; a pre-review phase starts at Status `review` and Gate `review`. If autonomy mode authorizes local execution, reviewer approval is the execution gate for review-first work. If phase branch mode is enabled, commits to the named phase branch may be handled by the orchestrator; pushes also require Push Authorization. The next human approval is for manual execution, protected-branch push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated.
+In multi-phase mode, advancing the next ready phase is coordination work owned by the orchestrator. Readiness requires verified terminal dependencies and available verified required results under Coordination Record Contract rule 16; it clears no other gate. An implementation-first phase uses Status `in progress` and Gate `none` before it reaches Status `review` and Gate `review`; a pre-review phase starts at Status `review` and Gate `review`. If autonomy mode authorizes local execution, reviewer approval is the execution gate for review-first work. If phase branch mode is enabled, commits to the named phase branch may be handled by the orchestrator; pushes also require Push Authorization. The next human approval is for manual execution, protected-branch push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated.
 
 ## Orchestrator Next-Action Rule
 
@@ -822,7 +822,7 @@ The current gate must be visible in the authoritative coordination record, not o
 Lifecycle status values:
 
 - Todo: local plan exists or task is ready to prepare
-- Ready: every dependency is terminal and the phase is waiting to start or for an authorized transition
+- Ready: every dependency has verified terminal resolution and available verified required results; the phase awaits an authorized transition
 - In Progress: orchestrator actively working
 - Review: implementation or plan is waiting for expected reviewer slots
 - Blocked: blocked by reviewer finding, missing evidence, external decision, unresolved ownership, or prior slice
@@ -832,7 +832,7 @@ Lifecycle status values:
 Gate values name the condition controlling the next transition:
 
 - None: no gate blocks the next authorized action
-- Dependencies: one or more required phases are non-terminal
+- Dependencies: a declared prerequisite is non-terminal or its required result is missing, unavailable, or unverified
 - Review: waiting for expected reviewer slots
 - Human Approval: waiting for an explicit human decision
 - External Evaluation: waiting for a recorded external result
@@ -1059,7 +1059,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 - Every non-trivial task selects `pr`, `github-issue`, or `local`; the orchestrator alone owns coordination metadata, gates, ledgers, and closeout.
 - Use a pull request for single-phase remote work, one GitHub parent ledger for multi-phase or durable blocked work, and a temporary local record only for resumability without forge coordination.
-- Record the current gate, next action, round, full workflow revision, artifact identity, phase dependency state, verification, verdicts, nit disposition, and branch or worktree resolution.
+- Record the current gate, next action, round, full workflow revision, artifact identity, verified dependency results, verification, verdicts, nit disposition, and branch or worktree resolution.
 - Keep public coordination content brief and sanitized. Never post secrets, raw credentials, private links on public surfaces, raw sensitive logs, absolute local paths, or unrelated task history.
 
 ## Branch

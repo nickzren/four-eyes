@@ -8,6 +8,8 @@ The coordination record is not the source of reviewed bytes and is not the revie
 
 Use `pr` for single-phase remote work, `github-issue` for multi-phase work or durable blockers, and `local` when no forge record is available.
 
+Identify one effective phase authority under [Coordination Record Contract](playbook.md#coordination-record-contract) rule 5. Parent defaults and plan selections are inputs, not execution authorities. Resolve each phase's effective values under [Push Authorization](playbook.md#push-authorization); an override needs its rule 5 approval referent, not just a copied value. Review-approved means all required reviewers approved the exact plan bytes; it does not replace execution or action-specific human approval.
+
 Keep private repository mappings and local paths in local evidence, not in public coordination records.
 
 ## Recommended Fields
@@ -83,15 +85,17 @@ Promote a pull-request record to a GitHub parent issue when a second phase becom
 
 Create child issues only for independently owned work, externally blocked work, or accepted durable follow-up work.
 
-Ledger status values are `todo`, `ready`, `in progress`, `review`, `waiting external eval`, `blocked`, and one terminal value. `waiting external eval` is non-terminal. A phase becomes ready only when every phase it depends on is terminal.
+Ledger status values are `todo`, `ready`, `in progress`, `review`, `waiting external eval`, `blocked`, and one terminal value. `waiting external eval` is non-terminal. Readiness follows Coordination Record Contract rule 16: verified terminal dependencies and available verified required results, with evidence recorded in the dependent phase's authority. Keep results and verification references accessible for as long as dependents need them; a soon-deleted scratch file is insufficient. Readiness clears no other gate. Changing a dependency requires the existing scope-change and plan-review gates.
 
-Terminal values are `merged`, `completed`, `abandoned`, `retained`, and `handed off`. Verify every terminal claim against Git or forge state before recording it.
+Terminal values are `merged`, `completed`, `abandoned`, `retained`, and `handed off`. Verify every terminal claim against Git or forge state before recording it. None substitutes for a required result; valid retained results may satisfy a dependency regardless of its terminal label. Record partial parent closeout as partial, not successful delivery of missing results.
 
 ## GitHub Integration
 
-For `pr`, the local execution-state record remains authoritative until its public-safe content is copied into the pull request and verified. After that, the pull request is authoritative.
+For `pr`, use Coordination Record Contract rule 6: the local execution-state record alone governs until the candidate PR's content, permissions, cross-references, and takeover are verified. Then mark the old copy superseded and name its successor.
 
-For `github-issue`, create exactly one parent issue carrying the plan digest, ledger, pull requests, dependencies, current gate, and next action. Promotion is complete only after the issue and pull request backlink agree.
+For `github-issue`, create exactly one parent issue with an explicitly identified authority record for each phase. Initially selected parent mode permits no execution until that record exists and is verified; local drafts cannot replace it. Phase PRs reference their parent phase authority and grant no permission independently. Promotion follows Coordination Record Contract rule 9, preserving each phase's effective permissions, including existing modes, action bounds, branch/target restrictions, cleanup selections, and approval evidence.
+
+Preparation is non-authoritative. A known failure before takeover preserves the old authority and holds promotion-dependent actions. An uncertain takeover write or readback stops execution for human reconciliation with both observed records retained. This is a check/write/readback procedure, not an atomic cross-service transaction; do not guess, regrant, retry automatically, or silently roll back.
 
 Every reviewed phase-branch pull request uses a commit-preserving merge. Squash is outside the normal phase-branch workflow and requires an explicitly reviewed alternative closeout procedure.
 

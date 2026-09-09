@@ -34,6 +34,8 @@ Abandoned branch cleanup: ask
 
 ## Current Review Artifact
 
+This example is PR #10 after verified transfer under Coordination Record Contract rule 6. PR #10 is the effective phase authority: public-safe state, unchanged permissions, cross-references, and takeover in the old local record were verified. That local record is superseded and names PR #10 as its successor. Plan selections are inputs; superseded mirrors grant nothing. The allowed phase value retains its recorded approval evidence through transfer; all other human and review gates remain.
+
 Review round: 1
 Reviewed head: 1111111111111111111111111111111111111111
 PR diff SHA-256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

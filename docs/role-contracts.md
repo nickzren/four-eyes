@@ -55,7 +55,7 @@ This is a compact, derived loading surface for active agents. It is not the defi
 
 - Every non-trivial task selects `pr`, `github-issue`, or `local`; the orchestrator alone owns coordination metadata, gates, ledgers, and closeout.
 - Use a pull request for single-phase remote work, one GitHub parent ledger for multi-phase or durable blocked work, and a temporary local record only for resumability without forge coordination.
-- Record the current gate, next action, round, full workflow revision, artifact identity, phase dependency state, verification, verdicts, nit disposition, and branch or worktree resolution.
+- Record the current gate, next action, round, full workflow revision, artifact identity, verified dependency results, verification, verdicts, nit disposition, and branch or worktree resolution.
 - Keep public coordination content brief and sanitized. Never post secrets, raw credentials, private links on public surfaces, raw sensitive logs, absolute local paths, or unrelated task history.
 
 ## Branch

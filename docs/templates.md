@@ -55,7 +55,7 @@ Select `direct Claude reviewer` only when the orchestrator platform provides nat
 
 Select `Coordination record: pr | github-issue | local`. Use `pr` for single-phase remote work, `github-issue` for a multi-phase parent ledger or durable outside-PR blocker, and `local` for no-forge resumability.
 
-Before a `pr` record exists, keep public-safe execution state in the recorded primary-checkout local file. Copy it into the pull request, verify the copy, then make the pull request authoritative.
+Identify the sole effective phase authority under Coordination Record Contract rule 5. For `pr`, keep public-safe state in the recorded primary-checkout local file until rule 6's verified takeover. For `github-issue`, create and verify the identified parent phase record before execution; draft local notes cannot substitute. For `local`, use the recorded canonical local file. Transfers follow the contract and preserve existing permissions.
 
 If the plan is multi-phase, use one GitHub parent issue with ledger columns `Phase | Depends on | Status | Branch/PR | Gate | Next action`. Do not create one child issue per phase. Create child issues only for independent ownership, external blocking, or accepted durable follow-up.
 
@@ -71,7 +71,7 @@ Record phase branch mode. When it is `on`, the orchestrator may create and commi
 
 When phase branch flow is `implementation-first`, reviewers review the completed phase branch diff and verification evidence, not the plan before implementation — except when a temporary local plan defines unclear work: have the expected reviewers confirm that plan before implementing it.
 
-Advance a phase only when every dependency is terminal. `waiting external eval` is non-terminal. An unrelated waiting phase does not block an independent ready phase.
+Advance a phase only after Coordination Record Contract rule 16's verified terminal dependencies and available verified required results; record result evidence in that phase's authority. `waiting external eval` is non-terminal. An unrelated waiting phase does not block an independent ready phase or clear its other gates.
 
 Reviewers return verdicts to you or the human relay. They may submit a review through the selected transport, but you alone own coordination status, gates, ledgers, synthesis, and closeout.
 
@@ -233,10 +233,13 @@ Reviewers return verdicts to the orchestrator or human relay and never edit coor
 ## Coordination Boundary
 
 - Authoritative record: <PR, GitHub parent issue, or local reference>
+- Effective phase authority: <selected PR, identified parent phase record, or canonical local record>
 - Current phase: <name>
 - Parent ledger: <GitHub issue or "none">
 - In scope: <files/resources>
 - Out of scope: all other tasks and phases unless the human explicitly expands scope
+
+Both authority entries identify the same mode-specific record, not separate grants. Plan selections and parent defaults are inputs; resolve and verify effective phase values under Push Authorization before execution. Superseded copies cannot grant permission.
 
 ## Source Plan
 
