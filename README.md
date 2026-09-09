@@ -84,7 +84,7 @@ Use `Review transport: pr | manual-relay`.
 
 Default to `pr` for remote phase-branch implementation. Use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value.
 
-The pull request carries the immutable review artifact and becomes the coordination record after the local state copy is verified.
+The pull request carries the commit-bound review artifact. Coordination authority follows the selected mode in the [Coordination Record Contract](docs/playbook.md#coordination-record-contract).
 
 Artifact identity, mutation checks, verdict embargo, stale approvals, and nit handling are defined in the [Playbook](docs/playbook.md).
 
