@@ -300,6 +300,25 @@ module FourEyesDocs
     ROLE_REVIEW_EFFICIENCY_RULE = "- Plan and implementation review each stop after three panel rounds unless the human grants more. Defer accepted nits by default; bind approval to the complete artifact and focus normal delta inspection unless semantic risk widens."
     LEDGER_GATE_RULE = "`Status` records lifecycle progress. `Gate` records the condition controlling the next transition, such as `none`, `dependencies`, `review`, `human approval`, `external evaluation`, `blocker resolution`, or `human handoff`; do not use it as a duplicate status field."
     LEDGER_EXAMPLE_RULE = "`Status` records lifecycle progress; `Gate` controls transition. Retry metrics waits for Retry classification's terminal resolution and verified result evidence in its parent phase authority. Vendor evaluation's non-terminal `waiting external eval` does not block independent Retry classification."
+    PHASE_GUIDANCE_RULES = [
+      ["readme authority", "README.md", "## Review Transport", false, "The pull request carries the commit-bound review artifact. Coordination authority follows the selected mode in the [Coordination Record Contract](docs/playbook.md#coordination-record-contract)."],
+      ["transport authority", "docs/playbook.md", "## Review Transport", false, "- the PR is the review artifact; authority follows the selected mode in Coordination Record Contract"],
+      ["phase readiness", "docs/playbook.md", "## Standard Task Flow", false, "In multi-phase mode, advancing the next ready phase is coordination work owned by the orchestrator. Readiness requires verified terminal dependencies and available verified required results under Coordination Record Contract rule 16; it clears no other gate. An implementation-first phase uses Status `in progress` and Gate `none` before it reaches Status `review` and Gate `review`; a pre-review phase starts at Status `review` and Gate `review`. If autonomy mode authorizes local execution, reviewer approval is the execution gate for review-first work. If phase branch mode is enabled, commits to the named phase branch may be handled by the orchestrator; pushes also require Push Authorization. The next human approval is for manual execution, protected-branch push, publish, merge, closeout unless already authorized by workflow, scope changes, live or external systems, databases, cloud, deploys, destructive actions, costly actions, production data/resource changes, or any action the plan or workflow marks as approval-gated."],
+      ["record authority", "docs/coordination-records.md", "## Routing", false, "Identify one effective phase authority under [Coordination Record Contract](playbook.md#coordination-record-contract) rule 5. Parent defaults and plan selections are inputs, not execution authorities. Resolve each phase's effective values under [Push Authorization](playbook.md#push-authorization); an override needs its rule 5 approval referent, not just a copied value. Review-approved means all required reviewers approved the exact plan bytes; it does not replace execution or action-specific human approval."],
+      ["ledger readiness", "docs/coordination-records.md", "## Multi-Phase Ledger And Durable Follow-Ups", false, "Ledger status values are `todo`, `ready`, `in progress`, `review`, `waiting external eval`, `blocked`, and one terminal value. `waiting external eval` is non-terminal. Readiness follows Coordination Record Contract rule 16: verified terminal dependencies and available verified required results, with evidence recorded in the dependent phase's authority. Keep results and verification references accessible for as long as dependents need them; a soon-deleted scratch file is insufficient. Readiness clears no other gate. Changing a dependency requires the existing scope-change and plan-review gates."],
+      ["partial outcome", "docs/coordination-records.md", "## Multi-Phase Ledger And Durable Follow-Ups", false, "Terminal values are `merged`, `completed`, `abandoned`, `retained`, and `handed off`. Verify every terminal claim against Git or forge state before recording it. None substitutes for a required result; valid retained results may satisfy a dependency regardless of its terminal label. Record partial parent closeout as partial, not successful delivery of missing results."],
+      ["pr takeover", "docs/coordination-records.md", "## GitHub Integration", false, "For `pr`, use Coordination Record Contract rule 6: the local execution-state record alone governs until the candidate PR's content, permissions, cross-references, and takeover are verified. Then mark the old copy superseded and name its successor."],
+      ["parent authority", "docs/coordination-records.md", "## GitHub Integration", false, "For `github-issue`, create exactly one parent issue with an explicitly identified authority record for each phase. Initially selected parent mode permits no execution until that record exists and is verified; local drafts cannot replace it. Phase PRs reference their parent phase authority and grant no permission independently. Promotion follows Coordination Record Contract rule 9, preserving each phase's effective permissions, including existing modes, action bounds, branch/target restrictions, cleanup selections, and approval evidence."],
+      ["uncertain takeover", "docs/coordination-records.md", "## GitHub Integration", false, "Preparation is non-authoritative. A known failure before takeover preserves the old authority and holds promotion-dependent actions. An uncertain takeover write or readback stops execution for human reconciliation with both observed records retained. This is a check/write/readback procedure, not an atomic cross-service transaction; do not guess, regrant, retry automatically, or silently roll back."],
+      ["prompt authority", "docs/templates.md", "## New Orchestrator Prompt", true, "Identify the sole effective phase authority under Coordination Record Contract rule 5. For `pr`, keep public-safe state in the recorded primary-checkout local file until rule 6's verified takeover. For `github-issue`, create and verify the identified parent phase record before execution; draft local notes cannot substitute. For `local`, use the recorded canonical local file. Transfers follow the contract and preserve existing permissions."],
+      ["prompt readiness", "docs/templates.md", "## New Orchestrator Prompt", true, "Advance a phase only after Coordination Record Contract rule 16's verified terminal dependencies and available verified required results; record result evidence in that phase's authority. `waiting external eval` is non-terminal. An unrelated waiting phase does not block an independent ready phase or clear its other gates."],
+      ["boundary authority", "docs/templates.md", "## Coordination Record Template", true, "Both authority entries identify the same mode-specific record, not separate grants. Plan selections and parent defaults are inputs; resolve and verify effective phase values under Push Authorization before execution. Superseded copies cannot grant permission."],
+      ["parent defaults", "examples/multi-slice-issues.md", "## Parent Ledger", false, "The parent fields below are default inputs, not phase grants. Each identified phase record in this parent issue is its effective authority. This example's phase A is Retry classification; phase B is Retry metrics."],
+      ["result authority", "examples/multi-slice-issues.md", "## Parent Ledger", false, "The following result evidence is part of the Retry metrics phase authority in this parent issue, below the fixed ledger. Its resolved effective push value remains disallowed, matching the parent input; classification's override cannot grant metrics permission."],
+      ["dependency evidence", "examples/multi-slice-issues.md", "## Parent Ledger", false, "| Retry metrics | Retained classification interface and tests | PR #10's commit-bound test report pending; retain interface and report while metrics needs them | no: prerequisite in review, result unverified |"],
+      ["active authority", "examples/multi-slice-issues.md", "## Active Phase", false, "This record lives inside the same parent issue and is Retry classification's sole phase authority. Exact human approval for this phase and the allowed push value is recorded here under Push Authorization rule 5, limited to its named branch; no other phase inherits the override. PR #10 references this record rather than granting permission independently."],
+      ["example pr authority", "examples/coordination-record.md", "## Current Review Artifact", false, "This example is PR #10 after verified transfer under Coordination Record Contract rule 6. PR #10 is the effective phase authority: public-safe state, unchanged permissions, cross-references, and takeover in the old local record were verified. That local record is superseded and names PR #10 as its successor. Plan selections are inputs; superseded mirrors grant nothing. The allowed phase value retains its recorded approval evidence through transfer; all other human and review gates remain."]
+    ].freeze
     PHASE_AUTHORITY_LINE = "- Effective phase authority: <selected PR, identified parent phase record, or canonical local record>"
     READ_ONLY_NO_DIFF_RULE = "If execution is read-only and creates no material diff, use Status `completed` when verification is complete and no further action remains, Status `waiting external eval` with Gate `external evaluation` when an external result is pending, or Status `ready` with Gate `human approval` when an explicit human action is required."
     LIFECYCLE_STATUS_IDENTIFIERS = [
@@ -705,6 +724,18 @@ module FourEyesDocs
       coordination_prompt = unique_text_prompt(section(templates, "## Coordination Record Template", "## Reviewer Prompt"), "coordination record template missing")
       require_unique_line_in_section!(coordination_prompt, coordination_prompt, PUBLIC_PLAN_REFERENCE_TEMPLATE, "public plan reference mismatch")
       require_unique_line_in_section!(coordination_prompt, coordination_prompt, PHASE_AUTHORITY_LINE, "phase authority missing")
+      PHASE_GUIDANCE_RULES.each do |name, path, heading, fenced, line|
+        content = normalized_read(path)
+        bounded = section(content, heading)
+        bounded = unique_text_prompt(bounded, "phase guidance prompt missing: #{name}") if fenced
+        message = "phase guidance mismatch: #{name}"
+        if fenced
+          require_unique_line_in_section!(content, bounded, line, message)
+        else
+          require_unique_operative_line_in_section!(content, bounded, line, message)
+        end
+      end
+
       fail_check("private path guidance exposed in public coordination record") if coordination_prompt.include?("Local plan path:") || absolute_local_path?(coordination_prompt)
 
       coordination_example = normalized_read("examples/coordination-record.md")
@@ -1690,6 +1721,23 @@ module FourEyesDocs
           raise "ambiguous guidance" unless read(root, path).scan(line).size == 1
           replace(root, path, line + "\n", "")
           append(root, path, "\n" + line + "\n") if path == "docs/templates.md"
+        end
+      end
+
+      Checker::PHASE_GUIDANCE_RULES.each do |name, path, _heading, fenced, line|
+        %w[omission contradiction inactive].each do |mutation|
+          expect_failure("#{name}: #{mutation}", "phase guidance mismatch: #{name}") do |root|
+            before = read(root, path)
+            raise "ambiguous guidance" unless before.lines.map(&:chomp).count(line) == 1
+            replacement = case mutation
+                          when "omission" then ""
+                          when "contradiction" then "This phase may authorize itself independently without verified dependency results.\n"
+                          when "inactive" then fenced ? "" : "```text\n#{line}\n```\n"
+                          end
+            replace(root, path, line + "\n", replacement)
+            append(root, path, "\n#{line}\n") if mutation == "inactive" && fenced
+            raise "ineffective guidance mutation" if read(root, path).bytesize == before.bytesize
+          end
         end
       end
 
