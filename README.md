@@ -1,200 +1,109 @@
 # Four Eyes
 
-Human-approved multi-agent review workflow.
+Human-approved review workflow for agent-made changes.
 
-Four Eyes uses independent agent judgment before high-stakes work proceeds. One orchestrator owns execution, reviewers judge independently, and the human approves real risk gates.
+One orchestrator does the work, isolated reviewers who did not author it judge it, and a human authorizes consequential actions. The policy is tool-agnostic and rule-only; it needs no workflow runtime, tracker, plugin, or skill.
 
-The policy is tool-agnostic, manual-first, and rule-only. It does not require a workflow runtime, tracker vendor, plugin, skill, or marketplace product.
+## Roles
 
-## Shape
+- **Orchestrator**: plans when needed, implements, verifies, prepares the review, synthesizes verdicts, and keeps the record current.
+- **Reviewer**: isolated and not an author of the change. Reviews read-only, returns a verdict and proposed fixes to the orchestrator, and never edits the record.
+- **Human**: confirms the review level when it is unclear and authorizes gated actions.
 
-- one orchestrator owns the plan, implementation, synthesis, and coordination record
-- one or two reviewers provide independent judgment according to the selected tier
-- one human approves merge and other risky actions
-- one pull request, GitHub parent issue, or temporary local record preserves resumable state
+## Review Levels
 
-Reviewers return verdicts to the orchestrator or human relay. The orchestrator alone updates coordination metadata, gates, ledgers, and closeout.
+Record the level each change actually received. Do not describe a review as stronger than it was.
 
-## Default Workflow
+| Level | Reviewers | Use for |
+| --- | --- | --- |
+| Skip | none | tiny docs, typos, formatting, simple administration |
+| Independent review | one isolated non-author reviewer | the default for routine, reversible work |
+| Four-Eyes | two isolated non-author reviewers of the same change | consequential work |
 
-1. If the task input is not clear enough to execute, the orchestrator writes a temporary local executable plan.
-2. The orchestrator records `Coordination record: pr | github-issue | local`; single-phase remote work defaults to `pr`.
-3. If the work is multi-phase, the orchestrator creates one parent ledger with dependencies, status, branch or PR, gate, and next action.
-4. Reviewers confirm a defining plan before implementation using the same isolated handoff as later reviews.
-5. For each implementation phase, the orchestrator creates a phase branch and dedicated worktree while the primary checkout stays fixed and coordination-only.
-6. In that worktree, the orchestrator verifies the baseline, implements the whole phase, commits the phase branch, pushes it only when Push Authorization permits it, and runs verification.
-7. The orchestrator opens or updates the pull request and prepares the reviewer handoff.
-8. Reviewer 1 may run as a named isolated internal subagent. Reviewer 2 stays human-relayed by default; direct review requires exact human-approved model, call, cost, and isolation bounds.
-9. Reviewers inspect the exact revision-bound artifact independently and return one verdict for the numbered round.
-10. After all expected slots return or have terminal records, the orchestrator posts carried verdicts verbatim, rechecks identity and repository state, then synthesizes.
-11. Blocking findings are fixed on the phase branch and receive the required delta review. Accepted nits are deferred by default unless a human, acceptance criterion, or existing gate requires the change now.
-12. When reviewers approve, the human approves merge to `main` or another protected branch.
-13. The orchestrator merges, verifies, records closeout, resolves owned worktrees and branches, then removes temporary local artifacts.
+- Choose the level by consequence: impact if wrong, reversibility, and uncertainty. Do not choose it by keywords alone. A production data migration or an access-control change warrants Four-Eyes; a local fixture-data change usually does not.
+- Independent review may use any available harness. Human relay is optional.
+- Four-Eyes reviewers should preferably come from different model families. Each reviewer gives a verdict before seeing the other's.
+- Skip removes the review requirement only. Authorization for merges, publication, deployment, and destructive actions still applies.
+- The human or plan sets the level. The orchestrator may raise it, but lowers it only with the human's agreement.
 
-This default shows Full. Light uses one reviewer under the model-family rule. Skip uses no reviewer.
+## Workflow
 
-Task input can be a user prompt, GitHub issue, pull request, local note, or existing plan. Temporary local plans remain uncommitted and are removed only after verified closeout.
+1. Write a short plan when the task is not clear enough to execute. Review the plan first when design is the main risk or the human asks.
+2. Implement on a branch. Use a worktree when work runs concurrently or unrelated changes need protection; otherwise it is optional.
+3. Run the repository's own verification.
+4. Identify the change: for a pull request, its base and head commits; for local work, the base commit and a captured diff, including untracked files. Committing only to obtain review is not required.
+5. Send each reviewer the identified change, the task or plan, and the verification evidence. Do not send other reviewers' current verdicts or orchestrator synthesis.
+6. Wait for every expected verdict, then synthesize.
+7. Fix blocking findings and send the delta to the same reviewers.
+8. Before a gated action, confirm the change still matches what was reviewed.
+9. Obtain authorization when it is missing, act, verify the result, update the record, and clean up.
 
-```mermaid
-flowchart LR
-    Plan["Task or local plan"] --> Record["Coordination record"]
-    Record --> Work["Phase branch and worktree"]
-    Work --> Verify["Verify phase"]
-    Verify --> R1["Reviewer 1"]
-    Verify --> Relay["Human relay"]
-    Relay --> R2["Reviewer 2"]
-    R1 --> Synth["Orchestrator synthesis"]
-    R2 --> Relay
-    Relay --> Synth
-    Synth --> Decision{"Any blocker?"}
-    Decision -->|Yes| Fix["Fix and delta review"]
-    Fix --> Verify
-    Decision -->|No| Approve["Human merge approval"]
-    Approve --> Merge["Merge, verify, close, cleanup"]
-```
+## Review Identity
 
-## Use It For
+- A verdict applies only to the change it identifies.
+- If the head commit or captured diff changes, earlier approvals do not carry over. Review the delta.
+- Before merge or apply, recheck that the target change is still the reviewed one.
 
-- new systems and broad feature phases
-- production, infrastructure, security, schema, or data changes
-- destructive, costly, or hard-to-reverse work
+## Verdicts
 
-Skip it for one-line fixes, tiny docs, formatting, and simple administration.
+Reviewers return `Approve`, `Approve with nits`, `Block`, or `could-not-review` with a reason. Non-Skip work requires approval from every expected reviewer. Missing reviews and `could-not-review` hold the gate.
 
-## Manual Operating Mode
+- **Block** holds the gate. Fix and recheck, or obtain the human's explicit, scoped exception; the unresolved finding stays recorded.
+- **Nits** are deferred by default and recorded with their disposition.
+- **Transient failures** such as timeouts or tool errors may be retried a bounded number of times on the unchanged change. Retries are not review rounds and do not add reviewers.
+- **Cleanup problems**, such as a leftover reviewer worktree, are tracked separately. They do not invalidate an intact review.
 
-1. Codex App or another primary agent acts as orchestrator.
-2. The orchestrator may create or reuse the isolated named Reviewer 1 subagent `reviewer1` for the parent workflow.
-3. Start or reuse manual external Reviewer 2 exactly as defined in [Role Contracts](docs/role-contracts.md#reviewer); the human sends each prompt and relays each verdict.
-4. The orchestrator synthesizes, updates the coordination record, fixes blockers, and asks for human approval only at real gates.
+## Review Cap
 
-Optional direct Reviewer 2 removes the copy/paste step only when the platform supplies isolated fresh context and the human authorizes exact model, call, and cost bounds. Manual relay remains the default and fallback.
+Independent review gets one initial review and one recheck. Four-Eyes gets one initial review and two rechecks. At the cap, stop and return the remaining findings to the human. Do not automatically add reviewers, raise reasoning effort, or start another loop.
 
-## Phase Branch Mode
+## Authorization
 
-Use one branch and one dedicated worktree per independently mergeable implementation phase. The primary checkout remains on the recorded base and coordination-only.
+Reviewer approval satisfies the review requirement. It does not grant human authorization for a gated action. Reuse existing human authorization within its recorded scope; ask only when it is missing or the action changes.
 
-The orchestrator may commit to the recorded phase branch without per-commit approval. It may push only when Push Authorization permits it; human approval remains required before merge to a protected branch.
+Gated actions:
 
-Every workflow-owned worktree and branch must resolve at closeout. Default to `Post-merge branch cleanup: yes` and `Abandoned branch cleanup: ask`.
+- merge to a protected branch
+- publication or release
+- deployment, apply, or other live or external-system changes
+- destructive or costly actions
+- scope changes
 
-## Review Transport
+Tool or harness permissions do not substitute for human authorization.
 
-Use `Review transport: pr | manual-relay`.
+## Branches And Worktrees
 
-Default to `pr` for remote phase-branch implementation. Use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value.
+- Follow the repository's normal merge strategy, including squash. After merging, verify that the reviewed change landed on the target.
+- Never force-push, force-remove, or rewrite shared history.
+- Delete only branches and worktrees this workflow created, after confirming their state matches what was merged or abandoned.
 
-The pull request carries the commit-bound review artifact. Coordination authority follows the selected mode in the [Coordination Record Contract](docs/playbook.md#coordination-record-contract).
+## Record
 
-Artifact identity, mutation checks, verdict embargo, stale approvals, and nit handling are defined in the [Playbook](docs/playbook.md).
+Keep one concise record where the work lives: the pull request, one parent issue for multi-phase work, or a local note when there is no forge. Include scope, review level, reviewed revision, checks run, findings and their resolution, authorization, and next action.
 
-## Coordination Records
+## Reasoning Effort
 
-Use `Coordination record: pr | github-issue | local`.
+Use the configured reasoning effort. Raise it only when the task warrants it.
 
-- `pr`: default for single-phase remote work
-- `github-issue`: one parent ledger for multi-phase work, outside-PR blockers, or follow-ups that must survive PR closeout
-- `local`: temporary resumability when no forge record exists
+## Reviewer Prompt
 
-Do not create one child issue per phase. Create child issues only for independently owned, externally blocked, or accepted durable follow-up work.
-
-## Review Tiers
-
-- Skip: tiny, low-risk work; verification plus the configured merge gate.
-- Light: default for routine low-risk reversible work; one reviewer satisfying the model-family rule and at most one bounded same-reviewer fix/delta.
-- Full: two independent reviewers for broad or high-risk work.
-
-The human or reviewed plan sets the tier. The orchestrator may escalate but never self-downgrade.
-
-Review phases, not every bug. Split only when gates, rollback, owners, repos, deploy windows, or risk classes differ.
-
-## Start
-
-- [Playbook](docs/playbook.md)
-- [Role contracts](docs/role-contracts.md)
-- [Templates](docs/templates.md)
-- [Coordination records](docs/coordination-records.md)
-- [Examples](examples/)
+Use [reviewer-template.md](reviewer-template.md).
 
 ## Use In Another Repository
 
-Add this pointer to the target repository's `AGENTS.md`:
+Add this to the target repository's `AGENTS.md`:
 
 ```markdown
 ## Four Eyes
 
-Use Four Eyes for broad, multi-phase, production, infrastructure, security,
-schema, data, costly, destructive, or hard-to-reverse work.
+Review agent-made changes with Four Eyes levels: Skip, Independent review, or Four-Eyes.
 
 Policy: https://github.com/nickzren/four-eyes at <full 40-character commit SHA>
-Load first: README "Default Workflow" and docs/role-contracts.md
-Load on demand: docs/playbook.md, docs/templates.md, docs/coordination-records.md
-
-Skip for one-line fixes, tiny docs, formatting, and simple administration.
 ```
 
-For Claude Code, add this target-repository `CLAUDE.md`:
+For Claude Code, add a target-repository `CLAUDE.md` containing `@AGENTS.md`.
 
-```markdown
-@AGENTS.md
-```
-
-## Run Your First Review
-
-```text
-Use the Four Eyes workflow for this task.
-
-Load the task context, Four Eyes Default Workflow, and Four Eyes Role Contracts first. Load Four Eyes Playbook, Templates, or Coordination Records only when the task needs their exact rule, template, or coordination behavior.
-
-Repo path: <repo path>
-Plan path: <local plan path or none>
-Coordination record: pr | github-issue | local
-Reviewer 2 handoff: manual external reviewer | direct Claude reviewer
-Direct Reviewer 2 authorization: none | human-approved phase + full model + maximum calls + maximum cost
-
-Act as orchestrator. Use phase branch and worktree mode for implementation phases. Keep the primary checkout fixed and coordination-only. Default to `pr` for remote phase-branch implementation; use `manual-relay` for local or no-remote work, or when the plan explicitly records that a pull request adds no useful coordination or audit value. Infer practical phases when needed and keep their dependencies and gates in one parent ledger.
-
-Run or reuse internal Reviewer 1 when available. Return the filled Reviewer 2 prompt for human relay unless direct mode is explicitly authorized. Reviewers never edit coordination metadata.
-
-Do not merge to a protected branch. End with the current gate and exact next human action.
-```
-
-## Example Agent Mix
-
-- Orchestrator: Codex App
-- Reviewer 1: named Codex subagent `reviewer1`
-- Reviewer 2: Claude Code, human-relayed by default
-
-For non-skip work, each family represented by the current orchestrator or a material current-artifact author needs another-family review unless the human records an override for that uncovered family.
-
-## Loading
-
-Default orchestrator bootstrap is:
-
-- the task context
-- Four Eyes Default Workflow
-- Four Eyes Role Contracts
-
-Load Four Eyes Playbook only for exact policy detail or canonical commands, Templates only to fill an artifact, and Coordination Records only for coordination behavior. Reviewers receive a filled immutable packet and exact task evidence; they do not need the workflow-document set unless a disputed rule itself is under review.
-
-## Context Budget
-
-The reproducible pre-change source bootstrap at revision `225430672fad342d693137254c256ca44f2bd8ef` was 92,036 UTF-8 bytes:
-
-- README Default Workflow section: 2,630 bytes
-- complete Playbook: 54,802 bytes
-- complete Templates: 25,609 bytes
-- complete Issue Tracker Setup: 8,995 bytes
-
-The current bootstrap is the README Default Workflow section plus generated Role Contracts. `ruby scripts/check-docs.rb` reports its bytes, savings, and reduction; the current bootstrap must not exceed 12,000 bytes.
-
-## Source Of Truth
-
-Load workflow policy from one recorded full commit SHA in this repository. Missing, abbreviated, mixed, or unresolvable revisions hold the gate.
-
-Agents working in another repository read these documents from a local clone pinned at that SHA or from the same SHA on the forge. Do not copy the policy documents into the target repository.
-
-`scripts/check-docs.rb` validates documentation and regenerates Role Contracts. It never invokes reviewers or executes the workflow.
+Pin the policy by full commit SHA. A workflow keeps the revision it started with. Earlier, more detailed revisions of this policy remain available at their commit SHAs.
 
 ## License
 
