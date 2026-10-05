@@ -1,4 +1,4 @@
-name: Check workflow docs
+name: Check docs
 
 on:
   pull_request:
@@ -20,11 +20,20 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-      - name: Validate workflow docs
+      - name: Check relative Markdown links
         run: |
-          ruby -w -c scripts/check-docs.rb
-          ruby scripts/check-docs.rb
-          ruby scripts/check-docs.rb --self-test
+          set -euo pipefail
+          status=0
+          while IFS= read -r file; do
+            dir=$(dirname "$file")
+            while IFS= read -r target; do
+              path="${target%%#*}"
+              [[ -z "$path" || -e "$dir/$path" ]] && continue
+              echo "$file: missing link target $target"
+              status=1
+            done < <(grep -oE '\]\([^)]+\)' "$file" | sed -E 's/^\]\(//; s/\)$//' | grep -vE '^(https?:|mailto:|#)' || true)
+          done < <(git ls-files '*.md')
+          exit "$status"
 
       - name: Check committed range whitespace
         env:
